@@ -1,0 +1,22 @@
+body {
+    background-color: black;
+    margin: 0;
+}
+
+.slot {
+    margin: 2rem;
+}
+
+h1, h2, h3 {
+    font-family: 'Yapari Trial', sans-serif;
+    font-weight: 600;
+    color: white;
+    margin: 0;
+}
+
+p {
+    font-family: 'Satoshi';
+    color: #8B989C;
+    margin: 0;
+}
+

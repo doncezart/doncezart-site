@@ -1,0 +1,21 @@
+.btn{
+    padding: 0.75rem 2rem 0.75rem 2rem;
+    margin: 0;
+    border: 0;
+    transition: 0.3s;
+    font-family: 'Satoshi', sans-serif;
+    font-size: 1rem;
+    font-weight: 400;
+    
+}
+
+.main-border {
+    background-color: rgba(0,0,0,0);
+    border: solid 0.1rem white;
+    color: white;
+}
+
+.btn:hover{
+    cursor: pointer;
+    text-decoration: underline;
+}

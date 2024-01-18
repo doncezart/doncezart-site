@@ -1,0 +1,28 @@
+.logo-long {
+    width: 100%;
+    @media (max-width: 666px) {
+        display: none;
+    }
+}
+
+.logo-square {
+    width: 100%;
+    @media (min-width: 667px) {
+        display: none;
+    }
+}
+
+.landing {
+    margin-top: 2rem;
+    margin-bottom: 10rem;
+}
+
+.scroll-mobile {
+    text-align: center;
+    font-size: 1rem;
+    margin-top: -7rem;
+    margin-bottom: 3rem;
+    @media (min-width: 667px) {
+        display: none;
+    }
+}
