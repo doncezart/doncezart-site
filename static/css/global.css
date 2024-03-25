@@ -7,11 +7,52 @@ body {
     margin: 2rem;
 }
 
-h1, h2, h3 {
+.btn{
+    padding: 0.75rem 2rem 0.75rem 2rem;
+    margin: 0;
+    border: 0;
+    transition: 0.3s;
+    font-family: 'Satoshi', sans-serif;
+    font-size: 1rem;
+    font-weight: 400;
+    background-color: white;
+    color: black;
+}
+
+.main-border {
+    background-color: rgba(0,0,0,0);
+    border: solid 0.1rem white;
+    color: white;
+}
+
+.btn:hover{
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+h1 {
     font-family: 'Yapari Trial', sans-serif;
     font-weight: 600;
     color: white;
     margin: 0;
+}
+
+h2 {
+    font-family: 'Yapari Trial', sans-serif;
+    font-weight: 600;
+    color: white;
+    margin: 0;
+}
+
+h3 {
+    font-family: 'Yapari Trial', sans-serif;
+    font-weight: 600;
+    color: white;
+    margin: 0;
+}
+
+a {
+    color: white
 }
 
 p {
@@ -20,3 +61,7 @@ p {
     margin: 0;
 }
 
+:root{
+font-family: 'Yapari Trial', sans-serif;
+font-family: 'Yapari Variable Trial', sans-serif;
+}
