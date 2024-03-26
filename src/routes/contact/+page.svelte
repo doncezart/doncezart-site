@@ -9,7 +9,7 @@
     </div>
 
     
-    <form method="POST" action="?/contact">
+    <form method="POST" action="?/send">
         {#if form?.missing_email}<p style="color: red;">The email field is required</p>{/if}
         {#if form?.missing_name}<p style="color: red;">The name field is required</p>{/if}
         {#if form?.missing_message}<p style="color: red;">The message field is required</p>{/if}
@@ -17,18 +17,18 @@
         <div class="fields">
             <div style="width: 100%">
                 <label for="email">Email address</label>
-                <textarea style= "height: 2.5rem" name="email" class:error={form?.missing_email} maxlength="50" placeholder="john@doe.com" value={form?.email ?? ''}></textarea>
+                <textarea style= "height: 2.5rem" id="email" name="email" class:error={form?.missing_email} maxlength="50" placeholder="john@doe.com" autocomplete="email" value={form?.email ?? ''}></textarea>
             </div>
 
             <div style="width: 100%">
                 <label for="name">Name</label>
-                <textarea style= "height: 2.5rem" name="name" class:error={form?.missing_name} maxlength="50" placeholder="John Doe" value={form?.name ?? ''}></textarea>
+                <textarea style= "height: 2.5rem" id="name" name="name" class:error={form?.missing_name} maxlength="50" placeholder="John Doe" autocomplete="name" value={form?.name ?? ''}></textarea>
             </div>
         </div>
 
         <div class="message">
             <label for="message">Message</label>
-            <textarea style="height: 5rem" name="message" class:error={form?.missing_message} placeholder="Message" maxlength="1000" value={form?.message ?? ''}></textarea>
+            <textarea style="height: 5rem" id="message" name ="message" class:error={form?.missing_message} placeholder="Message" maxlength="1000" value={form?.message ?? ''}></textarea>
         </div>
 
         <button class="btn main-border" style="width: 100%">Send message</button>
@@ -64,6 +64,7 @@
         padding: 0.5rem;
         width: 100%;
         box-sizing: border-box;
+        resize: none;
     }
 
     textarea:focus {

@@ -8,19 +8,20 @@
 <div class="navbar">
     <a href='/'><img src="logo-square.svg" alt="DONCEZART Logo"/></a>
     <div class="nav-links-desktop">
-        <button class="btn-navbar" onclick="window.location.href='/'">Home</button>
-        <button class="btn-navbar" onclick="window.location.href='/my-work'">My work</button>
-        <button class="btn-navbar" onclick="window.location.href='/socials'">Socials</button>
-        <button class="btn-navbar" onclick="window.location.href='/contact'">Get in Touch</button>
-        <button class="btn-navbar cta" onclick="window.location.href='/asset-store'">Asset Store</button>
+        <a href="/" class="btn-navbar">Home</a>
+        <a href="/my-work" class="btn-navbar">My work</a>
+        <a href="/socials" class="btn-navbar">Socials</a>
+        <a href="/contact" class="btn-navbar">Get in Touch</a>
+        <a href="/asset-store" class="btn-navbar cta">Asset Store</a>
+        <!--<button class="btn-navbar cta" onclick="window.location.href='/asset-store'">Asset Store</button>-->
     </div>
     <button class="hamburger" class:h-active={is_close} on:click={dropMenu}>X</button>
 </div>
 <div class="nav-links-mobile" class:show={is_close} id="menu-mobile">
-    <button class="btn-navbar" onclick="window.location.href='/#work'">My work</button>
-    <button class="btn-navbar" onclick="window.location.href='/socials'">Socials</button>
-    <button class="btn-navbar" onclick="window.location.href='/contact'">Get in Touch</button>
-    <button class="btn-navbar" onclick="window.location.href='/asset-store'">Asset Store</button>
+    <a href="/my-work" class="btn-navbar">My work</a>
+    <a href="/socials" class="btn-navbar">Socials</a>
+    <a href="/contact" class="btn-navbar">Get in Touch</a>
+    <a href="/asset-store" class="btn-navbar">Asset Store</a>
 </div>
 
 
@@ -56,7 +57,7 @@
         color: white;
         display: grid;
         grid-auto-flow: column;
-        gap: 2rem;
+        gap: 3rem;
         @media (max-width:666px) {
             display: none
         }
@@ -81,6 +82,9 @@
         background-color: rgba(0,0,0,0);
         border: 0;
         color: white;
+        
+        text-align: center;
+        text-decoration: none;
         
         font-family: 'Satoshi';
         font-weight: 400;
