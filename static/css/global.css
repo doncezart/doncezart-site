@@ -3,10 +3,6 @@ body {
     margin: 0;
 }
 
-.slot {
-    margin: 2rem;
-}
-
 .btn{
     padding: 0.75rem 2rem 0.75rem 2rem;
     margin: 0;
@@ -47,8 +43,8 @@ h2 {
 }
 
 h3 {
-    font-family: 'Yapari Trial', sans-serif;
-    font-weight: 600;
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 400;
     color: white;
     margin: 0;
 }
@@ -64,6 +60,7 @@ p {
 }
 
 :root{
-font-family: 'Yapari Trial', sans-serif;
-font-family: 'Yapari Variable Trial', sans-serif;
+    font-family: 'Yapari Trial', sans-serif;
+    font-family: 'Yapari Variable Trial', sans-serif;
 }
+

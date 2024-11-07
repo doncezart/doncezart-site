@@ -5,49 +5,82 @@
     }
 </script>
 
-<div class="navbar">
-    <a href='/'><img src="logo-square.svg" alt="DONCEZART Logo"/></a>
+<div class="navbar glasseffect">
     <div class="nav-links-desktop">
-        <a href="/" class="btn-navbar">Home</a>
-        <a href="/my-work" class="btn-navbar">My work</a>
-        <a href="/socials" class="btn-navbar">Socials</a>
-        <a href="/contact" class="btn-navbar">Get in Touch</a>
-        <a href="/asset-store" class="btn-navbar cta">Asset Store</a>
-        <!--<button class="btn-navbar cta" onclick="window.location.href='/asset-store'">Asset Store</button>-->
+        <div class="btn-gap">
+            <a href="/work" class="btn-navbar">My work</a>
+            <a href="/assets" class="btn-navbar">Free Assets</a>
+            <a href="/stocks" class="btn-navbar">AI Stocks</a>
+        </div>
+        <div class="center">
+            <a href='/'><img src="logo-square.svg" alt="DONCEZART Logo"/></a>
+        </div>
+        <div class="btn-gap">
+            <a href="/contact" class="btn-navbar">Discord</a>
+            <a href="/socials" class="btn-navbar">Socials</a>
+            <a href="/contact" class="btn-navbar">Contact</a>
+        </div>
+        <!--<button class="btn-navbar" onclick="window.location.href='/asset-store'">Asset Store</button>-->
     </div>
     <button class="hamburger" class:h-active={is_close} on:click={dropMenu}>X</button>
 </div>
 <div class="nav-links-mobile" class:show={is_close} id="menu-mobile">
-    <a href="/my-work" class="btn-navbar">My work</a>
+    <a href="/work" class="btn-navbar">My work</a>
     <a href="/socials" class="btn-navbar">Socials</a>
     <a href="/contact" class="btn-navbar">Get in Touch</a>
-    <a href="/asset-store" class="btn-navbar">Asset Store</a>
+    <a href="/assets" class="btn-navbar">Asset Store</a>
 </div>
 
 
 
 <style>
+    .glasseffect {
+        background: rgba(0, 0, 0, 0.8); /* Semi-transparent background */
+        backdrop-filter: blur(50px); /* Blurs the area behind the element */
+        -webkit-backdrop-filter: blur(50px); /* Ensures compatibility with Safari */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Adds a shadow to give it a 3D effect */
+    }
+    .btn-gap{
+        display: flex;
+        justify-content: space-between;
+        gap: 32px;
+    }
+    .center{
+        left: 50%;
+        position: absolute;
+        transform: translateX(-50%);
+    }
     .navbar {
         align-items: center;
         display: flex;
         justify-content: start;
-        background-color: black;
+        
         position: sticky;
         top: 0;
-        padding: 1.5rem 2rem 1.5rem 2rem;
+        
         height: 2.5rem;
-        margin: 0;
-        @media (max-width: 666px){padding: 1rem 2rem 1rem 2rem; height: 2rem};
+        margin-left: auto;
+        margin-right: auto;
+        padding: 1rem 2rem 1rem 2rem;
+        
+        
+    }
+    @media (max-width: 666px){
+        .navbar{
+            padding: 1rem 2rem 1rem 2rem;
+            height: 2rem
+        }
     }
 
     img {
         margin: 0;
         height: 2rem;
+        transition: height 0.2s ease;
         width: auto;
     }
 
     img:hover {
-        height: 2.2rem;
+        height: 2.2rem;   
     }
 
     /* NAVBAR ON DESKTOP */
@@ -55,9 +88,13 @@
     .nav-links-desktop {
         margin-left: auto;
         color: white;
-        display: grid;
-        grid-auto-flow: column;
-        gap: 3rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        max-width: 1920px;
+        margin-left: auto;
+        margin-right: auto;
         @media (max-width:666px) {
             display: none
         }
@@ -81,29 +118,27 @@
     .btn-navbar{
         background-color: rgba(0,0,0,0);
         border: 0;
-        color: white;
+        color: #8B989C;
+        transition: color 0.2s ease;
         
         text-align: center;
         text-decoration: none;
         
         font-family: 'Satoshi';
-        font-weight: 400;
-        font-size: 1rem;
-        @media (max-width:667px) {
+        font-weight: 500;
+        font-size: 16px;
+    }
+
+    @media (max-width:667px) {
+        .btn-navbar{
             padding-top: 0.25rem;
             padding-bottom: 0.25rem;
-        };
+        }
     }
 
     .btn-navbar:hover {
         cursor: pointer;
-        text-decoration: underline;
-    }
-
-    .cta {
-        border: solid 0.1rem white;
-        padding-left: 1rem;
-        padding-right: 1rem;
+        color: white;
     }
 
     /* NAVBAR ON MOBILE */
