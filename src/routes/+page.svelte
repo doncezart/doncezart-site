@@ -8,19 +8,19 @@
 <h1>Artworks</h1>
 <div class="case-studies">
     <div class="case-study">
-        <img src="https://cdn.doncez.art/previews/case-study-001.webp" alt="Case Study" style="width: 100%"/>
+        <img src="https://cdn.doncez.art/previews/case-study_001.webp" alt="Case Study" style="width: 100%"/>
         <h3>DONCEZART</h3>
     </div>
     <div class="case-study">
-        <img src="https://cdn.doncez.art/previews/case-study-002.webp" alt="Case Study" style="width: 100%"/>
+        <img src="https://cdn.doncez.art/previews/case-study_002.webp" alt="Case Study" style="width: 100%"/>
         <h3>PIM</h3>
     </div>
     <div class="case-study">
-        <img src="https://cdn.doncez.art/previews/case-study-003.webp" alt="Case Study" style="width: 100%"/>
+        <img src="https://cdn.doncez.art/previews/case-study_003.webp" alt="Case Study" style="width: 100%"/>
         <h3>Merotika</h3>
     </div>
     <div class="case-study">
-        <img src="https://cdn.doncez.art/previews/case-study-004.webp" alt="Case Study" style="width: 100%"/>
+        <img src="https://cdn.doncez.art/previews/case-study_004.webp" alt="Case Study" style="width: 100%"/>
         <h3>The Social Boost Hub</h3>
     </div>
 </div>
