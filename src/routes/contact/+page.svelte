@@ -1,4 +1,5 @@
 <script>
+    import Button from '$lib/components/ui/Button.svelte';
     let { form } = $props();
 </script>
 
@@ -31,7 +32,7 @@
             <textarea style="height: 5rem" id="message" name ="message" class:error={form?.missing_message} placeholder="Message" maxlength="1000" value={form?.message ?? ''}></textarea>
         </div>
 
-        <button class="btn main-border" style="width: 100%">Send message</button>
+        <Button variant="outline" type="submit" style="width: 100%">Send message</Button>
     </form>
 
     <p style="text-align:center; margin-top: 2rem">Can't complete the form? Send me an email at <a href="mailto:tiniu@ceza.ro">me@doncez.art</a> or reach me on my <a href="/socials">socials</a>.</p>
