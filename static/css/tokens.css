@@ -1,0 +1,50 @@
+:root {
+  /* ── Colors ── */
+  --color-bg:             #000000;
+  --color-text-primary:   #ffffff;
+  --color-text-secondary: #8B989C;
+  --color-border:         rgba(255, 255, 255, 0.12);
+  --color-glass-bg:       rgba(0, 0, 0, 0.6);
+  --color-accent:         #ff0000;
+  --color-discord:        #7289DA;
+
+  /* ── Typography ── */
+  --font-display: 'Clash Display', sans-serif;
+  --font-body:    'Satoshi', sans-serif;
+
+  /* ── Type scale ── */
+  --text-xs:   0.72rem;
+  --text-sm:   0.83rem;
+  --text-base: 1rem;
+  --text-lg:   1.1rem;
+  --text-xl:   1.25rem;
+  --text-2xl:  1.5rem;
+  --text-3xl:  2rem;
+  --text-4xl:  clamp(2.5rem, 6vw, 5rem);
+  --text-hero: clamp(3rem, 8vw, 7rem);
+
+  /* ── Spacing ── */
+  --space-xs:  0.25rem;
+  --space-sm:  0.5rem;
+  --space-md:  1rem;
+  --space-lg:  1.5rem;
+  --space-xl:  2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+  --space-4xl: 6rem;
+
+  /* ── Layout ── */
+  --container-max: 1920px;
+  --container-pad: var(--space-xl);
+  --nav-height:    4.5rem;
+  --radius:        0;
+
+  /* ── Motion ── */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.3s ease;
+
+  /* ── Borders ── */
+  --border-width: 1px;
+  --border:        var(--border-width) solid var(--color-border);
+  --border-solid:  var(--border-width) solid var(--color-text-primary);
+}
