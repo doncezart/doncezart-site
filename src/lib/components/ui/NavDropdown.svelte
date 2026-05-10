@@ -93,7 +93,8 @@
         align-items: center;
         gap: 0.35rem;
         font-family: var(--font-body);
-        font-size: 0.875rem;
+        font-size: var(--text-base);
+        font-weight: 500;
         color: var(--color-text-secondary);
         background: none;
         border: none;
