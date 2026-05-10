@@ -101,7 +101,7 @@
 </div>
 
 <div class="gallery">
-    <h1>Art Gallery</h1>
+    <h1>My Work</h1>
     <div class="gallery-filters">
         <CategoryFilter
             categories={data.categoryFilters}
