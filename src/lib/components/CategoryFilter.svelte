@@ -120,8 +120,6 @@
             <button class="arrow-btn" onclick={() => scrollRow(catScrollEl, -1)} aria-label="Scroll categories left">
                 <i class="fa-solid fa-chevron-left"></i>
             </button>
-        {:else}
-            <div class="arrow-placeholder"></div>
         {/if}
         <div class="filter-scroll" bind:this={catScrollEl}>
             {#each categories as cat}
@@ -136,8 +134,6 @@
             <button class="arrow-btn" onclick={() => scrollRow(catScrollEl, 1)} aria-label="Scroll categories right">
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
-        {:else}
-            <div class="arrow-placeholder"></div>
         {/if}
     </div>
 
@@ -148,8 +144,6 @@
                 <button class="arrow-btn" onclick={() => scrollRow(subScrollEl, -1)} aria-label="Scroll subcategories left">
                     <i class="fa-solid fa-chevron-left"></i>
                 </button>
-            {:else}
-                <div class="arrow-placeholder"></div>
             {/if}
             <div class="filter-scroll" bind:this={subScrollEl}>
                 {#each currentSubcategories as sub}
@@ -164,8 +158,6 @@
                 <button class="arrow-btn" onclick={() => scrollRow(subScrollEl, 1)} aria-label="Scroll subcategories right">
                     <i class="fa-solid fa-chevron-right"></i>
                 </button>
-            {:else}
-                <div class="arrow-placeholder"></div>
             {/if}
         </div>
     {/if}
@@ -216,12 +208,6 @@
     }
     .arrow-btn:hover {
         color: white;
-    }
-
-    .arrow-placeholder {
-        flex-shrink: 0;
-        width: 1.5rem;
-        height: 1.5rem;
     }
 
     .filter-btn {
