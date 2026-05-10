@@ -1,7 +1,12 @@
 <script>
     import Button from '$lib/components/ui/Button.svelte';
+    import { PUBLIC_TURNSTILE_SITE_KEY } from '$env/static/public';
     let { form } = $props();
 </script>
+
+<svelte:head>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+</svelte:head>
 
 <div class="body">
     <div style="text-align: center">
@@ -14,6 +19,7 @@
         {#if form?.missing_email}<p style="color: red;">The email field is required</p>{/if}
         {#if form?.missing_name}<p style="color: red;">The name field is required</p>{/if}
         {#if form?.missing_message}<p style="color: red;">The message field is required</p>{/if}
+        {#if form?.captcha_failed}<p style="color: red;">Bot check failed — please try again.</p>{/if}
         {#if form?.success}<p style="color: green;">Message sent successfully</p>{/if}
         <div class="fields">
             <div style="width: 100%">
@@ -31,6 +37,8 @@
             <label for="message">Message</label>
             <textarea style="height: 5rem" id="message" name ="message" class:error={form?.missing_message} placeholder="Message" maxlength="1000" value={form?.message ?? ''}></textarea>
         </div>
+
+        <div class="cf-turnstile" data-sitekey={PUBLIC_TURNSTILE_SITE_KEY} data-theme="dark"></div>
 
         <Button variant="outline" type="submit" style="width: 100%">Send message</Button>
     </form>

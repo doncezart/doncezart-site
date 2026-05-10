@@ -1,14 +1,28 @@
 import { fail } from '@sveltejs/kit';
-import { WEBHOOK_URL, FORM_ID } from '$env/static/private';
+import { WEBHOOK_URL, FORM_ID, TURNSTILE_SECRET_KEY } from '$env/static/private';
 export const actions = {
 
-send: async ({request}) => {
+send: async ({request, getClientAddress}) => {
     const data = await request.formData();
     const email = data.get('email');
     const name = data.get('name');
     const message = data.get('message');
-    
-    /* Handle errors in case any of the fields are left empty */
+    const turnstileToken = data.get('cf-turnstile-response');
+
+    /* Verify Turnstile captcha */
+    const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            secret: TURNSTILE_SECRET_KEY,
+            response: turnstileToken,
+            remoteip: getClientAddress()
+        })
+    });
+    const verifyData = await verifyRes.json();
+    if (!verifyData.success) {
+        return fail(400, { name, email, message, captcha_failed: true });
+    }
     if (!email) {return fail(400, { name, email, message, missing_email: true });}
     if (!name) {return fail(400, { name, email, message, missing_name: true });}
     if (!message) {return fail(400, { name, email, message, missing_message: true });}
