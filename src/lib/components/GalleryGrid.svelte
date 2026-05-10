@@ -56,13 +56,37 @@
                         <i class="fa-solid fa-book-open"></i> Case Study
                     </Badge>
                 {/if}
-                {#if item.tags?.length}
-                    <div class="item-tags">
-                        {#each item.tags as t}
-                            <span class="item-tag">{t.name}</span>
-                        {/each}
+                <!-- Hover metadata overlay -->
+                <div class="item-overlay">
+                    <p class="overlay-title">{item.title}</p>
+                    <div class="overlay-meta">
+                        {#if item.category}
+                            <span class="meta-chip">{item.category}</span>
+                        {/if}
+                        {#if item.subcategory}
+                            <span class="meta-chip">{item.subcategory}</span>
+                        {/if}
+                        {#if item.displayMode === 'before-after'}
+                            <span class="meta-chip meta-chip--accent">
+                                <i class="fa-solid fa-right-left"></i> Before &amp; After
+                            </span>
+                        {:else if item.displayMode === 'carousel'}
+                            <span class="meta-chip meta-chip--accent">
+                                <i class="fa-solid fa-images"></i> {item.imageCount} slides
+                            </span>
+                            {#if item.carouselDirection === 'vertical'}
+                                <span class="meta-chip">
+                                    <i class="fa-solid fa-arrows-up-down"></i> Vertical
+                                </span>
+                            {/if}
+                        {/if}
+                        {#if item.tags?.length}
+                            {#each item.tags.slice(0, 3) as t}
+                                <span class="meta-chip meta-chip--tag">{t.name}</span>
+                            {/each}
+                        {/if}
                     </div>
-                {/if}
+                </div>
             </div>
         {/each}
     </div>
@@ -137,22 +161,63 @@
         pointer-events: none;
     }
 
-    .item-tags {
+    /* ── Hover metadata overlay ─────── */
+    .item-overlay {
         position: absolute;
-        bottom: 0.5rem;
-        left: 0.5rem;
-        display: flex;
-        gap: 0.25rem;
-        flex-wrap: wrap;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 2rem 0.75rem 0.75rem;
+        background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.5) 55%, transparent 100%);
+        opacity: 0;
+        transition: opacity 0.22s ease;
         pointer-events: none;
     }
 
-    .item-tag {
-        font-size: 0.65rem;
-        padding: 0.1rem 0.4rem;
+    .gallery-item:hover .item-overlay {
+        opacity: 1;
+    }
+
+    .overlay-title {
+        margin: 0 0 0.4rem;
+        font-family: var(--font-display);
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #fff;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .overlay-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+    }
+
+    .meta-chip {
+        font-size: 0.6rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 0.15rem 0.45rem;
         border-radius: var(--radius);
-        background: rgba(0, 0, 0, 0.7);
-        color: rgba(255, 255, 255, 0.8);
+        background: rgba(255,255,255,0.12);
+        color: var(--color-text-secondary);
+        border: 1px solid rgba(255,255,255,0.1);
+        line-height: 1.4;
+    }
+
+    .meta-chip--accent {
+        background: rgba(255,34,34,0.18);
+        color: #ff6666;
+        border-color: rgba(255,34,34,0.3);
+    }
+
+    .meta-chip--tag {
+        background: rgba(255,255,255,0.06);
+        color: rgba(255,255,255,0.55);
     }
 
     .show-more {
