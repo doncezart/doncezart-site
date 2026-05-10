@@ -1,163 +1,185 @@
 <script>
-    let is_close = true;
-    function dropMenu(){
-        is_close = !is_close
-    }
+    import NavDropdown from './ui/NavDropdown.svelte';
+
+    let mobileOpen = $state(false);
+
+    const discoveryItems = [
+        {
+            label: 'Curated Resources',
+            description: 'Tools, references & articles worth bookmarking',
+            href: '/discovery/curated-resources'
+        },
+        {
+            label: 'Tutorials',
+            description: 'Step-by-step guides and learning material',
+            href: '/discovery/tutorials'
+        },
+        {
+            label: 'Pure Art',
+            description: 'Artwork and visual inspiration, no context needed',
+            href: '/discovery/pure-art'
+        },
+        {
+            label: 'Videography',
+            description: 'Film, motion, and cinematography work',
+            href: '/discovery/videography'
+        }
+    ];
 </script>
 
-<div class="navbar glasseffect">
+<div class="navbar">
     <div class="nav-links-desktop">
         <div class="btn-gap">
-            <a href="/work" class="btn-navbar">My work</a>
-            <a href="/assets" class="btn-navbar">Free Assets</a>
-            <a href="/stocks" class="btn-navbar">AI Stocks</a>
+            <a href="/" class="btn-navbar">My work</a>
+            <a href="/assets" class="btn-navbar">Assets</a>
+            <NavDropdown
+                label="Discovery"
+                headerDescription="A curated library of media — handpicked resources, art, and inspiration."
+                items={discoveryItems}
+            />
         </div>
         <div class="center">
-            <a href='/'><img src="logo-square.svg" alt="DONCEZART Logo"/></a>
+            <a href="/"><img src="logo-square.svg" alt="DONCEZART Logo" /></a>
         </div>
         <div class="btn-gap">
-            <a href="/contact" class="btn-navbar">Discord</a>
+            <a href="https://discord.gg/aJUAyFVyqM" class="btn-navbar">Discord Server</a>
             <a href="/socials" class="btn-navbar">Socials</a>
             <a href="/contact" class="btn-navbar">Contact</a>
         </div>
-        <!--<button class="btn-navbar" onclick="window.location.href='/asset-store'">Asset Store</button>-->
     </div>
-    <button class="hamburger" class:h-active={is_close} on:click={dropMenu}>X</button>
-</div>
-<div class="nav-links-mobile" class:show={is_close} id="menu-mobile">
-    <a href="/work" class="btn-navbar">My work</a>
-    <a href="/socials" class="btn-navbar">Socials</a>
-    <a href="/contact" class="btn-navbar">Get in Touch</a>
-    <a href="/assets" class="btn-navbar">Asset Store</a>
+    <button
+        class="hamburger"
+        onclick={() => (mobileOpen = !mobileOpen)}
+        aria-label="Toggle menu"
+        aria-expanded={mobileOpen}
+    >
+        {mobileOpen ? '×' : '☰'}
+    </button>
 </div>
 
-
+{#if mobileOpen}
+    <div class="nav-links-mobile" id="menu-mobile">
+        <a href="/" class="btn-navbar" onclick={() => (mobileOpen = false)}>My work</a>
+        <a href="/assets" class="btn-navbar" onclick={() => (mobileOpen = false)}>Assets</a>
+        <a href="/discovery" class="btn-navbar" onclick={() => (mobileOpen = false)}>Discovery</a>
+        <a href="/socials" class="btn-navbar" onclick={() => (mobileOpen = false)}>Socials</a>
+        <a href="/contact" class="btn-navbar" onclick={() => (mobileOpen = false)}>Get in Touch</a>
+    </div>
+{/if}
 
 <style>
-    .glasseffect {
-        background: rgba(0, 0, 0, 0.8); /* Semi-transparent background */
-        backdrop-filter: blur(50px); /* Blurs the area behind the element */
-        -webkit-backdrop-filter: blur(50px); /* Ensures compatibility with Safari */
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Adds a shadow to give it a 3D effect */
-    }
-    .btn-gap{
-        display: flex;
-        justify-content: space-between;
-        gap: 32px;
-    }
-    .center{
-        left: 50%;
-        position: absolute;
-        transform: translateX(-50%);
-    }
     .navbar {
         align-items: center;
         display: flex;
-        justify-content: start;
-        
+        justify-content: flex-start;
+
         position: sticky;
         top: 0;
-        
+        z-index: 100;
+
         height: 2.5rem;
-        margin-left: auto;
-        margin-right: auto;
-        padding: 1rem 2rem 1rem 2rem;
-        
-        
+        padding: 1rem var(--container-pad);
+
+        background: var(--color-glass-bg);
+        backdrop-filter: blur(24px) saturate(180%);
+        -webkit-backdrop-filter: blur(24px) saturate(180%);
+        border-bottom: var(--border);
     }
-    @media (max-width: 666px){
-        .navbar{
-            padding: 1rem 2rem 1rem 2rem;
-            height: 2rem
+
+    @media (max-width: 666px) {
+        .navbar {
+            height: 2rem;
         }
+    }
+
+    .nav-links-desktop {
+        color: var(--color-text-primary);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        max-width: var(--container-max);
+        margin: 0 auto;
+        position: relative;
+    }
+
+    @media (max-width: 666px) {
+        .nav-links-desktop {
+            display: none;
+        }
+    }
+
+    .btn-gap {
+        display: flex;
+        justify-content: space-between;
+        gap: var(--space-xl);
+        align-items: center;
+    }
+
+    .center {
+        left: 50%;
+        position: absolute;
+        transform: translateX(-50%);
     }
 
     img {
         margin: 0;
         height: 2rem;
-        transition: height 0.2s ease;
+        transition: height var(--transition-base);
         width: auto;
     }
-
     img:hover {
-        height: 2.2rem;   
+        height: 2.2rem;
     }
 
-    /* NAVBAR ON DESKTOP */
-
-    .nav-links-desktop {
-        margin-left: auto;
-        color: white;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
-        max-width: 1920px;
-        margin-left: auto;
-        margin-right: auto;
-        @media (max-width:666px) {
-            display: none
-        }
+    .btn-navbar {
+        background-color: transparent;
+        border: 0;
+        color: var(--color-text-secondary);
+        transition: color var(--transition-fast);
+        text-align: center;
+        text-decoration: none;
+        font-family: var(--font-body);
+        font-weight: 500;
+        font-size: var(--text-base);
+        cursor: pointer;
+        padding: 0;
+    }
+    .btn-navbar:hover {
+        color: var(--color-text-primary);
     }
 
     .hamburger {
         margin-left: auto;
-        background: rgba(0,0,0,0);
+        background: transparent;
         border: 0;
-        font-family: 'Yapari Variable Trial';
-        color: white;
-        @media (min-width: 667px) {
-            display:none
-        }
-    }
-
-    .h-active {
-        font-family: 'Yapari Trial'
-    }
-
-    .btn-navbar{
-        background-color: rgba(0,0,0,0);
-        border: 0;
-        color: #8B989C;
-        transition: color 0.2s ease;
-        
-        text-align: center;
-        text-decoration: none;
-        
-        font-family: 'Satoshi';
-        font-weight: 500;
-        font-size: 16px;
-    }
-
-    @media (max-width:667px) {
-        .btn-navbar{
-            padding-top: 0.25rem;
-            padding-bottom: 0.25rem;
-        }
-    }
-
-    .btn-navbar:hover {
+        font-family: var(--font-display);
+        color: var(--color-text-primary);
+        font-size: 1.4rem;
         cursor: pointer;
-        color: white;
+        line-height: 1;
+        padding: 0;
     }
 
-    /* NAVBAR ON MOBILE */
+    @media (min-width: 667px) {
+        .hamburger {
+            display: none;
+        }
+    }
 
-    .nav-links-mobile{
-        background: black;
+    .nav-links-mobile {
+        background: var(--color-bg);
         position: sticky;
-        top: 3.2rem;
+        top: 4.5rem;
+        z-index: 99;
         display: flex;
         flex-direction: column;
-        margin-left: auto;
-        margin-right: auto;
-        padding-bottom: 0.5rem;
-        border-bottom: solid 0.1rem white;
+        padding: var(--space-sm) 0 var(--space-md);
+        border-bottom: var(--border-solid);
     }
 
-    .show{
-        display: none;
+    .nav-links-mobile .btn-navbar {
+        padding: 0.5rem var(--container-pad);
+        text-align: left;
     }
-
-
 </style>
