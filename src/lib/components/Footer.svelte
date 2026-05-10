@@ -13,28 +13,12 @@
 <footer class="footer">
     <div class="footer-inner">
 
-        <!-- Left: logo, motto, copyright + social icons -->
+        <!-- Left: logo + motto -->
         <div class="footer-left">
             <a href="/" class="footer-logo-link">
                 <img src="/logo-long.svg" alt="DONCEZART" class="footer-logo" />
             </a>
             <p class="footer-motto">The Swiss army knife of the creative world.</p>
-            <div class="footer-bottom">
-                <span class="footer-copy">© {year} DONCEZART. All rights reserved.</span>
-                <div class="footer-socials">
-                    {#each socials as social}
-                        <a
-                            href={social.href}
-                            class="social-icon"
-                            title={social.name}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            <i class={social.icon}></i>
-                        </a>
-                    {/each}
-                </div>
-            </div>
         </div>
 
         <!-- Right: link columns -->
@@ -43,6 +27,7 @@
                 <span class="footer-col-heading">Work</span>
                 <a href="/" class="footer-link">Portfolio</a>
                 <a href="/work" class="footer-link">Case Studies</a>
+                <a href="/testimonials" class="footer-link">Testimonials</a>
                 <a href="/assets" class="footer-link">Assets</a>
             </div>
             <div class="footer-col">
@@ -61,6 +46,24 @@
             </div>
         </nav>
 
+    </div>
+
+    <!-- Bottom bar: copyright left, socials right -->
+    <div class="footer-bottom">
+        <span class="footer-copy">© {year} DONCEZART. All rights reserved.</span>
+        <div class="footer-socials">
+            {#each socials as social}
+                <a
+                    href={social.href}
+                    class="social-icon"
+                    title={social.name}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    <i class={social.icon}></i>
+                </a>
+            {/each}
+        </div>
     </div>
 </footer>
 
@@ -110,6 +113,10 @@
     .footer-bottom {
         display: flex;
         align-items: center;
+        justify-content: space-between;
+        margin-top: var(--space-xl);
+        padding-top: var(--space-md);
+        border-top: var(--border);
         gap: var(--space-md);
         flex-wrap: wrap;
     }
