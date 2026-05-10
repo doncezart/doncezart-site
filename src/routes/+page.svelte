@@ -138,19 +138,49 @@
 
             {#if lightboxItem.displayMode === 'carousel' && lightboxItem.images.length > 1}
                 <!-- Carousel -->
-                <div class="carousel-wrapper" class:vertical={lightboxItem.carouselDirection === 'vertical'}>
-                    <img src={lightboxItem.images[carouselIndex]} alt="{lightboxItem.alt} ({carouselIndex + 1}/{lightboxItem.images.length})" />
-                    <button class="carousel-nav prev" onclick={carouselPrev} aria-label="Previous image">
-                        <i class="fa-solid {lightboxItem.carouselDirection === 'vertical' ? 'fa-chevron-up' : 'fa-chevron-left'}"></i>
-                    </button>
-                    <button class="carousel-nav next" onclick={carouselNext} aria-label="Next image">
-                        <i class="fa-solid {lightboxItem.carouselDirection === 'vertical' ? 'fa-chevron-down' : 'fa-chevron-right'}"></i>
-                    </button>
-                    <div class="carousel-dots">
-                        {#each lightboxItem.images as _, i}
-                            <button class="dot" class:active={i === carouselIndex} onclick={() => carouselIndex = i} aria-label="Go to image {i + 1}"></button>
-                        {/each}
+                {@const isVertical = lightboxItem.carouselDirection === 'vertical'}
+                <div class="carousel-outer" class:vertical={isVertical}>
+                    <div class="carousel-viewport">
+                        <div
+                            class="carousel-track"
+                            style={isVertical
+                                ? `transform: translateY(calc(-${carouselIndex} * var(--slide-size)))`
+                                : `transform: translateX(calc(-${carouselIndex} * var(--slide-size)))`}
+                        >
+                            {#each lightboxItem.images as img, i}
+                                <div class="carousel-slide">
+                                    <img src={img} alt="{lightboxItem.alt} ({i + 1}/{lightboxItem.images.length})" />
+                                </div>
+                            {/each}
+                        </div>
+                        <!-- Edge fades -->
+                        <div class="carousel-fade carousel-fade-start"></div>
+                        <div class="carousel-fade carousel-fade-end"></div>
                     </div>
+
+                    <!-- Nav arrows -->
+                    {#if carouselIndex > 0}
+                        <button class="carousel-nav prev" onclick={carouselPrev} aria-label="Previous image">
+                            <i class="fa-solid {isVertical ? 'fa-chevron-up' : 'fa-chevron-left'}"></i>
+                        </button>
+                    {/if}
+                    {#if carouselIndex < lightboxItem.images.length - 1}
+                        <button class="carousel-nav next" onclick={carouselNext} aria-label="Next image">
+                            <i class="fa-solid {isVertical ? 'fa-chevron-down' : 'fa-chevron-right'}"></i>
+                        </button>
+                    {/if}
+                </div>
+
+                <!-- Dots outside the carousel to avoid overlap -->
+                <div class="carousel-dots">
+                    {#each lightboxItem.images as _, i}
+                        <button
+                            class="dot"
+                            class:active={i === carouselIndex}
+                            onclick={() => carouselIndex = i}
+                            aria-label="Go to image {i + 1}"
+                        ></button>
+                    {/each}
                 </div>
 
             {:else if lightboxItem.displayMode === 'before-after' && lightboxItem.images.length >= 2}
@@ -330,20 +360,93 @@
     }
 
     /* ── Carousel ──────────────────────── */
-    .carousel-wrapper {
+    .carousel-outer {
         position: relative;
+        width: 100%;
+        max-width: 90vw;
+    }
+
+    .carousel-viewport {
+        position: relative;
+        overflow: hidden;
+        width: 100%;
+        --slide-size: 100%;
+    }
+
+    .carousel-track {
         display: flex;
-        align-items: center;
-        justify-content: center;
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        will-change: transform;
     }
-    .carousel-wrapper img {
-        max-width: 100%;
-        max-height: 75vh;
-        border-radius: 0.5rem;
+
+    .carousel-outer.vertical .carousel-track {
+        flex-direction: column;
+    }
+
+    .carousel-slide {
+        flex-shrink: 0;
+        width: 100%;
+    }
+
+    .carousel-slide img {
         display: block;
+        width: 100%;
+        max-height: 70vh;
+        object-fit: contain;
     }
+
+    .carousel-outer.vertical .carousel-viewport {
+        max-height: 70vh;
+    }
+    .carousel-outer.vertical .carousel-slide {
+        width: 100%;
+        height: 70vh;
+        flex-shrink: 0;
+    }
+    .carousel-outer.vertical .carousel-slide img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    /* Edge fades */
+    .carousel-fade {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 15%;
+        pointer-events: none;
+        z-index: 2;
+    }
+    .carousel-fade-start {
+        left: 0;
+        background: linear-gradient(to right, rgba(0,0,0,0.7) 0%, transparent 100%);
+    }
+    .carousel-fade-end {
+        right: 0;
+        background: linear-gradient(to left, rgba(0,0,0,0.7) 0%, transparent 100%);
+    }
+    .carousel-outer.vertical .carousel-fade {
+        width: auto;
+        left: 0;
+        right: 0;
+    }
+    .carousel-outer.vertical .carousel-fade-start {
+        bottom: auto;
+        height: 15%;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
+    }
+    .carousel-outer.vertical .carousel-fade-end {
+        top: auto;
+        height: 15%;
+        background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
+    }
+
+    /* Arrows: positioned on the sides of carousel-outer, not inside viewport */
     .carousel-nav {
         position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
         background: rgba(0,0,0,0.6);
         border: 1px solid rgba(255,255,255,0.15);
         color: #fff;
@@ -356,20 +459,30 @@
         align-items: center;
         justify-content: center;
         transition: background 0.15s;
-        z-index: 2;
+        z-index: 10;
     }
-    .carousel-nav:hover { background: rgba(0,0,0,0.85); }
-    .carousel-nav.prev { left: -1.25rem; }
-    .carousel-nav.next { right: -1.25rem; }
-    .carousel-wrapper.vertical .carousel-nav.prev { left: auto; top: -1.25rem; }
-    .carousel-wrapper.vertical .carousel-nav.next { right: auto; bottom: -1.25rem; }
-    .carousel-dots {
-        position: absolute;
-        bottom: -2rem;
-        left: 50%;
-        transform: translateX(-50%);
+    .carousel-nav:hover { background: rgba(0,0,0,0.9); }
+    .carousel-nav.prev { left: -1.5rem; }
+    .carousel-nav.next { right: -1.5rem; }
+
+    .carousel-outer.vertical .carousel-nav {
+        position: static;
+        top: auto;
+        transform: none;
+        left: auto;
+        right: auto;
+        margin: 0 auto;
         display: flex;
+    }
+    .carousel-outer.vertical .carousel-nav.prev { margin-top: -1.5rem; }
+    .carousel-outer.vertical .carousel-nav.next { margin-top: 0.5rem; }
+
+    /* Dots: outside viewport, below carousel */
+    .carousel-dots {
+        display: flex;
+        justify-content: center;
         gap: 0.4rem;
+        margin-top: 1rem;
     }
     .dot {
         width: 8px;
