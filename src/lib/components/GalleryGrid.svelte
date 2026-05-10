@@ -1,5 +1,6 @@
 <script>
     import Badge from './ui/Badge.svelte';
+    import Button from './ui/Button.svelte';
     let { items = [], columns = 4, rows = 4, showMoreHref = '/my-work', onItemClick = null, categoryAspectRatios = {} } = $props();
 
     let maxVisible = $derived(columns * rows);
@@ -56,9 +57,7 @@
 
 {#if hasMore}
     <div class="show-more">
-        <a href={showMoreHref} class="btn-cta">
-            View all work <i class="fa-solid fa-arrow-right"></i>
-        </a>
+        <Button href={showMoreHref} variant="cta">View all work <i class="fa-solid fa-arrow-right"></i></Button>
     </div>
 {/if}
 

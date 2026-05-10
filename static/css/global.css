@@ -35,33 +35,7 @@ p {
     margin: 0;
 }
 
-/* ── Legacy utility classes (kept until Task 15 cleans up call sites) ── */
-.btn {
-    padding: 0.75rem 2rem;
-    margin: 0;
-    border: 0;
-    transition: var(--transition-base);
-    font-family: var(--font-body);
-    font-size: var(--text-base);
-    font-weight: 400;
-    background-color: var(--color-text-primary);
-    color: var(--color-bg);
-    text-decoration: none;
-    text-align: center;
-    cursor: pointer;
-}
-
-.main-border {
-    background-color: transparent;
-    border: var(--border-solid);
-    color: var(--color-text-primary);
-}
-
-.btn:hover {
-    cursor: pointer;
-    text-decoration: underline;
-}
-
+/* ── Legacy utility class (still used by admin pages) ── */
 .btn-cta {
     display: inline-flex;
     align-items: center;
