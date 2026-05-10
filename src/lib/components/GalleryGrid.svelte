@@ -4,13 +4,32 @@
 
     let { items = [], columns = 4, showMoreHref = '/my-work', onItemClick = null } = $props();
 
+    let gridEl = $state(null);
+    let wrapEl = $state(null);
+    let contentOverflows = $state(false);
+
+    $effect(() => {
+        const grid = gridEl;
+        const wrap = wrapEl;
+        if (!grid || !wrap) return;
+
+        function check() {
+            contentOverflows = grid.scrollHeight > wrap.clientHeight + 2;
+        }
+
+        check();
+        const ro = new ResizeObserver(check);
+        ro.observe(grid);
+        return () => ro.disconnect();
+    });
+
     function handleClick(item) {
         if (onItemClick) onItemClick(item);
     }
 </script>
 
-<div class="gallery-wrap">
-    <div class="gallery-grid" style="--cols: {columns}">
+<div class="gallery-wrap" bind:this={wrapEl}>
+    <div class="gallery-grid" style="--cols: {columns}" bind:this={gridEl}>
         {#each items as item (item.src)}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -47,12 +66,14 @@
             </div>
         {/each}
     </div>
-    <div class="gallery-fade"></div>
+    {#if contentOverflows}
+        <div class="gallery-fade"></div>
+    {/if}
 </div>
 
-{#if items.length > 0}
+{#if contentOverflows}
     <div class="show-more">
-        <Button href={showMoreHref} variant="cta">View all work <i class="fa-solid fa-arrow-right"></i></Button>
+        <Button href={showMoreHref} variant="cta" style="font-weight: 400">View all work <i class="fa-solid fa-arrow-right"></i></Button>
     </div>
 {/if}
 
