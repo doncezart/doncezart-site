@@ -162,14 +162,31 @@
                     onmouseup={() => baDragging = false}
                     onmouseleave={() => baDragging = false}
                     onmousemove={handleBaMove}
-                    ontouchstart={() => baDragging = true}
+                    ontouchstart={(e) => { baDragging = true; e.preventDefault(); }}
                     ontouchend={() => baDragging = false}
                     ontouchmove={handleBaTouchMove}
                 >
-                    <img src={lightboxItem.images[1]} alt="{lightboxItem.alt} (after)" class="ba-after" />
-                    <div class="ba-before" style="width: {baSliderPos}%">
-                        <img src={lightboxItem.images[0]} alt="{lightboxItem.alt} (before)" />
-                    </div>
+                    <!-- Transparent sizer — sets container height matching the images -->
+                    <img
+                        src={lightboxItem.images[1]}
+                        alt=""
+                        class="ba-sizer"
+                        aria-hidden="true"
+                    />
+                    <!-- After image: full width, absolute -->
+                    <img
+                        src={lightboxItem.images[1]}
+                        alt="{lightboxItem.alt} (after)"
+                        class="ba-img ba-after-img"
+                    />
+                    <!-- Before image: clipped from the right by clip-path -->
+                    <img
+                        src={lightboxItem.images[0]}
+                        alt="{lightboxItem.alt} (before)"
+                        class="ba-img ba-before-img"
+                        style="clip-path: inset(0 {100 - baSliderPos}% 0 0)"
+                    />
+                    <!-- Slider line -->
                     <div class="ba-slider" style="left: {baSliderPos}%">
                         <div class="ba-handle">
                             <i class="fa-solid fa-grip-lines-vertical"></i>
@@ -373,33 +390,37 @@
     .ba-container {
         position: relative;
         max-width: 100%;
-        max-height: 75vh;
         overflow: hidden;
-        border-radius: 0.5rem;
         cursor: ew-resize;
         user-select: none;
         -webkit-user-select: none;
     }
-    .ba-after {
+
+    /* Transparent sizer: sets the container's height */
+    .ba-sizer {
         display: block;
         width: 100%;
         max-height: 75vh;
         object-fit: contain;
+        visibility: hidden;
+        pointer-events: none;
     }
-    .ba-before {
+
+    /* Both images: absolutely fill the container */
+    .ba-img {
         position: absolute;
         top: 0;
         left: 0;
+        width: 100%;
         height: 100%;
-        overflow: hidden;
-    }
-    .ba-before img {
-        display: block;
-        width: auto;
-        height: 100%;
-        max-height: 75vh;
         object-fit: contain;
+        display: block;
     }
+
+    .ba-before-img {
+        /* clip-path applied via inline style */
+    }
+
     .ba-slider {
         position: absolute;
         top: 0;
@@ -408,6 +429,7 @@
         background: #fff;
         transform: translateX(-50%);
         z-index: 2;
+        pointer-events: none;
     }
     .ba-handle {
         position: absolute;
@@ -424,6 +446,7 @@
         justify-content: center;
         font-size: 0.75rem;
         box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        pointer-events: none;
     }
     .ba-label {
         position: absolute;
@@ -433,7 +456,6 @@
         text-transform: uppercase;
         letter-spacing: 0.05em;
         padding: 0.2rem 0.5rem;
-        border-radius: 0.25rem;
         background: rgba(0,0,0,0.6);
         color: #fff;
         pointer-events: none;
