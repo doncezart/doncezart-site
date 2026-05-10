@@ -65,17 +65,13 @@
             class="menu"
             style="left: {menuLeft}px"
         >
-            <div class="menu-header">
-                {#if headerDescription}
-                    <p class="menu-header-desc">{headerDescription}</p>
-                {/if}
-            </div>
             {#each items as item}
                 <a
                     href={item.href}
                     class="menu-item"
                     onclick={() => (open = false)}
                 >
+                    <span class="item-label">{item.label}</span>
                     <span class="item-desc">{item.description}</span>
                 </a>
             {/each}
@@ -129,17 +125,6 @@
         z-index: 99;
     }
 
-    .menu-header {
-        padding: var(--space-md) var(--space-lg) 0.75rem;
-        border-bottom: var(--border);
-    }
-    .menu-header-desc {
-        font-family: var(--font-body);
-        font-size: 0.75rem;
-        color: var(--color-text-secondary);
-        line-height: 1.5;
-    }
-
     .menu-item {
         display: block;
         padding: 0.75rem var(--space-lg);
@@ -152,6 +137,15 @@
     }
     .menu-item:hover {
         background: rgba(255, 255, 255, 0.04);
+    }
+
+    .item-label {
+        display: block;
+        font-family: var(--font-display);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        color: var(--color-text-primary);
+        margin-bottom: 0.2rem;
     }
 
     .item-desc {
