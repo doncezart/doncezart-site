@@ -158,6 +158,7 @@
         display: flex;
         flex-direction: column;
         gap: var(--space-xs);
+        align-items: flex-end;
     }
 
     .footer-col-heading {
@@ -170,6 +171,7 @@
         opacity: 0.5;
         margin-bottom: var(--space-sm);
         display: block;
+        text-align: right;
     }
 
     .footer-link {
@@ -180,6 +182,7 @@
         transition: color var(--transition-fast);
         padding: 0.2rem 0;
         white-space: nowrap;
+        text-align: right;
     }
     .footer-link:hover {
         color: var(--color-text-primary);
@@ -193,6 +196,13 @@
         }
         .footer-right {
             justify-content: flex-start;
+        }
+        .footer-col {
+            align-items: flex-start;
+        }
+        .footer-col-heading,
+        .footer-link {
+            text-align: left;
         }
     }
 </style>
