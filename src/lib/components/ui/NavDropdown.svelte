@@ -66,7 +66,6 @@
             style="left: {menuLeft}px"
         >
             <div class="menu-header">
-                <span class="menu-header-title">{label}</span>
                 {#if headerDescription}
                     <p class="menu-header-desc">{headerDescription}</p>
                 {/if}
@@ -77,10 +76,7 @@
                     class="menu-item"
                     onclick={() => (open = false)}
                 >
-                    <span class="item-label">{item.label}</span>
-                    {#if item.description}
-                        <span class="item-desc">{item.description}</span>
-                    {/if}
+                    <span class="item-desc">{item.description}</span>
                 </a>
             {/each}
         </div>
@@ -124,7 +120,7 @@
         top: var(--nav-height);
         transform: translateX(-50%);
         min-width: 280px;
-        background: rgba(0, 0, 0, 0.88);
+        background: var(--color-glass-bg);
         backdrop-filter: blur(24px) saturate(180%);
         -webkit-backdrop-filter: blur(24px) saturate(180%);
         border: var(--border);
@@ -135,16 +131,6 @@
     .menu-header {
         padding: var(--space-md) var(--space-lg) 0.75rem;
         border-bottom: var(--border);
-    }
-    .menu-header-title {
-        display: block;
-        font-family: var(--font-display);
-        font-size: var(--text-xs);
-        font-weight: 600;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        color: var(--color-text-primary);
-        margin-bottom: 0.3rem;
     }
     .menu-header-desc {
         font-family: var(--font-body);
@@ -167,17 +153,10 @@
         background: rgba(255, 255, 255, 0.04);
     }
 
-    .item-label {
-        display: block;
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-        color: var(--color-text-primary);
-        margin-bottom: 0.2rem;
-    }
     .item-desc {
         display: block;
         font-family: var(--font-body);
-        font-size: 0.73rem;
+        font-size: var(--text-sm);
         color: var(--color-text-secondary);
         line-height: 1.4;
     }
