@@ -1,28 +1,6 @@
 <script>
     import PageHeader from '$lib/components/ui/PageHeader.svelte';
-
-    const sections = [
-        {
-            slug: 'curated-resources',
-            label: 'Curated Resources',
-            description: 'Tools, references & articles worth bookmarking.'
-        },
-        {
-            slug: 'tutorials',
-            label: 'Tutorials',
-            description: 'Step-by-step guides and learning material.'
-        },
-        {
-            slug: 'pure-art',
-            label: 'Pure Art',
-            description: 'Artwork and visual inspiration, no context needed.'
-        },
-        {
-            slug: 'videography',
-            label: 'Videography',
-            description: 'Film, motion, and cinematography work.'
-        }
-    ];
+    let { data } = $props();
 </script>
 
 <svelte:head>
@@ -36,11 +14,10 @@
 />
 
 <div class="sections-grid">
-    {#each sections as section}
+    {#each data.sections as section}
         <a href="/discovery/{section.slug}" class="section-card">
-            <span class="section-label">{section.label}</span>
+            <span class="section-label">{section.name}</span>
             <span class="section-desc">{section.description}</span>
-            <span class="section-coming">Coming soon</span>
         </a>
     {/each}
 </div>
@@ -89,13 +66,5 @@
         flex: 1;
     }
 
-    .section-coming {
-        font-family: var(--font-body);
-        font-size: var(--text-xs);
-        color: var(--color-text-secondary);
-        opacity: 0.4;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        margin-top: var(--space-sm);
-    }
+
 </style>
