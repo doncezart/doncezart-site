@@ -25,14 +25,14 @@
         <nav class="footer-right" aria-label="Footer navigation">
             <div class="footer-col">
                 <span class="footer-col-heading">Work</span>
-                <a href="/" class="footer-link">Portfolio</a>
+                <a href="/my-work" class="footer-link">My Work</a>
                 <a href="/work" class="footer-link">Case Studies</a>
                 <a href="/testimonials" class="footer-link">Testimonials</a>
                 <a href="/assets" class="footer-link">Assets</a>
             </div>
             <div class="footer-col">
                 <span class="footer-col-heading">Discovery</span>
-                <a href="/discovery/curated-resources" class="footer-link">Curated Resources</a>
+                <a href="/discovery/resources" class="footer-link">Resources</a>
                 <a href="/discovery/tutorials" class="footer-link">Tutorials</a>
                 <a href="/discovery/pure-art" class="footer-link">Pure Art</a>
                 <a href="/discovery/videography" class="footer-link">Videography</a>
@@ -195,7 +195,9 @@
             gap: var(--space-xl);
         }
         .footer-right {
-            justify-content: flex-start;
+            flex-direction: column;
+            gap: var(--space-xl);
+            align-items: flex-start;
         }
         .footer-col {
             align-items: flex-start;
@@ -203,6 +205,13 @@
         .footer-col-heading,
         .footer-link {
             text-align: left;
+        }
+        .footer-bottom {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .footer-logo {
+            height: 2rem;
         }
     }
 </style>

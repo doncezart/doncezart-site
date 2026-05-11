@@ -1,13 +1,14 @@
 <script>
     import NavDropdown from './ui/NavDropdown.svelte';
+    import { fade } from 'svelte/transition';
 
     let mobileOpen = $state(false);
 
     const discoveryItems = [
         {
-            label: 'Curated Resources',
+            label: 'Resources',
             description: 'Tools, references & articles worth bookmarking',
-            href: '/discovery/curated-resources'
+            href: '/discovery/resources'
         },
         {
             label: 'Tutorials',
@@ -58,12 +59,22 @@
 </div>
 
 {#if mobileOpen}
-    <div class="nav-links-mobile" id="menu-mobile">
-        <a href="/" class="btn-navbar" onclick={() => (mobileOpen = false)}>My work</a>
-        <a href="/assets" class="btn-navbar" onclick={() => (mobileOpen = false)}>Assets</a>
-        <a href="/discovery" class="btn-navbar" onclick={() => (mobileOpen = false)}>Discovery</a>
-        <a href="/socials" class="btn-navbar" onclick={() => (mobileOpen = false)}>Socials</a>
-        <a href="/contact" class="btn-navbar" onclick={() => (mobileOpen = false)}>Get in Touch</a>
+    <div class="mobile-menu" transition:fade={{ duration: 150 }}>
+        <button class="mobile-close" onclick={() => (mobileOpen = false)} aria-label="Close menu">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <nav class="mobile-nav">
+            <a href="/" class="mobile-link" onclick={() => (mobileOpen = false)}>My Work</a>
+            <a href="/assets" class="mobile-link" onclick={() => (mobileOpen = false)}>Assets</a>
+            <span class="mobile-section-label">Discovery</span>
+            <a href="/discovery/resources" class="mobile-link mobile-sub" onclick={() => (mobileOpen = false)}>Resources</a>
+            <a href="/discovery/tutorials" class="mobile-link mobile-sub" onclick={() => (mobileOpen = false)}>Tutorials</a>
+            <a href="/discovery/pure-art" class="mobile-link mobile-sub" onclick={() => (mobileOpen = false)}>Pure Art</a>
+            <a href="/discovery/videography" class="mobile-link mobile-sub" onclick={() => (mobileOpen = false)}>Videography</a>
+            <a href="/discord" class="mobile-link" onclick={() => (mobileOpen = false)}>Discord Servers</a>
+            <a href="/socials" class="mobile-link" onclick={() => (mobileOpen = false)}>Socials</a>
+            <a href="/contact" class="mobile-link" onclick={() => (mobileOpen = false)}>Contact</a>
+        </nav>
     </div>
 {/if}
 
@@ -167,19 +178,69 @@
         }
     }
 
-    .nav-links-mobile {
-        background: var(--color-bg);
-        position: sticky;
-        top: 4.5rem;
-        z-index: 99;
+    .mobile-menu {
+        position: fixed;
+        inset: 0;
+        z-index: 200;
+        background: rgba(0, 0, 0, 0.97);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
         display: flex;
         flex-direction: column;
-        padding: var(--space-sm) 0 var(--space-md);
-        border-bottom: var(--border-solid);
+        padding: var(--space-xl) var(--container-pad);
+        overflow-y: auto;
     }
 
-    .nav-links-mobile .btn-navbar {
-        padding: 0.5rem var(--container-pad);
-        text-align: left;
+    .mobile-close {
+        position: absolute;
+        top: 1rem;
+        right: var(--container-pad);
+        background: transparent;
+        border: 0;
+        color: var(--color-text-primary);
+        font-size: 1.5rem;
+        cursor: pointer;
+        line-height: 1;
+        padding: 0;
+    }
+
+    .mobile-nav {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-lg);
+        margin-top: var(--space-4xl);
+    }
+
+    .mobile-link {
+        font-family: var(--font-display);
+        font-size: var(--text-2xl);
+        font-weight: 500;
+        color: var(--color-text-primary);
+        text-decoration: none;
+        transition: opacity var(--transition-fast);
+    }
+    .mobile-link:hover {
+        opacity: 0.7;
+    }
+
+    .mobile-sub {
+        font-size: var(--text-xl);
+        padding-left: var(--space-lg);
+        color: var(--color-text-secondary);
+    }
+    .mobile-sub:hover {
+        opacity: 0.7;
+    }
+
+    .mobile-section-label {
+        font-family: var(--font-body);
+        font-size: var(--text-xs);
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--color-text-secondary);
+        opacity: 0.5;
+        padding-bottom: 0;
+        margin-bottom: calc(-1 * var(--space-sm));
     }
 </style>
