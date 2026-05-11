@@ -2,13 +2,17 @@
     import Badge from './ui/Badge.svelte';
     import Button from './ui/Button.svelte';
 
-    let { items = [], columns = 4, showMoreHref = '/my-work', onItemClick = null } = $props();
+    let { items = [], columns = 4, showMoreHref = '/my-work', onItemClick = null, showAll = false } = $props();
 
     let gridEl = $state(null);
     let wrapEl = $state(null);
     let contentOverflows = $state(false);
 
     $effect(() => {
+        if (showAll) {
+            contentOverflows = false;
+            return;
+        }
         const grid = gridEl;
         const wrap = wrapEl;
         if (!grid || !wrap) return;
@@ -28,7 +32,7 @@
     }
 </script>
 
-<div class="gallery-wrap" bind:this={wrapEl}>
+<div class="gallery-wrap" class:show-all={showAll} bind:this={wrapEl}>
     <div class="gallery-grid" style="--cols: {columns}" bind:this={gridEl}>
         {#each items as item (item.src)}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -102,6 +106,11 @@
         max-height: 72vh;
         overflow: hidden;
         margin-top: 1.5rem;
+    }
+
+    .gallery-wrap.show-all {
+        max-height: none;
+        overflow: visible;
     }
 
     @media (max-width: 666px) {
