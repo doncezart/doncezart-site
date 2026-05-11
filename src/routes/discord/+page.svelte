@@ -3,16 +3,16 @@
 
     const servers = [
         {
-            name: 'DONCEZART Community',
-            description: 'The main community hub — a gathering place for fans, collaborators, and creatives. Open to everyone.',
-            details: 'Public community',
-            href: 'https://discord.gg/aJUAyFVyqM'
+            name: 'Nitro Design',
+            description: 'A place to share your work, find clients, and ask for advice!',
+            details: 'Community server',
+            href: 'https://discord.gg/CyMGumJjkp'
         },
         {
-            name: 'DONCEZART Personal',
-            description: "The owner's personal server — a smaller, more intimate space. Link will be updated by the owner.",
+            name: 'DONCEZART',
+            description: 'My personal server where I can offer advice and feedback to you directly.',
             details: 'Personal server',
-            href: '#'
+            href: 'https://discord.gg/aJUAyFVyqM'
         }
     ];
 </script>

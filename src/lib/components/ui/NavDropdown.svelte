@@ -117,7 +117,7 @@
         top: var(--nav-height);
         transform: translateX(-50%);
         min-width: 280px;
-        background: var(--color-glass-bg);
+        background: rgba(0, 0, 0, 0.85);
         backdrop-filter: blur(24px) saturate(180%);
         -webkit-backdrop-filter: blur(24px) saturate(180%);
         border: var(--border);

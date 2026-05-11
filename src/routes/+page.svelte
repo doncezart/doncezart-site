@@ -78,19 +78,20 @@
         carouselIndex = (carouselIndex + 1) % lightboxItem.images.length;
     }
 
-    function handleBaMove(e) {
+    function handleBaPointerDown(e) {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        baDragging = true;
+    }
+
+    function handleBaPointerMove(e) {
         if (!baDragging) return;
         const rect = e.currentTarget.getBoundingClientRect();
         const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
         baSliderPos = (x / rect.width) * 100;
     }
 
-    function handleBaTouchMove(e) {
-        if (!baDragging) return;
-        const touch = e.touches[0];
-        const rect = e.currentTarget.getBoundingClientRect();
-        const x = Math.max(0, Math.min(touch.clientX - rect.left, rect.width));
-        baSliderPos = (x / rect.width) * 100;
+    function handleBaPointerUp() {
+        baDragging = false;
     }
 </script>
 
@@ -144,8 +145,8 @@
                         <div
                             class="carousel-track"
                             style={isVertical
-                                ? `transform: translateY(calc(-${carouselIndex} * var(--slide-size)))`
-                                : `transform: translateX(calc(-${carouselIndex} * var(--slide-size)))`}
+                                ? `transform: translateY(-${carouselIndex * 100}%)`
+                                : `transform: translateX(-${carouselIndex * 100}%)`}
                         >
                             {#each lightboxItem.images as img, i}
                                 <div class="carousel-slide">
@@ -156,19 +157,19 @@
                         <!-- Edge fades -->
                         <div class="carousel-fade carousel-fade-start"></div>
                         <div class="carousel-fade carousel-fade-end"></div>
+                        <!-- Nav arrows inside viewport so they're never clipped -->
+                        {#if carouselIndex > 0}
+                            <button class="carousel-nav prev" onclick={carouselPrev} aria-label="Previous image">
+                                <i class="fa-solid {isVertical ? 'fa-chevron-up' : 'fa-chevron-left'}"></i>
+                            </button>
+                        {/if}
+                        {#if carouselIndex < lightboxItem.images.length - 1}
+                            <button class="carousel-nav next" onclick={carouselNext} aria-label="Next image">
+                                <i class="fa-solid {isVertical ? 'fa-chevron-down' : 'fa-chevron-right'}"></i>
+                            </button>
+                        {/if}
                     </div>
 
-                    <!-- Nav arrows -->
-                    {#if carouselIndex > 0}
-                        <button class="carousel-nav prev" onclick={carouselPrev} aria-label="Previous image">
-                            <i class="fa-solid {isVertical ? 'fa-chevron-up' : 'fa-chevron-left'}"></i>
-                        </button>
-                    {/if}
-                    {#if carouselIndex < lightboxItem.images.length - 1}
-                        <button class="carousel-nav next" onclick={carouselNext} aria-label="Next image">
-                            <i class="fa-solid {isVertical ? 'fa-chevron-down' : 'fa-chevron-right'}"></i>
-                        </button>
-                    {/if}
                 </div>
 
                 <!-- Dots outside the carousel to avoid overlap -->
@@ -188,13 +189,10 @@
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div
                     class="ba-container"
-                    onmousedown={() => baDragging = true}
-                    onmouseup={() => baDragging = false}
-                    onmouseleave={() => baDragging = false}
-                    onmousemove={handleBaMove}
-                    ontouchstart={(e) => { baDragging = true; e.preventDefault(); }}
-                    ontouchend={() => baDragging = false}
-                    ontouchmove={handleBaTouchMove}
+                    onpointerdown={handleBaPointerDown}
+                    onpointermove={handleBaPointerMove}
+                    onpointerup={handleBaPointerUp}
+                    onpointercancel={handleBaPointerUp}
                 >
                     <!-- Transparent sizer — sets container height matching the images -->
                     <img
@@ -202,12 +200,14 @@
                         alt=""
                         class="ba-sizer"
                         aria-hidden="true"
+                        draggable="false"
                     />
                     <!-- After image: full width, absolute -->
                     <img
                         src={lightboxItem.images[1]}
                         alt="{lightboxItem.alt} (after)"
                         class="ba-img ba-after-img"
+                        draggable="false"
                     />
                     <!-- Before image: clipped from the right by clip-path -->
                     <img
@@ -215,6 +215,7 @@
                         alt="{lightboxItem.alt} (before)"
                         class="ba-img ba-before-img"
                         style="clip-path: inset(0 {100 - baSliderPos}% 0 0)"
+                        draggable="false"
                     />
                     <!-- Slider line -->
                     <div class="ba-slider" style="left: {baSliderPos}%">
@@ -319,6 +320,7 @@
         max-width: 90vw;
         max-height: 90vh;
         text-align: center;
+        overflow: visible;
     }
     .lightbox-content img {
         max-width: 100%;
@@ -460,10 +462,12 @@
         justify-content: center;
         transition: background 0.15s;
         z-index: 10;
+        /* Prevent page scroll when clicking */
+        touch-action: manipulation;
     }
     .carousel-nav:hover { background: rgba(0,0,0,0.9); }
-    .carousel-nav.prev { left: -1.5rem; }
-    .carousel-nav.next { right: -1.5rem; }
+    .carousel-nav.prev { left: 0.75rem; }
+    .carousel-nav.next { right: 0.75rem; }
 
     .carousel-outer.vertical .carousel-nav {
         position: static;

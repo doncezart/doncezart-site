@@ -74,11 +74,6 @@
                             <span class="meta-chip meta-chip--accent">
                                 <i class="fa-solid fa-images"></i> {item.imageCount} slides
                             </span>
-                            {#if item.carouselDirection === 'vertical'}
-                                <span class="meta-chip">
-                                    <i class="fa-solid fa-arrows-up-down"></i> Vertical
-                                </span>
-                            {/if}
                         {/if}
                         {#if item.tags?.length}
                             {#each item.tags.slice(0, 3) as t}
@@ -168,7 +163,7 @@
         left: 0;
         right: 0;
         padding: 2rem 0.75rem 0.75rem;
-        background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.5) 55%, transparent 100%);
+        background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.75) 40%, rgba(0,0,0,0.3) 65%, transparent 100%);
         opacity: 0;
         transition: opacity 0.22s ease;
         pointer-events: none;

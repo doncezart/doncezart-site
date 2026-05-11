@@ -2,7 +2,7 @@
     import Navbar from '$lib/components/Navbar.svelte'
     import Footer from '$lib/components/Footer.svelte'
     import '@fortawesome/fontawesome-free/css/all.min.css'
-    import { slide } from 'svelte/transition';
+    import { fly } from 'svelte/transition';
     import { page } from '$app/state';
     let { data, children } = $props();
 
@@ -19,7 +19,7 @@
     </div>
 {:else}
     {#key data.pathname}
-        <div class="slot crt" transition:slide>
+        <div class="slot crt" transition:fly={{ y: 10, duration: 180, opacity: 0 }}>
             {@render children?.()}
         </div>
     {/key}

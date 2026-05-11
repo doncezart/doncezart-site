@@ -42,7 +42,7 @@
             <a href="/"><img src="logo-square.svg" alt="DONCEZART Logo" /></a>
         </div>
         <div class="btn-gap">
-            <a href="/discord" class="btn-navbar">Discord</a>
+            <a href="/discord" class="btn-navbar">Discord Servers</a>
             <a href="/socials" class="btn-navbar">Socials</a>
             <a href="/contact" class="btn-navbar">Contact</a>
         </div>
