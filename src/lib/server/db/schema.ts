@@ -82,6 +82,52 @@ export const artworkTag = pgTable('artwork_tag', {
     tagId: integer('tag_id').notNull().references(() => tag.id, { onDelete: 'cascade' })
 });
 
+// ── Discovery ──────────────────────────────────────────
+export const discoverySection = pgTable('discovery_section', {
+	id: serial('id').primaryKey(),
+	name: text('name').notNull(),
+	slug: text('slug').notNull().unique(),
+	description: text('description'),
+	position: integer('position').notNull().default(0),
+	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
+});
+
+export const discoveryTag = pgTable('discovery_tag', {
+	id: serial('id').primaryKey(),
+	name: text('name').notNull().unique(),
+	slug: text('slug').notNull().unique()
+});
+
+export const discoveryItem = pgTable('discovery_item', {
+	id: serial('id').primaryKey(),
+	sectionId: integer('section_id').notNull().references(() => discoverySection.id, { onDelete: 'cascade' }),
+	title: text('title').notNull(),
+	description: text('description'),
+	mediaType: text('media_type').notNull(),
+	imageUrl: text('image_url'),
+	thumbnailUrl: text('thumbnail_url'),
+	youtubeId: text('youtube_id'),
+	sourceUrl: text('source_url'),
+	creatorName: text('creator_name'),
+	creatorUrl: text('creator_url'),
+	position: integer('position').notNull().default(0),
+	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+	updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
+});
+
+export const discoveryItemImage = pgTable('discovery_item_image', {
+	id: serial('id').primaryKey(),
+	itemId: integer('item_id').notNull().references(() => discoveryItem.id, { onDelete: 'cascade' }),
+	imageUrl: text('image_url').notNull(),
+	thumbnailUrl: text('thumbnail_url'),
+	position: integer('position').notNull().default(0)
+});
+
+export const discoveryItemTag = pgTable('discovery_item_tag', {
+	itemId: integer('item_id').notNull().references(() => discoveryItem.id, { onDelete: 'cascade' }),
+	tagId: integer('tag_id').notNull().references(() => discoveryTag.id, { onDelete: 'cascade' })
+});
+
 // ── Types ──────────────────────────────────────────────
 export type Session = typeof session.$inferSelect;
 export type User = typeof user.$inferSelect;
@@ -91,3 +137,7 @@ export type CaseStudy = typeof caseStudy.$inferSelect;
 export type Tag = typeof tag.$inferSelect;
 export type Category = typeof category.$inferSelect;
 export type Subcategory = typeof subcategory.$inferSelect;
+export type DiscoverySection = typeof discoverySection.$inferSelect;
+export type DiscoveryTag = typeof discoveryTag.$inferSelect;
+export type DiscoveryItem = typeof discoveryItem.$inferSelect;
+export type DiscoveryItemImage = typeof discoveryItemImage.$inferSelect;

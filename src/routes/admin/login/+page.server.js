@@ -29,8 +29,8 @@ export const actions = {
 			path: '/',
 			httpOnly: true,
 			sameSite: 'lax',
-			secure: false,
-			maxAge: 30 * 24 * 60 * 60 // 30 days
+			secure: process.env.NODE_ENV === 'production',
+			maxAge: 30 * 24 * 60 * 60
 		});
 
 		throw redirect(303, '/admin');
