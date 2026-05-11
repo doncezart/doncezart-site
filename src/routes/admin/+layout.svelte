@@ -10,6 +10,20 @@
 		if (href === '/admin') return currentPath === '/admin';
 		return currentPath.startsWith(href);
 	}
+
+	// Auto-open the group that contains the current route
+	let artworksOpen = $state(
+		['/admin/artworks', '/admin/categories', '/admin/tags', '/admin/case-studies']
+			.some(p => page.url.pathname.startsWith(p))
+	);
+	let discoveryOpen = $state(page.url.pathname.startsWith('/admin/discovery'));
+
+	function isDiscoveryItems() {
+		return currentPath === '/admin/discovery' ||
+			(currentPath.startsWith('/admin/discovery/') &&
+				!currentPath.startsWith('/admin/discovery/sections') &&
+				!currentPath.startsWith('/admin/discovery/tags'));
+	}
 </script>
 
 {#if isLoginPage}
@@ -25,22 +39,56 @@
 				</a>
 
 				<nav class="sidebar-nav">
-					<a href="/admin/artworks" class="nav-item" class:active={isActive('/admin/artworks')}>
+					<!-- Artworks group -->
+					<button
+						class="nav-group"
+						class:nav-group--open={artworksOpen}
+						onclick={() => (artworksOpen = !artworksOpen)}
+					>
 						<i class="fa-solid fa-images"></i>
 						<span>Artworks</span>
-					</a>
-					<a href="/admin/categories" class="nav-item" class:active={isActive('/admin/categories')}>
-						<i class="fa-solid fa-folder-tree"></i>
-						<span>Categories</span>
-					</a>
-					<a href="/admin/tags" class="nav-item" class:active={isActive('/admin/tags')}>
-						<i class="fa-solid fa-tags"></i>
-						<span>Tags</span>
-					</a>
-					<a href="/admin/case-studies" class="nav-item" class:active={isActive('/admin/case-studies')}>
-						<i class="fa-solid fa-book-open"></i>
-						<span>Case Studies</span>
-					</a>
+						<i class="fa-solid fa-chevron-down nav-chevron" class:rotated={artworksOpen}></i>
+					</button>
+					{#if artworksOpen}
+						<div class="nav-subitems">
+							<a href="/admin/artworks" class="nav-subitem" class:active={isActive('/admin/artworks')}>
+								Items
+							</a>
+							<a href="/admin/categories" class="nav-subitem" class:active={isActive('/admin/categories')}>
+								Categories
+							</a>
+							<a href="/admin/tags" class="nav-subitem" class:active={isActive('/admin/tags')}>
+								Tags
+							</a>
+							<a href="/admin/case-studies" class="nav-subitem" class:active={isActive('/admin/case-studies')}>
+								Case Studies
+							</a>
+						</div>
+					{/if}
+
+					<!-- Discovery group -->
+					<button
+						class="nav-group"
+						class:nav-group--open={discoveryOpen}
+						onclick={() => (discoveryOpen = !discoveryOpen)}
+					>
+						<i class="fa-solid fa-compass"></i>
+						<span>Discovery</span>
+						<i class="fa-solid fa-chevron-down nav-chevron" class:rotated={discoveryOpen}></i>
+					</button>
+					{#if discoveryOpen}
+						<div class="nav-subitems">
+							<a href="/admin/discovery" class="nav-subitem" class:active={isDiscoveryItems()}>
+								Items
+							</a>
+							<a href="/admin/discovery/sections" class="nav-subitem" class:active={isActive('/admin/discovery/sections')}>
+								Sections
+							</a>
+							<a href="/admin/discovery/tags" class="nav-subitem" class:active={isActive('/admin/discovery/tags')}>
+								Tags
+							</a>
+						</div>
+					{/if}
 				</nav>
 			</div>
 
@@ -163,6 +211,71 @@
 	}
 	.nav-item.active i {
 		color: #ff3333;
+	}
+
+	/* Nav groups */
+	.nav-group {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.6rem 0.75rem;
+		border-radius: 0.5rem;
+		color: rgba(255, 255, 255, 0.45);
+		font-family: 'Satoshi', sans-serif;
+		font-size: 0.9rem;
+		font-weight: 500;
+		cursor: pointer;
+		background: none;
+		border: none;
+		width: 100%;
+		text-align: left;
+		transition: all 0.15s ease;
+	}
+	.nav-group:hover {
+		color: rgba(255, 255, 255, 0.8);
+		background: rgba(255, 255, 255, 0.04);
+	}
+	.nav-group--open {
+		color: #fff;
+	}
+	.nav-group i:first-child {
+		width: 1.25rem;
+		text-align: center;
+		font-size: 0.9rem;
+	}
+	.nav-chevron {
+		margin-left: auto;
+		font-size: 0.7rem;
+		transition: transform 0.2s ease;
+	}
+	.nav-chevron.rotated {
+		transform: rotate(180deg);
+	}
+	.nav-subitems {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+		padding-left: 2.25rem;
+		margin-bottom: 0.25rem;
+	}
+	.nav-subitem {
+		display: block;
+		padding: 0.4rem 0.6rem;
+		border-radius: 0.4rem;
+		text-decoration: none;
+		color: rgba(255, 255, 255, 0.4);
+		font-family: 'Satoshi', sans-serif;
+		font-size: 0.85rem;
+		font-weight: 400;
+		transition: all 0.15s ease;
+	}
+	.nav-subitem:hover {
+		color: rgba(255, 255, 255, 0.75);
+		background: rgba(255, 255, 255, 0.04);
+	}
+	.nav-subitem.active {
+		color: #fff;
+		background: rgba(255, 255, 255, 0.07);
 	}
 
 	/* Bottom section */
