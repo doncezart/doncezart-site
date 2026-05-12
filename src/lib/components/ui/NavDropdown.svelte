@@ -127,8 +127,8 @@
         transform: translateX(-50%);
         min-width: 280px;
         background: rgba(0, 0, 0, 0.85);
-        backdrop-filter: blur(24px) saturate(180%);
         -webkit-backdrop-filter: blur(24px) saturate(180%);
+        backdrop-filter: blur(24px) saturate(180%);
         border-left: var(--border);
         border-right: var(--border);
         border-bottom: var(--border);

@@ -573,6 +573,7 @@
 		width: 32px; height: 32px; border-radius: 50%;
 		display: flex; align-items: center; justify-content: center;
 		cursor: pointer; font-size: 0.9rem;
+		-webkit-backdrop-filter: blur(4px);
 		backdrop-filter: blur(4px);
 		transition: all 0.15s;
 	}

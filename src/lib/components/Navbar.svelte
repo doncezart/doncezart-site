@@ -113,8 +113,8 @@
         padding: 1rem var(--container-pad);
 
         background: rgba(0, 0, 0, 0.85);
-        backdrop-filter: blur(24px) saturate(180%);
         -webkit-backdrop-filter: blur(24px) saturate(180%);
+        backdrop-filter: blur(24px) saturate(180%);
         border-bottom: var(--border);
     }
 
@@ -217,8 +217,8 @@
         inset: 0;
         z-index: 500;
         background: rgba(0, 0, 0, 0.97);
-        backdrop-filter: blur(24px);
         -webkit-backdrop-filter: blur(24px);
+        backdrop-filter: blur(24px);
         display: flex;
         flex-direction: column;
         overflow: hidden;
