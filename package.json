@@ -2,6 +2,9 @@
 	"name": "doncezart",
 	"version": "0.0.1",
 	"private": true,
+	"engines": {
+		"node": ">=22.12"
+	},
 	"scripts": {
 		"dev": "vite dev --host --port 6969",
 		"build": "vite build",
