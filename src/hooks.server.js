@@ -4,16 +4,16 @@ const SESSION_COOKIE = 'session_id';
 
 const CSP = [
 	"default-src 'self'",
-	"script-src 'self' https://challenges.cloudflare.com https://analytics.ceza.ro",
+	"script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://analytics.ceza.ro",
 	"style-src 'self' 'unsafe-inline' https://fonts.cdnfonts.com",
 	"font-src 'self' https://fonts.cdnfonts.com https://fonts.gstatic.com",
-	"img-src 'self' data: blob: https://doncezart.nyc3.cdn.digitaloceanspaces.com https://cdn.doncez.art https://pub-*.r2.dev",
+	"img-src 'self' data: blob: https://doncezart.nyc3.cdn.digitaloceanspaces.com https://cdn.doncez.art",
+	"media-src 'self' https://cdn.doncez.art",
 	"connect-src 'self' https://challenges.cloudflare.com https://analytics.ceza.ro",
 	"frame-src https://challenges.cloudflare.com",
 	"object-src 'none'",
 	"base-uri 'self'",
-	"form-action 'self'",
-	"upgrade-insecure-requests"
+	"form-action 'self'"
 ].join('; ');
 
 /** @type {import('@sveltejs/kit').Handle} */

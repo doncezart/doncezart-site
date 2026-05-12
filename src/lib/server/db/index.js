@@ -17,6 +17,8 @@ function getDb() {
 
 export const db = new Proxy(/** @type {any} */ ({}), {
 	get(_, prop) {
-		return getDb()[prop];
+		const target = getDb();
+		const value = target[prop];
+		return typeof value === 'function' ? value.bind(target) : value;
 	}
 });
