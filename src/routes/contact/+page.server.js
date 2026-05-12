@@ -1,5 +1,6 @@
 import { fail } from '@sveltejs/kit';
-import { WEBHOOK_URL, FORM_ID, TURNSTILE_SECRET_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
+const { WEBHOOK_URL, FORM_ID, TURNSTILE_SECRET_KEY } = env;
 
 // RFC-5321 compliant length limits; simple structural check
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;

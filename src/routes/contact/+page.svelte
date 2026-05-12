@@ -1,6 +1,7 @@
 <script>
     import Button from '$lib/components/ui/Button.svelte';
-    import { PUBLIC_TURNSTILE_SITE_KEY } from '$env/static/public';
+    import { env } from '$env/dynamic/public';
+    const PUBLIC_TURNSTILE_SITE_KEY = env.PUBLIC_TURNSTILE_SITE_KEY;
     let { form } = $props();
 
     const hasFieldError = $derived(form?.missing_email || form?.missing_name || form?.missing_message);
