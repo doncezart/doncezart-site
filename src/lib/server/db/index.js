@@ -10,7 +10,10 @@ let _db = null;
 function getDb() {
 	if (!_db) {
 		if (!env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
-		_db = drizzle(postgres(env.DATABASE_URL));
+		const client = postgres(env.DATABASE_URL, {
+			onnotice: (notice) => console.log('[DB notice]', notice),
+		});
+		_db = drizzle(client, { logger: true });
 	}
 	return _db;
 }
