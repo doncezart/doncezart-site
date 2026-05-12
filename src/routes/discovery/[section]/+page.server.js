@@ -3,7 +3,7 @@ import {
 	discoverySection, discoveryItem,
 	discoveryItemImage, discoveryItemTag, discoveryTag
 } from '$lib/server/db/schema.ts';
-import { eq, asc, desc, inArray } from 'drizzle-orm';
+import { eq, asc, desc, inArray, and } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 
 export async function load({ params }) {
@@ -17,7 +17,7 @@ export async function load({ params }) {
 	const items = await db
 		.select()
 		.from(discoveryItem)
-		.where(eq(discoveryItem.sectionId, section.id))
+		.where(and(eq(discoveryItem.sectionId, section.id), eq(discoveryItem.visible, true)))
 		.orderBy(desc(discoveryItem.createdAt));
 
 	const itemIds = items.map(i => i.id);

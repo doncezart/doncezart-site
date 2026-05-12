@@ -1,4 +1,5 @@
 <script>
+    let { discoverySections = [] } = $props();
     const year = new Date().getFullYear();
 
     const socials = [
@@ -32,10 +33,9 @@
             </div>
             <div class="footer-col">
                 <span class="footer-col-heading">Discovery</span>
-                <a href="/discovery/resources" class="footer-link">Resources</a>
-                <a href="/discovery/tutorials" class="footer-link">Tutorials</a>
-                <a href="/discovery/pure-art" class="footer-link">Pure Art</a>
-                <a href="/discovery/videography" class="footer-link">Videography</a>
+                {#each discoverySections as s}
+                    <a href="/discovery/{s.slug}" class="footer-link">{s.name}</a>
+                {/each}
             </div>
             <div class="footer-col">
                 <span class="footer-col-heading">Connect</span>
@@ -59,6 +59,7 @@
                     title={social.name}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onclick={() => window.umami?.track('social-click', { platform: social.name, location: 'footer' })}
                 >
                     <i class={social.icon}></i>
                 </a>
@@ -70,7 +71,7 @@
 <style>
     .footer {
         border-top: var(--border);
-        padding: var(--space-2xl) var(--container-pad);
+        padding: var(--space-2xl) var(--container-pad) var(--space-md);
         max-width: var(--container-max);
         margin: 0 auto;
         width: 100%;
@@ -97,9 +98,17 @@
     }
 
     .footer-logo {
-        height: 2.5rem;
+        height: 2rem;
         width: auto;
         display: block;
+    }
+
+    @media (max-width: 666px) {
+        .footer-logo {
+            width: 100%;
+            height: auto;
+            max-width: 10rem;
+        }
     }
 
     .footer-motto {
@@ -209,9 +218,6 @@
         .footer-bottom {
             flex-direction: column;
             align-items: flex-start;
-        }
-        .footer-logo {
-            height: 2rem;
         }
     }
 </style>

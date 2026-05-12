@@ -6,6 +6,8 @@ import {
 import { eq, asc } from 'drizzle-orm';
 import { uploadToR2 } from '$lib/server/r2.js';
 import { processImage } from '$lib/server/image.js';
+import { applyFaststart, extractFrame } from '$lib/server/video.js';
+import { generatePreviewAsync } from '$lib/server/generatePreview.js';
 import { fail, redirect, error } from '@sveltejs/kit';
 
 function slugify(text) {
@@ -86,6 +88,7 @@ export const actions = {
 		const sourceUrl = data.get('source_url')?.toString().trim() || null;
 		const tagIds = data.getAll('tags').map(Number).filter(Boolean);
 		const youtubeInput = data.get('youtube_url')?.toString().trim() || null;
+		const visible = data.get('visible') === 'true';
 
 		if (!title || !sectionId || !mediaType) {
 			return fail(400, { error: 'Title, section, and media type are required.' });
@@ -99,6 +102,7 @@ export const actions = {
 		let imageUrl = existing.imageUrl;
 		let thumbnailUrl = existing.thumbnailUrl;
 		let youtubeId = existing.youtubeId;
+		let existingPreviewUrl = existing.previewUrl;
 		let carouselImages = null;
 
 		if (mediaType === 'youtube') {
@@ -149,8 +153,9 @@ export const actions = {
 				if (!ALLOWED_VIDEO_TYPES.includes(file.type)) return fail(400, { error: 'Unsupported video format.' });
 				if (file.size > MAX_VIDEO_SIZE) return fail(400, { error: 'Video must be under 200 MB.' });
 				try {
-					const buffer = Buffer.from(await file.arrayBuffer());
+					let buffer = Buffer.from(await file.arrayBuffer());
 					const ext = file.name.split('.').pop() || 'mp4';
+					try { buffer = applyFaststart(buffer, ext); } catch { /* non-fatal */ }
 					imageUrl = await uploadToR2(buffer, `discovery/${slug}-${ts}.${ext}`, file.type);
 					thumbnailUrl = null;
 				} catch (e) {
@@ -159,15 +164,21 @@ export const actions = {
 				}
 			}
 			youtubeId = null;
+			// reset preview when video changes
+			if (imageUrl !== existing.imageUrl) existingPreviewUrl = null;
 		} else {
 			return fail(400, { error: 'Invalid media type.' });
 		}
+
+		// non-video types have no preview
+		if (mediaType !== 'video') existingPreviewUrl = null;
 
 		await db.update(discoveryItem)
 			.set({
 				title, description, sectionId, mediaType,
 				imageUrl, thumbnailUrl, youtubeId,
-				sourceUrl, creatorName, creatorUrl,
+				previewUrl: existingPreviewUrl,
+				sourceUrl, creatorName, creatorUrl, visible,
 				updatedAt: new Date()
 			})
 			.where(eq(discoveryItem.id, id));
@@ -189,6 +200,39 @@ export const actions = {
 			await db.insert(discoveryItemTag).values(tagIds.map(tagId => ({ itemId: id, tagId })));
 		}
 
+		// fire-and-forget preview generation when video was replaced
+		if (mediaType === 'video' && imageUrl && imageUrl !== existing.imageUrl) {
+			generatePreviewAsync(id, imageUrl).catch(e => console.error('[preview]', e.message));
+		}
+
 		redirect(303, '/admin/discovery');
+	},
+
+	regen_thumb: async ({ request, params }) => {
+		const id = Number(params.id);
+		if (!id) return fail(400, { error: 'Invalid id.' });
+
+		const data = await request.formData();
+		const offsetRaw = data.get('offset')?.toString().trim();
+		const offset = Math.max(0, parseFloat(offsetRaw) || 0);
+
+		const [item] = await db.select().from(discoveryItem).where(eq(discoveryItem.id, id));
+		if (!item) return fail(404, { error: 'Item not found.' });
+		if (item.mediaType !== 'video' || !item.imageUrl) {
+			return fail(400, { error: 'Thumbnail regeneration is only supported for video items.' });
+		}
+
+		try {
+			const frameBuffer = extractFrame(item.imageUrl, offset);
+			const ts = Date.now();
+			const thumbUrl = await uploadToR2(frameBuffer, `discovery/thumbs/${id}-${ts}.jpg`, 'image/jpeg');
+			await db.update(discoveryItem)
+				.set({ thumbnailUrl: thumbUrl, updatedAt: new Date() })
+				.where(eq(discoveryItem.id, id));
+			return { success: true, thumbUrl };
+		} catch (e) {
+			console.error(e);
+			return fail(500, { error: 'Thumbnail generation failed: ' + (e.message ?? String(e)) });
+		}
 	}
 };

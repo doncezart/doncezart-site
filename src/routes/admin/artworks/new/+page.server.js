@@ -1,11 +1,26 @@
 import { db } from '$lib/server/db/index.js';
 import { artwork, artworkImage, artworkTag, tag, category, subcategory, caseStudy } from '$lib/server/db/schema.ts';
+import { eq, like } from 'drizzle-orm';
 import { uploadToR2 } from '$lib/server/r2.js';
 import { processImage } from '$lib/server/image.js';
 import { fail, redirect } from '@sveltejs/kit';
 
 function slugify(text) {
 	return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+async function uniqueSlug(base) {
+	const existing = await db
+		.select({ slug: artwork.slug })
+		.from(artwork)
+		.where(like(artwork.slug, `${base}%`));
+	const taken = new Set(existing.map(r => r.slug));
+	if (!taken.has(base)) return base;
+	for (let n = 2; n <= 99; n++) {
+		const candidate = `${base}-${String(n).padStart(2, '0')}`;
+		if (!taken.has(candidate)) return candidate;
+	}
+	return `${base}-${Date.now()}`;
 }
 
 const ALLOWED_TYPES = ['image/webp', 'image/png', 'image/jpeg', 'image/gif', 'image/tiff', 'image/avif'];
@@ -67,7 +82,7 @@ export const actions = {
 			}
 		}
 
-		const slug = slugify(title);
+		const slug = await uniqueSlug(slugify(title));
 		const ts = Date.now();
 
 		let processedImages;

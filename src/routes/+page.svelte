@@ -11,6 +11,7 @@
     let carouselIndex = $state(0);
     let baSliderPos = $state(50);
     let baDragging = $state(false);
+    let baReady = $state(false);
 
     // Map DB artworks into gallery format
     let allItems = $derived(
@@ -55,27 +56,31 @@
 
     function handleItemClick(item) {
         if (item.hasCaseStudy) {
+            window.umami?.track('artwork-open', { title: item.title, category: item.category, hasCaseStudy: true });
             window.location.href = `/work/${item.slug}`;
         } else {
             lightboxItem = item;
             carouselIndex = 0;
             baSliderPos = 50;
+            baReady = false;
+            window.umami?.track('artwork-open', { title: item.title, category: item.category, mode: item.displayMode });
         }
     }
 
     function closeLightbox() {
         lightboxItem = null;
         baDragging = false;
+        window.umami?.track('artwork-close');
     }
 
     function carouselPrev() {
         if (!lightboxItem) return;
-        carouselIndex = (carouselIndex - 1 + lightboxItem.images.length) % lightboxItem.images.length;
+        if (carouselIndex > 0) carouselIndex--;
     }
 
     function carouselNext() {
         if (!lightboxItem) return;
-        carouselIndex = (carouselIndex + 1) % lightboxItem.images.length;
+        if (carouselIndex < lightboxItem.images.length - 1) carouselIndex++;
     }
 
     function handleBaPointerDown(e) {
@@ -116,7 +121,10 @@
                     <button
                         class="tag-btn"
                         class:active={activeTag === t.slug}
-                        onclick={() => activeTag = t.slug}
+                        onclick={() => {
+                            activeTag = t.slug;
+                            window.umami?.track('homepage-tag-filter', { tag: t.slug });
+                        }}
                     >{t.name}</button>
                 {/each}
             </div>
@@ -138,47 +146,34 @@
             </button>
 
             {#if lightboxItem.displayMode === 'carousel' && lightboxItem.images.length > 1}
-                <!-- Carousel -->
-                {@const isVertical = lightboxItem.carouselDirection === 'vertical'}
-                <div class="carousel-outer" class:vertical={isVertical}>
-                    <div class="carousel-viewport">
-                        <div
-                            class="carousel-track"
-                            style={isVertical
-                                ? `transform: translateY(-${carouselIndex * 100}%)`
-                                : `transform: translateX(-${carouselIndex * 100}%)`}
-                        >
-                            {#each lightboxItem.images as img, i}
-                                <div class="carousel-slide">
-                                    <img src={img} alt="{lightboxItem.alt} ({i + 1}/{lightboxItem.images.length})" />
-                                </div>
-                            {/each}
-                        </div>
-                        <!-- Edge fades -->
-                        <div class="carousel-fade carousel-fade-start"></div>
-                        <div class="carousel-fade carousel-fade-end"></div>
-                        <!-- Nav arrows inside viewport so they're never clipped -->
-                        {#if carouselIndex > 0}
-                            <button class="carousel-nav prev" onclick={carouselPrev} aria-label="Previous image">
-                                <i class="fa-solid {isVertical ? 'fa-chevron-up' : 'fa-chevron-left'}"></i>
-                            </button>
-                        {/if}
-                        {#if carouselIndex < lightboxItem.images.length - 1}
-                            <button class="carousel-nav next" onclick={carouselNext} aria-label="Next image">
-                                <i class="fa-solid {isVertical ? 'fa-chevron-down' : 'fa-chevron-right'}"></i>
-                            </button>
-                        {/if}
-                    </div>
-
+                {@const n = lightboxItem.images.length}
+                <div class="carousel-outer">
+                    <img
+                        src={lightboxItem.images[carouselIndex]}
+                        alt="{lightboxItem.alt} ({carouselIndex + 1}/{n})"
+                        class="carousel-img"
+                        draggable="false"
+                    />
+                    <button
+                        class="carousel-btn carousel-btn-prev"
+                        onclick={carouselPrev}
+                        disabled={carouselIndex === 0}
+                        aria-label="Previous image"
+                    ><i class="fa-solid fa-chevron-left"></i></button>
+                    <button
+                        class="carousel-btn carousel-btn-next"
+                        onclick={carouselNext}
+                        disabled={carouselIndex === n - 1}
+                        aria-label="Next image"
+                    ><i class="fa-solid fa-chevron-right"></i></button>
                 </div>
 
-                <!-- Dots outside the carousel to avoid overlap -->
                 <div class="carousel-dots">
                     {#each lightboxItem.images as _, i}
                         <button
                             class="dot"
                             class:active={i === carouselIndex}
-                            onclick={() => carouselIndex = i}
+                            onclick={() => (carouselIndex = i)}
                             aria-label="Go to image {i + 1}"
                         ></button>
                     {/each}
@@ -208,6 +203,7 @@
                         alt="{lightboxItem.alt} (after)"
                         class="ba-img ba-after-img"
                         draggable="false"
+                        onload={() => { if (baReady === 'before') baReady = true; else baReady = 'after'; }}
                     />
                     <!-- Before image: clipped from the right by clip-path -->
                     <img
@@ -216,7 +212,12 @@
                         class="ba-img ba-before-img"
                         style="clip-path: inset(0 {100 - baSliderPos}% 0 0)"
                         draggable="false"
+                        onload={() => { if (baReady === 'after') baReady = true; else baReady = 'before'; }}
                     />
+                    <!-- Blur placeholder shown until both images are ready -->
+                    {#if baReady !== true}
+                        <div class="ba-placeholder" style="background-image: url('{lightboxItem.src}')"></div>
+                    {/if}
                     <!-- Slider line -->
                     <div class="ba-slider" style="left: {baSliderPos}%">
                         <div class="ba-handle">
@@ -266,12 +267,15 @@
     .landing {
         margin-top: 0;
         text-align: center;
-        padding-top: 10rem;
-        padding-bottom: 10rem;
+        padding: 10rem var(--container-pad);
         @media (max-width: 790px) {
             flex-direction: column-reverse;
             gap: 1rem;
         }
+    }
+
+    .gallery {
+        padding: 0 var(--container-pad) var(--space-3xl);
     }
 
     .gallery-filters {
@@ -364,92 +368,21 @@
     /* ── Carousel ──────────────────────── */
     .carousel-outer {
         position: relative;
-        width: 100%;
-        max-width: 90vw;
+        width: min(90vw, 900px);
     }
 
-    .carousel-viewport {
-        position: relative;
-        overflow: hidden;
-        width: 100%;
-        --slide-size: 100%;
-    }
-
-    .carousel-track {
-        display: flex;
-        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-        will-change: transform;
-    }
-
-    .carousel-outer.vertical .carousel-track {
-        flex-direction: column;
-    }
-
-    .carousel-slide {
-        flex-shrink: 0;
-        width: 100%;
-    }
-
-    .carousel-slide img {
+    .carousel-img {
         display: block;
         width: 100%;
         max-height: 70vh;
         object-fit: contain;
     }
 
-    .carousel-outer.vertical .carousel-viewport {
-        max-height: 70vh;
-    }
-    .carousel-outer.vertical .carousel-slide {
-        width: 100%;
-        height: 70vh;
-        flex-shrink: 0;
-    }
-    .carousel-outer.vertical .carousel-slide img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-    }
-
-    /* Edge fades */
-    .carousel-fade {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        width: 15%;
-        pointer-events: none;
-        z-index: 2;
-    }
-    .carousel-fade-start {
-        left: 0;
-        background: linear-gradient(to right, rgba(0,0,0,0.7) 0%, transparent 100%);
-    }
-    .carousel-fade-end {
-        right: 0;
-        background: linear-gradient(to left, rgba(0,0,0,0.7) 0%, transparent 100%);
-    }
-    .carousel-outer.vertical .carousel-fade {
-        width: auto;
-        left: 0;
-        right: 0;
-    }
-    .carousel-outer.vertical .carousel-fade-start {
-        bottom: auto;
-        height: 15%;
-        background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
-    }
-    .carousel-outer.vertical .carousel-fade-end {
-        top: auto;
-        height: 15%;
-        background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
-    }
-
-    /* Arrows: positioned on the sides of carousel-outer, not inside viewport */
-    .carousel-nav {
+    .carousel-btn {
         position: absolute;
         top: 50%;
         transform: translateY(-50%);
-        background: rgba(0,0,0,0.6);
+        background: rgba(0,0,0,0.55);
         border: 1px solid rgba(255,255,255,0.15);
         color: #fff;
         width: 2.5rem;
@@ -461,27 +394,14 @@
         align-items: center;
         justify-content: center;
         transition: background 0.15s;
-        z-index: 10;
-        /* Prevent page scroll when clicking */
-        touch-action: manipulation;
+        z-index: 2;
     }
-    .carousel-nav:hover { background: rgba(0,0,0,0.9); }
-    .carousel-nav.prev { left: 0.75rem; }
-    .carousel-nav.next { right: 0.75rem; }
+    .carousel-btn:hover { background: rgba(0,0,0,0.85); }
+    .carousel-btn:disabled { opacity: 0.25; cursor: default; pointer-events: none; }
+    .carousel-btn-prev { left: 0.5rem; }
+    .carousel-btn-next { right: 0.5rem; }
 
-    .carousel-outer.vertical .carousel-nav {
-        position: static;
-        top: auto;
-        transform: none;
-        left: auto;
-        right: auto;
-        margin: 0 auto;
-        display: flex;
-    }
-    .carousel-outer.vertical .carousel-nav.prev { margin-top: -1.5rem; }
-    .carousel-outer.vertical .carousel-nav.next { margin-top: 0.5rem; }
-
-    /* Dots: outside viewport, below carousel */
+    /* Dots */
     .carousel-dots {
         display: flex;
         justify-content: center;
@@ -496,7 +416,7 @@
         background: transparent;
         cursor: pointer;
         padding: 0;
-        transition: all 0.15s;
+        transition: background 0.15s, border-color 0.15s;
     }
     .dot.active {
         background: #ff2222;
@@ -511,6 +431,7 @@
         cursor: ew-resize;
         user-select: none;
         -webkit-user-select: none;
+        touch-action: none;
     }
 
     /* Transparent sizer: sets the container's height */
@@ -580,4 +501,21 @@
     }
     .ba-label-before { left: 0.75rem; }
     .ba-label-after { right: 0.75rem; }
+
+    .ba-placeholder {
+        position: absolute;
+        inset: 0;
+        background-size: cover;
+        background-position: center;
+        filter: blur(12px);
+        transform: scale(1.05);
+        z-index: 4;
+        pointer-events: none;
+    }
+    .ba-placeholder::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.35);
+    }
 </style>

@@ -7,7 +7,6 @@
 
     let activeCategory = $state('all');
     let activeSubcategory = $state('all');
-    let sortOrder = $state('newest');
     let currentPage = $state(1);
 
     const PAGE_SIZE = 24;
@@ -18,11 +17,6 @@
         let items = allItems;
         if (activeCategory !== 'all') items = items.filter(i => i.category === activeCategory);
         if (activeSubcategory !== 'all') items = items.filter(i => i.subcategory === activeSubcategory);
-        switch (sortOrder) {
-            case 'oldest': items = [...items].reverse(); break;
-            case 'az': items = [...items].sort((a, b) => a.title.localeCompare(b.title)); break;
-            case 'za': items = [...items].sort((a, b) => b.title.localeCompare(a.title)); break;
-        }
         return items;
     });
 
@@ -30,29 +24,32 @@
 
     let pageItems = $derived(filteredItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE));
 
-    let rangeStart = $derived((currentPage - 1) * PAGE_SIZE + 1);
-    let rangeEnd = $derived(Math.min(currentPage * PAGE_SIZE, filteredItems.length));
-
-    // Reset page when filters/sort change
+    // Reset page when filters change
     $effect(() => {
         activeCategory;
         activeSubcategory;
-        sortOrder;
         currentPage = 1;
     });
 
     function handleItemClick(item) {
+        window.umami?.track('artwork-open', { title: item.title, category: item.category, mode: item.displayMode, hasCaseStudy: item.hasCaseStudy });
         if (item.hasCaseStudy) {
             window.location.href = `/work/${item.slug}`;
         }
     }
 
     function prevPage() {
-        if (currentPage > 1) currentPage--;
+        if (currentPage > 1) {
+            currentPage--;
+            window.umami?.track('my-work-paginate', { direction: 'prev', page: currentPage });
+        }
     }
 
     function nextPage() {
-        if (currentPage < totalPages) currentPage++;
+        if (currentPage < totalPages) {
+            currentPage++;
+            window.umami?.track('my-work-paginate', { direction: 'next', page: currentPage });
+        }
     }
 </script>
 
@@ -65,29 +62,11 @@
         bind:activeCategory
         bind:activeSubcategory
     />
-
-    <div class="sort-row">
-        <div class="sort-group">
-            <span class="sort-label">Sort:</span>
-            <div class="sort-buttons">
-                <button class="sort-btn" class:active={sortOrder === 'newest'} onclick={() => { sortOrder = 'newest'; }}>Newest</button>
-                <button class="sort-btn" class:active={sortOrder === 'oldest'} onclick={() => { sortOrder = 'oldest'; }}>Oldest</button>
-                <button class="sort-btn" class:active={sortOrder === 'az'} onclick={() => { sortOrder = 'az'; }}>A&#x2013;Z</button>
-                <button class="sort-btn" class:active={sortOrder === 'za'} onclick={() => { sortOrder = 'za'; }}>Z&#x2013;A</button>
-            </div>
-        </div>
-
-        {#if filteredItems.length > 0}
-            <span class="count-label">
-                Showing {rangeStart}&ndash;{rangeEnd} of {filteredItems.length} artworks
-            </span>
-        {:else}
-            <span class="count-label">No artworks found</span>
-        {/if}
-    </div>
 </div>
 
-<GalleryGrid items={pageItems} columns={4} showAll={true} onItemClick={handleItemClick} />
+<div class="gallery-outer">
+    <GalleryGrid items={pageItems} columns={4} showAll={true} onItemClick={handleItemClick} />
+</div>
 
 {#if totalPages > 1}
     <div class="pagination">
@@ -112,66 +91,18 @@
 {/if}
 
 <style>
+    .gallery-outer {
+        padding: 0 var(--container-pad) var(--space-2xl);
+    }
+
     .controls {
-        padding: 0 var(--space-xl);
-        max-width: 1400px;
+        padding: 0 var(--container-pad);
+        max-width: var(--container-max);
         margin: 0 auto;
     }
 
-    .sort-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: var(--space-md);
-        padding: var(--space-md) 0;
-        border-top: var(--border);
-        flex-wrap: wrap;
-    }
-
-    .sort-group {
-        display: flex;
-        align-items: center;
-        gap: var(--space-sm);
-    }
-
-    .sort-label {
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-        color: var(--color-text-secondary);
-        white-space: nowrap;
-    }
-
-    .sort-buttons {
-        display: flex;
-        gap: 0;
-        border: var(--border);
-    }
-
-    .sort-btn {
-        background: transparent;
-        border: none;
-        border-right: var(--border);
-        color: var(--color-text-secondary);
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-        padding: var(--space-xs) var(--space-sm);
-        cursor: pointer;
-        transition: color var(--transition-fast), background var(--transition-fast);
-        white-space: nowrap;
-    }
-
-    .sort-btn:last-child {
-        border-right: none;
-    }
-
-    .sort-btn:hover {
-        color: var(--color-text-primary);
-        background: rgba(255, 255, 255, 0.05);
-    }
-
-    .sort-btn.active {
-        color: #ff0000;
-        background: rgba(255, 0, 0, 0.08);
+    .count-row {
+        padding: var(--space-sm) 0 var(--space-md);
     }
 
     .count-label {
@@ -221,11 +152,6 @@
     }
 
     @media (max-width: 666px) {
-        .sort-row {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
         .pagination {
             gap: var(--space-md);
         }

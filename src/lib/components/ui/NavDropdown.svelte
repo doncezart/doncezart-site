@@ -5,18 +5,27 @@
     let triggerEl = $state(null);
     let menuEl = $state(null);
     let menuLeft = $state(0);
+    let menuTop = $state(0);
 
     function toggle() {
         open = !open;
     }
 
+    // Portal: move node to body so backdrop-filter escapes the navbar's stacking context.
+    function portal(node) {
+        document.body.appendChild(node);
+        return { destroy() { node.parentNode?.removeChild(node); } };
+    }
+
     $effect(() => {
         if (!open) return;
 
-        // Center panel under trigger button
+        // Position panel flush under the navbar (not the button itself)
         if (triggerEl) {
             const rect = triggerEl.getBoundingClientRect();
             menuLeft = rect.left + rect.width / 2;
+            const navbarEl = triggerEl.closest('.navbar');
+            menuTop = navbarEl ? navbarEl.getBoundingClientRect().bottom : rect.bottom;
         }
 
         function handleClickOutside(e) {
@@ -62,14 +71,15 @@
     {#if open}
         <div
             bind:this={menuEl}
+            use:portal
             class="menu"
-            style="left: {menuLeft}px"
+            style="left: {menuLeft}px; top: {menuTop}px"
         >
             {#each items as item}
                 <a
                     href={item.href}
                     class="menu-item"
-                    onclick={() => (open = false)}
+                    onclick={() => { window.umami?.track('nav-click', { link: item.href }); open = false; }}
                 >
                     <span class="item-label">{item.label}</span>
                     <span class="item-desc">{item.description}</span>
@@ -111,18 +121,18 @@
         transform: rotate(180deg);
     }
 
-    /* Fixed position: always flush to the bottom of the navbar */
+    /* Portaled to body: position: fixed is now relative to the true viewport */
     .menu {
         position: fixed;
-        top: var(--nav-height);
         transform: translateX(-50%);
         min-width: 280px;
         background: rgba(0, 0, 0, 0.85);
         backdrop-filter: blur(24px) saturate(180%);
         -webkit-backdrop-filter: blur(24px) saturate(180%);
-        border: var(--border);
-        border-top: none;
-        z-index: 99;
+        border-left: var(--border);
+        border-right: var(--border);
+        border-bottom: var(--border);
+        z-index: 400;
     }
 
     .menu-item {

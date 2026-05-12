@@ -2,6 +2,20 @@ import { validateSession } from '$lib/server/auth.js';
 
 const SESSION_COOKIE = 'session_id';
 
+const CSP = [
+	"default-src 'self'",
+	"script-src 'self' https://challenges.cloudflare.com https://analytics.ceza.ro",
+	"style-src 'self' 'unsafe-inline' https://fonts.cdnfonts.com",
+	"font-src 'self' https://fonts.cdnfonts.com https://fonts.gstatic.com",
+	"img-src 'self' data: blob: https://doncezart.nyc3.cdn.digitaloceanspaces.com https://cdn.doncez.art https://pub-*.r2.dev",
+	"connect-src 'self' https://challenges.cloudflare.com https://analytics.ceza.ro",
+	"frame-src https://challenges.cloudflare.com",
+	"object-src 'none'",
+	"base-uri 'self'",
+	"form-action 'self'",
+	"upgrade-insecure-requests"
+].join('; ');
+
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event, resolve }) {
 	const sessionId = event.cookies.get(SESSION_COOKIE);
@@ -20,5 +34,13 @@ export async function handle({ event, resolve }) {
 		}
 	}
 
-	return resolve(event);
+	const response = await resolve(event);
+
+	response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+	response.headers.set('X-Content-Type-Options', 'nosniff');
+	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+	response.headers.set('Content-Security-Policy', CSP);
+
+	return response;
 }

@@ -17,6 +17,7 @@ export const actions = {
 		const data = await request.formData();
 		const name = data.get('name')?.toString().trim();
 		if (!name) return fail(400, { error: 'Tag name is required.' });
+		if (name.length > 100) return fail(400, { error: 'Tag name must be under 100 characters.' });
 
 		const slug = slugify(name);
 		try {

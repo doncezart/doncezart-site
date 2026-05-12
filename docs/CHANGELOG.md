@@ -29,3 +29,19 @@
 ### Removed
 - Removed `.btn` and `.main-border` legacy utility classes from `global.css` (no public call sites remain)
 
+---
+
+## [Unreleased] — 2026-05-12
+
+### Added
+- Added 5 Discovery DB tables: `discoverySection`, `discoveryTag`, `discoveryItem`, `discoveryItemImage`, `discoveryItemTag` with FK constraints and cascade deletes
+- Added admin sidebar collapsible nav groups (Artworks and Discovery) with chevron toggle and active-state detection
+- Added admin Discovery tags CRUD (`/admin/discovery/tags`) — create/delete with slug generation, duplicate guard
+- Added admin Discovery sections CRUD (`/admin/discovery/sections`) — create/update/delete/reorder with item count display and delete guard
+- Added admin Discovery items list (`/admin/discovery`) — section filter, media type icons, YouTube thumbnail fallback, edit/delete per item
+- Added admin Discovery new item form (`/admin/discovery/new`) — dynamic media type switcher (image/carousel/video/YouTube), creator/source fields, tag checkboxes, R2 upload via processImage/uploadToR2
+- Added admin Discovery item edit form (`/admin/discovery/[id]/edit`) — pre-populated, preserves existing media if no new file uploaded, replaces carousel only if new files submitted
+- Added public Discovery index server loader (`/discovery/+page.server.js`) — sections ordered by position from DB
+- Replaced hardcoded section array in public Discovery index with DB-driven data; removed "Coming soon" badges
+- Rewrote public Discovery section page (`/discovery/[section]`) — GalleryGrid + tag-pill filters + newest/oldest sort + Instagram-style split modal (65/35) supporting image, carousel (arrows+dots+keyboard), video, YouTube
+

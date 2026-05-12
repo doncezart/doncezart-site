@@ -10,8 +10,12 @@
 </script>
 
 
+<svelte:head>
+    <script defer src="https://analytics.ceza.ro/script.js" data-website-id="acf6ca2d-5e48-4171-ab60-5dda92cbd17e"></script>
+</svelte:head>
+
 {#if !isAdmin}
-    <Navbar />
+    <Navbar discoverySections={data.discoverySections ?? []} />
 {/if}
 {#if isAdmin}
     <div class="slot admin-reset">
@@ -19,11 +23,11 @@
     </div>
 {:else}
     {#key data.pathname}
-        <div class="slot crt" transition:fly={{ y: 10, duration: 180, opacity: 0 }}>
+        <div class="slot crt" in:fly={{ y: 10, duration: 180, opacity: 0 }}>
             {@render children?.()}
         </div>
     {/key}
-    <Footer />
+    <Footer discoverySections={data.discoverySections ?? []} />
 {/if}
 
 <style>
@@ -83,13 +87,15 @@
     animation: flicker 0.15s infinite;
 } */
  
+:global(body) {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
 .slot {
-    margin: 0;
-    margin-left: auto;
-    margin-right: auto;
-    padding: 2rem;
-    max-width: 1920px;
-    padding-top: 0;
+    flex: 1;
+    padding: 0;
 }
 .admin-reset {
     padding: 0;

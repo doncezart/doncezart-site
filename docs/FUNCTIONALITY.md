@@ -105,3 +105,57 @@
 ### Tag Filtering
 - **What it does:** Tag pill buttons on the gallery allow filtering artworks by tag across all categories.
 - **Entry point:** `src/routes/+page.svelte` (tag-filters section)
+
+## Discovery
+
+### Discovery Section Index
+- **What it does:** Public page listing all Discovery sections as clickable cards. Sections are loaded from DB ordered by position.
+- **Entry point:** `src/routes/discovery/+page.svelte`
+- **Key functions / components:** `+page.server.js` → `load()` queries `discoverySection`
+- **Data flow:** DB query → `{ sections }` → rendered as card grid
+- **Dependencies:** `discoverySection` table
+
+### Discovery Section Media Grid
+- **What it does:** Public section page showing all items in a masonry GalleryGrid with tag-pill filtering and newest/oldest sort toggle.
+- **Entry point:** `src/routes/discovery/[section]/+page.svelte`
+- **Key functions / components:** `+page.server.js` → `load()` queries section, items, carousel images, tags with `inArray`. `GalleryGrid` component.
+- **Data flow:** DB query (section by slug → items → images + tags) → mapped to grid shape → rendered with filters + sort
+- **Dependencies:** `discoverySection`, `discoveryItem`, `discoveryItemImage`, `discoveryItemTag`, `discoveryTag` tables; `GalleryGrid.svelte`
+
+### Discovery Item Modal
+- **What it does:** Instagram-style split modal (65% media / 35% info) opened on grid item click. Supports image, carousel (arrows + dots + keyboard nav), HTML5 video, and YouTube embed.
+- **Entry point:** `src/routes/discovery/[section]/+page.svelte` (modal section)
+- **Key functions / components:** `openModal()`, `closeModal()`, `carouselPrev/Next()`, `handleKeydown()` (Escape + arrow keys), `svelte:window` binding
+- **Dependencies:** `youtube-nocookie.com` for YouTube embeds (no API key)
+
+### Admin Discovery Tags
+- **What it does:** Create and delete discovery tags (name + auto-slug). Duplicate name guard.
+- **Entry point:** `src/routes/admin/discovery/tags/+page.svelte`
+- **Key functions / components:** `+page.server.js` → `create` / `delete` actions
+- **Dependencies:** `discoveryTag` table
+
+### Admin Discovery Sections
+- **What it does:** Create, edit, delete, and reorder discovery sections. Delete blocked if section has items. Item count shown per section.
+- **Entry point:** `src/routes/admin/discovery/sections/+page.svelte`
+- **Key functions / components:** `+page.server.js` → `create` / `update` / `delete` / `moveUp` / `moveDown` actions
+- **Dependencies:** `discoverySection`, `discoveryItem` tables
+
+### Admin Discovery Items List
+- **What it does:** Lists all discovery items with section filter, thumbnail (or YouTube thumbnail fallback), media type icon, edit link, and delete with confirm.
+- **Entry point:** `src/routes/admin/discovery/+page.svelte`
+- **Key functions / components:** `+page.server.js` → `load()` maps sections onto items; `delete` action
+- **Dependencies:** `discoveryItem`, `discoverySection` tables
+
+### Admin Discovery Item Create
+- **What it does:** Create a new discovery item. Dynamic media type switcher (image/carousel/video/YouTube). Uploads via R2 + processImage. Supports tag selection.
+- **Entry point:** `src/routes/admin/discovery/new/+page.svelte`
+- **Key functions / components:** `+page.server.js` → default action; `processAndUpload()`, `extractYoutubeId()`, `slugify()`; DataTransfer carousel sync trick
+- **API calls:** R2 PutObject via `uploadToR2()`, `processImage()` for WebP variants
+- **Data flow:** Form submit → validate → upload media → insert discoveryItem → insert discoveryItemImages (carousel) → insert discoveryItemTag → redirect
+- **Dependencies:** `src/lib/server/r2.js`, `src/lib/server/image.js`, `discoveryItem` + related tables
+
+### Admin Discovery Item Edit
+- **What it does:** Edit an existing discovery item. Pre-populates all fields. Preserves existing media URL if no new file uploaded. Replaces carousel images only if new files submitted. Syncs tags (delete-all then re-insert).
+- **Entry point:** `src/routes/admin/discovery/[id]/edit/+page.svelte`
+- **Key functions / components:** `+page.server.js` → `load()` (item + images + tags + sections + allTags with `checked` boolean); default action
+- **Dependencies:** `src/lib/server/r2.js`, `src/lib/server/image.js`, `discoveryItem` + related tables

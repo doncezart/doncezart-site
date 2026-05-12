@@ -6,6 +6,8 @@ import {
 import { asc } from 'drizzle-orm';
 import { uploadToR2 } from '$lib/server/r2.js';
 import { processImage } from '$lib/server/image.js';
+import { applyFaststart } from '$lib/server/video.js';
+import { generatePreviewAsync } from '$lib/server/generatePreview.js';
 import { fail, redirect } from '@sveltejs/kit';
 
 function slugify(text) {
@@ -59,6 +61,7 @@ export const actions = {
 		const sourceUrl = data.get('source_url')?.toString().trim() || null;
 		const tagIds = data.getAll('tags').map(Number).filter(Boolean);
 		const youtubeInput = data.get('youtube_url')?.toString().trim() || null;
+		const visible = data.get('visible') === 'true';
 
 		if (!title || !sectionId || !mediaType) {
 			return fail(400, { error: 'Title, section, and media type are required.' });
@@ -111,8 +114,9 @@ export const actions = {
 			if (!ALLOWED_VIDEO_TYPES.includes(file.type)) return fail(400, { error: 'Unsupported video format. Use mp4, webm, or mov.' });
 			if (file.size > MAX_VIDEO_SIZE) return fail(400, { error: 'Video must be under 200 MB.' });
 			try {
-				const buffer = Buffer.from(await file.arrayBuffer());
+				let buffer = Buffer.from(await file.arrayBuffer());
 				const ext = file.name.split('.').pop() || 'mp4';
+				try { buffer = applyFaststart(buffer, ext); } catch { /* non-fatal */ }
 				imageUrl = await uploadToR2(buffer, `discovery/${slug}-${ts}.${ext}`, file.type);
 			} catch (e) {
 				console.error(e);
@@ -125,7 +129,7 @@ export const actions = {
 		const [inserted] = await db.insert(discoveryItem).values({
 			sectionId, title, description, mediaType,
 			imageUrl, thumbnailUrl, youtubeId,
-			sourceUrl, creatorName, creatorUrl
+			sourceUrl, creatorName, creatorUrl, visible
 		}).returning({ id: discoveryItem.id });
 
 		if (mediaType === 'carousel' && carouselImages.length > 0) {
@@ -141,6 +145,10 @@ export const actions = {
 
 		if (tagIds.length > 0) {
 			await db.insert(discoveryItemTag).values(tagIds.map(tagId => ({ itemId: inserted.id, tagId })));
+		}
+
+		if (mediaType === 'video' && imageUrl) {
+			generatePreviewAsync(inserted.id, imageUrl).catch(e => console.error('[preview]', e.message));
 		}
 
 		redirect(303, '/admin/discovery');

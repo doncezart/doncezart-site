@@ -2,40 +2,77 @@
     import Button from '$lib/components/ui/Button.svelte';
     import { PUBLIC_TURNSTILE_SITE_KEY } from '$env/static/public';
     let { form } = $props();
+
+    const hasFieldError = $derived(form?.missing_email || form?.missing_name || form?.missing_message);
+
+    $effect(() => {
+        if (form?.success) {
+            window.umami?.track('contact-form-submitted');
+        }
+    });
 </script>
 
 <svelte:head>
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </svelte:head>
 
-<div class="body">
-    <div style="text-align: center">
-        <h1>Get in touch with me</h1>
-        <p>Send me a message by using the following form or use the alternative methods below</p>
+<div class="page">
+    <div class="header">
+        <h1>Get in touch</h1>
+        <p>Send me a message using the form below, or use the alternative methods at the bottom.</p>
     </div>
 
-    
     <form method="POST" action="?/send">
-        {#if form?.missing_email}<p style="color: red;">The email field is required</p>{/if}
-        {#if form?.missing_name}<p style="color: red;">The name field is required</p>{/if}
-        {#if form?.missing_message}<p style="color: red;">The message field is required</p>{/if}
-        {#if form?.captcha_failed}<p style="color: red;">Bot check failed — please try again.</p>{/if}
-        {#if form?.success}<p style="color: green;">Message sent successfully</p>{/if}
+        {#if hasFieldError}
+            <div class="form-message form-message--error">Please fill in all required fields.</div>
+        {/if}
+        {#if form?.captcha_failed}
+            <div class="form-message form-message--error">Bot check failed — please try again.</div>
+        {/if}
+        {#if form?.success}
+            <div class="form-message form-message--success">Message sent successfully.</div>
+        {/if}
+
         <div class="fields">
-            <div style="width: 100%">
+            <div class="field">
                 <label for="email">Email address</label>
-                <textarea style= "height: 2.5rem" id="email" name="email" class:error={form?.missing_email} maxlength="50" placeholder="john@doe.com" autocomplete="email" value={form?.email ?? ''}></textarea>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    class:error={form?.missing_email}
+                    maxlength="50"
+                    placeholder="john@doe.com"
+                    autocomplete="email"
+                    value={form?.email ?? ''}
+                />
             </div>
 
-            <div style="width: 100%">
+            <div class="field">
                 <label for="name">Name</label>
-                <textarea style= "height: 2.5rem" id="name" name="name" class:error={form?.missing_name} maxlength="50" placeholder="John Doe" autocomplete="name" value={form?.name ?? ''}></textarea>
+                <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    class:error={form?.missing_name}
+                    maxlength="50"
+                    placeholder="John Doe"
+                    autocomplete="name"
+                    value={form?.name ?? ''}
+                />
             </div>
         </div>
 
-        <div class="message">
+        <div class="field">
             <label for="message">Message</label>
-            <textarea style="height: 5rem" id="message" name ="message" class:error={form?.missing_message} placeholder="Message" maxlength="1000" value={form?.message ?? ''}></textarea>
+            <textarea
+                id="message"
+                name="message"
+                class:error={form?.missing_message}
+                placeholder="Your message…"
+                maxlength="1000"
+                value={form?.message ?? ''}
+            ></textarea>
         </div>
 
         <div class="cf-turnstile" data-sitekey={PUBLIC_TURNSTILE_SITE_KEY} data-theme="dark"></div>
@@ -43,52 +80,119 @@
         <Button variant="outline" type="submit" style="width: 100%">Send message</Button>
     </form>
 
-    <p style="text-align:center; margin-top: 2rem">Can't complete the form? Send me an email at <a href="mailto:tiniu@ceza.ro">me@doncez.art</a> or reach me on my <a href="/socials">socials</a>.</p>
-    
+    <p class="footer-note">
+        Can't complete the form? Email me at <a href="mailto:me@doncez.art">me@doncez.art</a> or reach me on my <a href="/socials">socials</a>.
+    </p>
 </div>
 
 <style>
-    form{
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        max-width: 60rem;
-        margin-left: auto;
-        margin-right: auto;
-        margin-top: 2rem;
+    .page {
+        padding: var(--space-2xl) var(--container-pad);
+        max-width: 36rem;
+        margin: 0 auto;
     }
 
-    label {
-        font-family: 'Satoshi';
-        color: white;
-        margin: 0;
+    .header {
+        text-align: center;
+        margin-bottom: var(--space-2xl);
+    }
+
+    .header h1 {
         margin-bottom: 0.5rem;
     }
 
-    textarea {
-        background-color: rgba(0,0,0,0);
-        color: white;
-        border: solid 0.1rem white;
-        font-family: 'Satoshi';
-        padding: 0.5rem;
-        width: 100%;
-        box-sizing: border-box;
-        resize: none;
+    .header p {
+        color: var(--color-text-secondary);
+        font-size: var(--text-base);
+        margin: 0;
     }
 
-    textarea:focus {
-        outline: none
+    form {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
     }
 
-    .fields{
+    .fields {
         display: flex;
         gap: 1rem;
-        @media (max-width:666px) {
-            flex-direction: column
+    }
+
+    @media (max-width: 560px) {
+        .fields {
+            flex-direction: column;
         }
     }
 
-    .error{
-        border: solid 0.1rem red;
+    .field {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+
+    label {
+        display: block;
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+        margin-bottom: 0.4rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    input,
+    textarea {
+        background: transparent;
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        padding: 0.75rem 1rem;
+        font-family: var(--font-body);
+        font-size: var(--text-base);
+        width: 100%;
+        box-sizing: border-box;
+        border-radius: var(--radius, 0);
+    }
+
+    textarea {
+        height: 8rem;
+        resize: vertical;
+    }
+
+    input:focus,
+    textarea:focus {
+        outline: none;
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    input.error,
+    textarea.error {
+        border-color: var(--color-accent);
+    }
+
+    .form-message {
+        font-size: var(--text-sm);
+        padding: 0.6rem 1rem;
+    }
+
+    .form-message--error {
+        border-left: 2px solid var(--color-accent);
+        color: var(--color-accent);
+    }
+
+    .form-message--success {
+        border-left: 2px solid rgba(80, 200, 120, 0.8);
+        color: rgba(80, 200, 120, 0.8);
+    }
+
+    .footer-note {
+        text-align: center;
+        margin-top: var(--space-2xl);
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
+    }
+
+    .footer-note a {
+        color: inherit;
+        text-decoration: underline;
+        text-underline-offset: 3px;
     }
 </style>

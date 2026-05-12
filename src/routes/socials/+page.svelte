@@ -20,7 +20,9 @@
 <ul class="socials-list">
     {#each socials as s}
         <li>
-            <a href={s.href} class="social-row" target="_blank" rel="noopener noreferrer">
+            <a href={s.href} class="social-row" target="_blank" rel="noopener noreferrer"
+                onclick={() => window.umami?.track('social-click', { platform: s.platform, location: 'socials-page' })}
+            >
                 <i class="{s.icon} social-icon"></i>
                 <span class="social-platform">{s.platform}</span>
                 <span class="social-handle">{s.handle}</span>

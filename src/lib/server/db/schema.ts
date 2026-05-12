@@ -106,11 +106,13 @@ export const discoveryItem = pgTable('discovery_item', {
 	mediaType: text('media_type').notNull(),
 	imageUrl: text('image_url'),
 	thumbnailUrl: text('thumbnail_url'),
+	previewUrl: text('preview_url'),
 	youtubeId: text('youtube_id'),
 	sourceUrl: text('source_url'),
 	creatorName: text('creator_name'),
 	creatorUrl: text('creator_url'),
 	position: integer('position').notNull().default(0),
+	visible: boolean('visible').notNull().default(true),
 	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
 });

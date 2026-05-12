@@ -18,6 +18,7 @@ export const actions = {
 		const data = await request.formData();
 		const name = data.get('name')?.toString().trim();
 		if (!name) return fail(400, { error: 'Category name is required.' });
+		if (name.length > 100) return fail(400, { error: 'Category name must be under 100 characters.' });
 		const slug = slugify(name);
 		try {
 			await db.insert(category).values({ name, slug });
@@ -41,6 +42,7 @@ export const actions = {
 		const id = Number(data.get('id'));
 		const name = data.get('name')?.toString().trim();
 		if (!id || !name) return fail(400, { error: 'ID and name are required.' });
+		if (name.length > 100) return fail(400, { error: 'Category name must be under 100 characters.' });
 		const slug = slugify(name);
 		try {
 			await db.update(category).set({ name, slug }).where(eq(category.id, id));
@@ -56,6 +58,7 @@ export const actions = {
 		const name = data.get('name')?.toString().trim();
 		const categoryId = Number(data.get('category_id'));
 		if (!name || !categoryId) return fail(400, { error: 'Name and category are required.' });
+		if (name.length > 100) return fail(400, { error: 'Subcategory name must be under 100 characters.' });
 		const slug = slugify(name);
 		await db.insert(subcategory).values({ name, slug, categoryId });
 		return { success: true };

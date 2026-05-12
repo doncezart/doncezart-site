@@ -11,11 +11,13 @@
         activeCategory = id;
         activeSubcategory = 'all';
         showMobileMenu = false;
+        window.umami?.track('filter-category', { category: id });
     }
 
     function selectSubcategory(id) {
         activeSubcategory = id;
         showMobileMenu = false;
+        window.umami?.track('filter-subcategory', { subcategory: id });
     }
 
     function scrollRow(el, direction) {

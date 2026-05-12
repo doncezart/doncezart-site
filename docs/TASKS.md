@@ -24,3 +24,4 @@
 - [x] TASK-015: Make public gallery DB-driven with lightbox + case study routing
 - [x] TASK-016: Add tag-based filtering to gallery
 - [x] TASK-017: Polish sprint — tokens.css, Button, Badge, PageHeader, NavDropdown, Footer, Navbar overhaul, error page, privacy/assets/discovery/socials pages, Turnstile, legacy CSS cleanup
+- [x] TASK-018: Discovery feature — DB schema, admin CRUD (sections/tags/items), public grid+modal

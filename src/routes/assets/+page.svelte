@@ -1,5 +1,7 @@
 <script>
     import PageHeader from '$lib/components/ui/PageHeader.svelte';
+
+    $effect(() => { window.umami?.track('page-view', { page: 'assets' }); });
 </script>
 
 <svelte:head>

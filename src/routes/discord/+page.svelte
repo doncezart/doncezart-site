@@ -37,6 +37,7 @@
                     target="_blank"
                     rel="noopener noreferrer"
                     class="join-btn"
+                    onclick={() => window.umami?.track('discord-join', { server: server.name })}
                 >
                     Join Server
                     <i class="fa-solid fa-arrow-up-right-from-square"></i>

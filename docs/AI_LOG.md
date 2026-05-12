@@ -25,3 +25,11 @@
 2026-05-11 | added privacy, assets, discovery, socials pages | src/routes/privacy/+page.svelte, src/routes/assets/+page.svelte, src/routes/discovery/+page.svelte, src/routes/discovery/[section]/+page.svelte, src/routes/discovery/[section]/+page.server.js, src/routes/socials/+page.svelte
 2026-05-11 | added Cloudflare Turnstile to contact form | src/routes/contact/+page.svelte, src/routes/contact/+page.server.js, .env.example
 2026-05-11 | removed legacy .btn and .main-border from global.css | static/css/global.css, src/lib/components/GalleryGrid.svelte
+2026-05-12 | added 5 Discovery DB tables and 4 type exports | src/lib/server/db/schema.ts
+2026-05-12 | added collapsible nav groups to admin sidebar | src/routes/admin/+layout.svelte
+2026-05-12 | added admin Discovery tags CRUD | src/routes/admin/discovery/tags/+page.server.js, src/routes/admin/discovery/tags/+page.svelte
+2026-05-12 | added admin Discovery sections CRUD | src/routes/admin/discovery/sections/+page.server.js, src/routes/admin/discovery/sections/+page.svelte
+2026-05-12 | added admin Discovery items list and new item form | src/routes/admin/discovery/+page.server.js, src/routes/admin/discovery/+page.svelte, src/routes/admin/discovery/new/+page.server.js, src/routes/admin/discovery/new/+page.svelte
+2026-05-12 | added admin Discovery item edit form | src/routes/admin/discovery/[id]/edit/+page.server.js, src/routes/admin/discovery/[id]/edit/+page.svelte
+2026-05-12 | made public discovery index DB-driven; removed hardcoded sections | src/routes/discovery/+page.server.js, src/routes/discovery/+page.svelte
+2026-05-12 | rewrote public discovery section page with grid, tag filters, sort, and modal | src/routes/discovery/[section]/+page.server.js, src/routes/discovery/[section]/+page.svelte

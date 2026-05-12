@@ -1,13 +1,13 @@
 <script>
-    let { variant = 'solid', href = null, size = 'md', type = 'button', style = '', children } = $props();
+    let { variant = 'solid', href = null, size = 'md', type = 'button', style = '', children, ...rest } = $props();
 </script>
 
 {#if href}
-    <a {href} {style} class="btn btn--{variant} btn--{size}">
+    <a {href} {style} class="btn btn--{variant} btn--{size}" {...rest}>
         {@render children?.()}
     </a>
 {:else}
-    <button {type} {style} class="btn btn--{variant} btn--{size}">
+    <button {type} {style} class="btn btn--{variant} btn--{size}" {...rest}>
         {@render children?.()}
     </button>
 {/if}

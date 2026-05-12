@@ -1,4 +1,6 @@
 <script>
+    import { tick } from 'svelte';
+    import { fade } from 'svelte/transition';
     import Badge from './ui/Badge.svelte';
     import Button from './ui/Button.svelte';
 
@@ -7,33 +9,105 @@
     let gridEl = $state(null);
     let wrapEl = $state(null);
     let contentOverflows = $state(false);
+    let masonryDone = $state(false);
+
+    const GAP = 12; // matches 0.75rem column-gap
+
+    function colCount() {
+        if (typeof window === 'undefined') return columns;
+        if (window.innerWidth <= 540) return 1;
+        if (window.innerWidth <= 900) return Math.min(columns, 3);
+        if (window.innerWidth <= 1200) return Math.min(columns, 4);
+        return columns;
+    }
+
+    function runMasonry() {
+        if (!gridEl) return;
+        const cols = colCount();
+        const totalW = gridEl.offsetWidth;
+        const colW = Math.floor((totalW - (cols - 1) * GAP) / cols);
+        const heights = Array(cols).fill(0);
+
+        const children = [...gridEl.querySelectorAll(':scope > .gallery-item')];
+        children.forEach(item => {
+            const shortest = heights.indexOf(Math.min(...heights));
+            item.style.position = 'absolute';
+            item.style.width = `${colW}px`;
+            item.style.left = `${shortest * (colW + GAP)}px`;
+            item.style.top = `${heights[shortest]}px`;
+            heights[shortest] += item.offsetHeight + GAP;
+        });
+
+        const totalH = Math.max(...heights) - GAP;
+        gridEl.style.height = `${totalH}px`;
+        // Only reveal once items have real height (i.e. at least one image has loaded)
+        if (totalH > 0) masonryDone = true;
+
+        if (!showAll && wrapEl) {
+            contentOverflows = totalH > wrapEl.clientHeight + 2;
+        }
+    }
 
     $effect(() => {
-        if (showAll) {
-            contentOverflows = false;
-            return;
-        }
         const grid = gridEl;
-        const wrap = wrapEl;
-        if (!grid || !wrap) return;
+        items; // re-run masonry when item list changes (infinite scroll / pagination)
+        columns; // re-run masonry when column count changes (slider)
+        if (!grid) return;
 
-        function check() {
-            contentOverflows = grid.scrollHeight > wrap.clientHeight + 2;
+        grid.style.position = 'relative';
+
+        async function init() {
+            await tick();
+            runMasonry();
+            // Re-run as each lazy image loads
+            grid.querySelectorAll('img').forEach(img => {
+                if (!img.complete) {
+                    img.addEventListener('load', runMasonry, { once: true });
+                    img.addEventListener('error', runMasonry, { once: true });
+                }
+            });
+            // Re-run when video first-frame is ready
+            grid.querySelectorAll('video.thumb-video').forEach(video => {
+                if (video.readyState < 1) {
+                    video.addEventListener('loadedmetadata', runMasonry, { once: true });
+                }
+            });
         }
 
-        check();
-        const ro = new ResizeObserver(check);
+        init();
+
+        const ro = new ResizeObserver(() => runMasonry());
         ro.observe(grid);
         return () => ro.disconnect();
     });
 
     function handleClick(item) {
-        if (onItemClick) onItemClick(item);
+        if (!onItemClick) return;
+        window.umami?.track('artwork-open', {
+            title: item.title,
+            category: item.category,
+            mode: item.displayMode
+        });
+        onItemClick(item);
     }
 </script>
 
 <div class="gallery-wrap" class:show-all={showAll} bind:this={wrapEl}>
-    <div class="gallery-grid" style="--cols: {columns}" bind:this={gridEl}>
+    {#if !masonryDone && items.length > 0}
+        <div
+            class="skeleton-overlay"
+            style="--sk-cols: {columns}"
+            transition:fade={{ duration: 200 }}
+        >
+            {#each Array.from({ length: Math.min(items.length, 12) }) as _, i}
+                <div
+                    class="skeleton-item"
+                    style="animation-delay: {(i % 6) * 0.1}s"
+                ></div>
+            {/each}
+        </div>
+    {/if}
+    <div class="gallery-grid" class:visible={masonryDone} bind:this={gridEl}>
         {#each items as item (item.src)}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -45,7 +119,15 @@
                 role={onItemClick ? 'button' : undefined}
                 tabindex={onItemClick ? 0 : undefined}
             >
-                <img src={item.src} alt={item.alt} loading="lazy" />
+                {#if item.videoSrc}
+                    <!-- svelte-ignore a11y_media_has_caption -->
+                    <video src={item.videoSrc} muted playsinline preload="metadata" disablepictureinpicture controlslist="nopictureinpicture nodownload" class="thumb-video"></video>
+                {:else}
+                    <img src={item.src} alt={item.alt} loading="lazy" />
+                {/if}
+                {#if item.previewUrl}
+                    <img src={item.previewUrl} alt="" class="thumb-preview" aria-hidden="true" loading="lazy" />
+                {/if}
                 {#if item.imageCount > 1}
                     <Badge dark position="top-left">
                         {#if item.displayMode === 'before-after'}
@@ -96,7 +178,12 @@
 
 {#if contentOverflows}
     <div class="show-more">
-        <Button href={showMoreHref} variant="cta" style="font-weight: 400">View all work <i class="fa-solid fa-arrow-right"></i></Button>
+        <Button
+            href={showMoreHref}
+            variant="cta"
+            style="font-weight: 400"
+            onclick={() => window.umami?.track('view-all-work')}
+        >View all work <i class="fa-solid fa-arrow-right"></i></Button>
     </div>
 {/if}
 
@@ -106,11 +193,13 @@
         max-height: 72vh;
         overflow: hidden;
         margin-top: 1.5rem;
+        min-height: 300px;
     }
 
     .gallery-wrap.show-all {
         max-height: none;
         overflow: visible;
+        min-height: 300px;
     }
 
     @media (max-width: 666px) {
@@ -119,20 +208,52 @@
         }
     }
 
-    .gallery-grid {
-        columns: var(--cols);
-        column-gap: 0.75rem;
+    /* ── Skeleton ── */
+    .skeleton-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        columns: var(--sk-cols, 4);
+        column-gap: 12px;
     }
 
     @media (max-width: 1200px) {
-        .gallery-grid { columns: 2; }
+        .skeleton-overlay { columns: 2; }
     }
     @media (max-width: 666px) {
-        .gallery-grid { columns: 1; }
+        .skeleton-overlay { columns: 1; }
+    }
+
+    .skeleton-item {
+        break-inside: avoid;
+        margin-bottom: 12px;
+        aspect-ratio: 16 / 9;
+        background: linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.04) 0%,
+            rgba(255, 255, 255, 0.09) 50%,
+            rgba(255, 255, 255, 0.04) 100%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.5s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+        0%   { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+
+    .gallery-grid {
+        /* JS masonry handles layout; position:relative set by script */
+        width: 100%;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+    .gallery-grid.visible {
+        opacity: 1;
     }
 
     .gallery-item {
-        break-inside: avoid;
         overflow: hidden;
         position: relative;
         border-radius: var(--radius);
@@ -144,15 +265,29 @@
         cursor: pointer;
     }
 
-    .gallery-item img {
+    .gallery-item img,
+    .gallery-item .thumb-video {
         width: 100%;
         height: auto;
         display: block;
-        transition: transform 0.3s ease;
     }
 
-    .gallery-item:hover img {
-        transform: scale(1.03);
+    /* No min-height — masonry re-runs on loadedmetadata for correct ratio even on short/wide videos */
+    .thumb-video { pointer-events: none; background: #000; }
+
+    .thumb-preview {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+        pointer-events: none;
+        border-radius: inherit;
+    }
+    .gallery-item:hover .thumb-preview {
+        opacity: 1;
     }
 
     .gallery-fade {

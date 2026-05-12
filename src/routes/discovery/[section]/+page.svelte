@@ -6,9 +6,93 @@
 	let { data } = $props();
 
 	let activeTag = $state('all');
-	let sortOrder = $state('newest');
 	let modalItem = $state(null);
 	let carouselIndex = $state(0);
+
+	// Column count — slider left = big items (fewer cols), slider right = small items (more cols)
+	// Default = COL_MAX (most columns = smallest items as requested)
+	const COL_KEY = 'discovery-columns';
+	const COL_MIN = 1;
+	const COL_MAX = 6;
+	let columns = $state(COL_MAX);
+	let colMax = $state(COL_MAX);
+	$effect.root(() => {
+		if (typeof localStorage === 'undefined') return;
+		const raw = localStorage.getItem(COL_KEY);
+		if (raw !== null) {
+			const stored = parseInt(raw, 10);
+			if (stored >= COL_MIN && stored <= COL_MAX) columns = stored;
+		} else {
+			// No stored preference — default to 1 col on mobile, max on desktop
+			columns = window.innerWidth <= 540 ? COL_MIN : COL_MAX;
+		}
+	});
+	$effect.root(() => {
+		if (typeof window === 'undefined') return;
+		function update() {
+			const mobile = window.innerWidth <= 540;
+			colMax = mobile ? 3 : COL_MAX;
+			if (columns > colMax) columns = colMax;
+		}
+		update();
+		window.addEventListener('resize', update);
+		return () => window.removeEventListener('resize', update);
+	});
+	function setColumns(n) {
+		columns = Math.min(n, colMax);
+		if (typeof localStorage !== 'undefined') localStorage.setItem(COL_KEY, String(columns));
+	}
+
+	// Infinite scroll / pagination
+	const LOAD_MODE_KEY = 'discovery-load-mode';
+	const PER_PAGE_KEY = 'discovery-per-page';
+	const BATCH = 24;
+	let loadMode = $state('infinite');
+	let perPage = $state(24);
+	let page = $state(1);
+	let visibleCount = $state(BATCH);
+	let sentinel = $state(null);
+
+	$effect.root(() => {
+		if (typeof localStorage !== 'undefined') {
+			const mode = localStorage.getItem(LOAD_MODE_KEY);
+			if (mode === 'paginated' || mode === 'infinite') loadMode = mode;
+			const pp = parseInt(localStorage.getItem(PER_PAGE_KEY) ?? '24', 10);
+			if ([12, 24, 48, 96].includes(pp)) perPage = pp;
+		}
+	});
+
+	// Reset on filter change
+	$effect(() => {
+		activeTag;
+		page = 1;
+		visibleCount = BATCH;
+	});
+
+	function setLoadMode(m) {
+		loadMode = m;
+		page = 1;
+		visibleCount = BATCH;
+		if (typeof localStorage !== 'undefined') localStorage.setItem(LOAD_MODE_KEY, m);
+		window.umami?.track('discovery-load-mode', { mode: m, section: data.section.slug });
+	}
+	function setPerPage(n) {
+		perPage = n;
+		page = 1;
+		if (typeof localStorage !== 'undefined') localStorage.setItem(PER_PAGE_KEY, String(n));
+		window.umami?.track('discovery-per-page', { perPage: n, section: data.section.slug });
+	}
+
+	// IntersectionObserver sentinel for infinite scroll
+	$effect(() => {
+		if (!sentinel) return;
+		const io = new IntersectionObserver(
+			(entries) => { if (entries[0].isIntersecting) visibleCount += BATCH; },
+			{ rootMargin: '300px' }
+		);
+		io.observe(sentinel);
+		return () => io.disconnect();
+	});
 
 	const YOUTUBE_THUMB = (id) => `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
 
@@ -18,6 +102,8 @@
 			?? (item.youtubeId ? YOUTUBE_THUMB(item.youtubeId) : null)
 			?? item.imageUrl
 			?? '',
+		videoSrc: item.mediaType === 'video' && !item.thumbnailUrl ? item.imageUrl : null,
+		previewUrl: item.previewUrl ?? null,
 		alt: item.title,
 		title: item.title,
 		category: item.mediaType === 'youtube' ? 'YouTube'
@@ -35,11 +121,17 @@
 		if (activeTag !== 'all') {
 			items = items.filter(i => i._discovery.tags.some(t => t.slug === activeTag));
 		}
-		if (sortOrder === 'oldest') {
-			items = [...items].reverse();
-		}
 		return items;
 	});
+
+	let displayedItems = $derived.by(() => {
+		if (loadMode === 'paginated') {
+			return filteredItems.slice((page - 1) * perPage, page * perPage);
+		}
+		return filteredItems.slice(0, visibleCount);
+	});
+	let totalPages = $derived(Math.ceil(filteredItems.length / perPage));
+	let hasMore = $derived(loadMode === 'infinite' && visibleCount < filteredItems.length);
 
 	let tagPills = $derived([
 		{ slug: 'all', name: 'All' },
@@ -49,11 +141,33 @@
 	function openModal(gridItem) {
 		modalItem = gridItem._discovery;
 		carouselIndex = 0;
+		if (typeof history !== 'undefined') {
+			history.replaceState({ modalId: gridItem.id }, '', `?item=${gridItem.id}`);
+		}
+		window.umami?.track('discovery-item-open', {
+			title: gridItem.title,
+			section: data.section.slug,
+			mediaType: gridItem._discovery.mediaType,
+			itemId: gridItem.id
+		});
 	}
 
 	function closeModal() {
 		modalItem = null;
+		if (typeof history !== 'undefined') {
+			history.replaceState(null, '', window.location.pathname);
+		}
+		window.umami?.track('discovery-item-close', { section: data.section.slug });
 	}
+
+	// Open modal if ?item= is in the URL on page load
+	$effect.root(() => {
+		if (typeof window === 'undefined') return;
+		const id = new URL(window.location.href).searchParams.get('item');
+		if (!id) return;
+		const found = allGridItems.find(i => String(i.id) === id);
+		if (found) openModal(found);
+	});
 
 	function carouselPrev() {
 		if (carouselIndex > 0) carouselIndex--;
@@ -68,6 +182,13 @@
 		if (e.key === 'ArrowLeft') carouselPrev();
 		if (e.key === 'ArrowRight') carouselNext();
 	}
+
+	// Lock body scroll when modal is open
+	$effect(() => {
+		if (typeof document === 'undefined') return;
+		document.body.style.overflow = modalItem ? 'hidden' : '';
+		return () => { document.body.style.overflow = ''; };
+	});
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -86,32 +207,62 @@
 				<button
 					class="tag-pill"
 					class:active={activeTag === t.slug}
-					onclick={() => (activeTag = t.slug)}
+					onclick={() => {
+						activeTag = t.slug;
+						window.umami?.track('discovery-tag-filter', { tag: t.slug, section: data.section.slug });
+					}}
 				>
 					{t.name}
 				</button>
 			{/each}
 		</div>
-		<div class="sort-toggle">
-			<button
-				class="sort-btn"
-				class:active={sortOrder === 'newest'}
-				onclick={() => (sortOrder = 'newest')}
-			>Newest</button>
-			<button
-				class="sort-btn"
-				class:active={sortOrder === 'oldest'}
-				onclick={() => (sortOrder = 'oldest')}
-			>Oldest</button>
+		<div class="controls-right">
+			<div class="col-slider" title="Grid size">
+				<i class="fa-solid fa-grip" style="font-size:0.7rem;opacity:0.5"></i>
+				<input
+					type="range"
+					min={COL_MIN}
+					max={colMax}
+					value={columns}
+					oninput={(e) => setColumns(Number(e.currentTarget.value))}
+					aria-label="Grid columns"
+				/>
+				<i class="fa-solid fa-grip" style="opacity:0.5"></i>
+			</div>
+
 		</div>
 	</div>
 
-	<GalleryGrid
-		items={filteredItems}
-		columns={4}
-		showAll={true}
-		onItemClick={openModal}
-	/>
+	<div class="grid-container">
+		<GalleryGrid
+			items={displayedItems}
+			columns={columns}
+			showAll={true}
+			onItemClick={openModal}
+		/>
+	</div>
+	{#if hasMore}
+		<div bind:this={sentinel} class="sentinel" aria-hidden="true"></div>
+	{:else if loadMode === 'infinite' && filteredItems.length > BATCH}
+		<p class="all-loaded">All {filteredItems.length} items shown</p>
+	{/if}
+	{#if loadMode === 'paginated' && totalPages > 1}
+		<div class="pagination">
+			<button
+				class="page-btn"
+				disabled={page <= 1}
+				onclick={() => { page--; window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+				aria-label="Previous page"
+			><i class="fa-solid fa-chevron-left"></i></button>
+			<span class="page-info">{page} / {totalPages}</span>
+			<button
+				class="page-btn"
+				disabled={page >= totalPages}
+				onclick={() => { page++; window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+				aria-label="Next page"
+			><i class="fa-solid fa-chevron-right"></i></button>
+		</div>
+	{/if}
 {:else}
 	<div class="empty-state">
 		<p>No items in this section yet. Check back soon.</p>
@@ -131,6 +282,9 @@
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+			<button class="modal-close" onclick={closeModal} aria-label="Close">
+				<i class="fa-solid fa-xmark"></i>
+			</button>
 
 			<div class="modal-media">
 				{#if modalItem.mediaType === 'image'}
@@ -163,7 +317,14 @@
 
 				{:else if modalItem.mediaType === 'video'}
 					<!-- svelte-ignore a11y_media_has_caption -->
-					<video src={modalItem.imageUrl} controls></video>
+					<video
+						src={modalItem.imageUrl}
+						controls
+						autoplay
+						playsinline
+						disablepictureinpicture
+						controlslist="nopictureinpicture nodownload"
+					></video>
 
 				{:else if modalItem.mediaType === 'youtube'}
 					<iframe
@@ -176,10 +337,6 @@
 			</div>
 
 			<div class="modal-info">
-				<button class="modal-close" onclick={closeModal} aria-label="Close">
-					<i class="fa-solid fa-xmark"></i>
-				</button>
-
 				<h2 class="modal-title">{modalItem.title}</h2>
 
 				{#if modalItem.description}
@@ -233,6 +390,56 @@
 		padding: 0 var(--container-pad);
 		margin-bottom: var(--space-lg);
 	}
+	.controls-right {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+	}
+	.col-slider {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		color: var(--color-text-secondary);
+	}
+	.col-slider input[type="range"] {
+		width: 80px;
+		accent-color: var(--color-text-primary);
+		cursor: pointer;
+	}
+	.mode-toggle { display: flex; gap: 0.25rem; }
+	.per-page-select {
+		padding: 0.35rem 0.5rem;
+		background: transparent;
+		border: var(--border);
+		border-radius: var(--radius);
+		color: var(--color-text-secondary);
+		font-family: var(--font-body);
+		font-size: var(--text-sm);
+		cursor: pointer;
+	}
+	.per-page-select option { background: #111; }
+	.sentinel { height: 1px; margin: 2rem 0; }
+	.all-loaded {
+		text-align: center;
+		color: var(--color-text-secondary);
+		font-size: var(--text-sm);
+		padding: var(--space-xl) var(--container-pad);
+	}
+	.pagination {
+		display: flex; align-items: center; justify-content: center;
+		gap: 1rem; padding: var(--space-2xl) var(--container-pad);
+	}
+	.page-btn {
+		width: 36px; height: 36px; border-radius: 50%;
+		border: var(--border); background: transparent;
+		color: var(--color-text-secondary); cursor: pointer;
+		display: flex; align-items: center; justify-content: center;
+		transition: all var(--transition-base); font-size: 0.8rem;
+	}
+	.page-btn:hover:not(:disabled) { border-color: var(--color-text-primary); color: var(--color-text-primary); }
+	.page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+	.page-info { color: var(--color-text-secondary); font-size: var(--text-sm); }
 	.tag-pills { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 	.tag-pill {
 		padding: 0.35rem 0.9rem;
@@ -247,24 +454,13 @@
 	}
 	.tag-pill:hover { border-color: var(--color-text-primary); color: var(--color-text-primary); }
 	.tag-pill.active { background: var(--color-text-primary); color: var(--color-bg); border-color: var(--color-text-primary); }
-	.sort-toggle { display: flex; gap: 0.25rem; }
-	.sort-btn {
-		padding: 0.35rem 0.75rem;
-		border: var(--border);
-		background: transparent;
-		color: var(--color-text-secondary);
-		font-family: var(--font-body);
-		font-size: var(--text-sm);
-		cursor: pointer;
-		transition: all var(--transition-base);
+	.grid-container {
+		padding: 0 var(--container-pad);
 	}
-	.sort-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
-	.sort-btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
-	.sort-btn.active { background: var(--color-text-primary); color: var(--color-bg); border-color: var(--color-text-primary); }
-
 	.empty-state {
 		display: flex; flex-direction: column; align-items: center;
-		gap: var(--space-xl); text-align: center; padding-bottom: var(--space-4xl);
+		gap: var(--space-xl); text-align: center;
+		padding: var(--space-4xl) var(--container-pad);
 	}
 	.empty-state p { color: var(--color-text-secondary); }
 
@@ -275,6 +471,7 @@
 		padding: 1rem;
 	}
 	.modal-content {
+		position: relative;
 		display: flex;
 		width: min(92vw, 1100px);
 		max-height: 90vh;
@@ -299,7 +496,37 @@
 		object-fit: contain;
 		display: block;
 	}
-	.modal-media video, .modal-media iframe {
+	.modal-media video {
+		max-height: 85vh;
+		max-width: 100%;
+		width: auto;
+		height: auto;
+		display: block;
+		border: none;
+		margin: auto;
+	}
+	.modal-media:has(video) {
+		background: #0a0a0a;
+	}
+	/* Video modal: flex row, info fixed width, media fills the rest. Hard cap at 96vw total. */
+	.modal-content:has(video) {
+		width: auto;
+		max-width: 96vw;
+	}
+	.modal-content:has(video) .modal-media {
+		flex: 1 1 auto;
+		min-width: 0;
+		max-height: 90vh;
+		overflow: hidden;
+	}
+	.modal-content:has(video) .modal-info {
+		flex: 0 0 260px;
+		width: 260px;
+		min-width: 0;
+		max-height: 90vh;
+		overflow-y: auto;
+	}
+	.modal-media iframe {
 		width: 100%; height: 100%;
 		border: none;
 		display: block;
@@ -340,15 +567,16 @@
 		position: relative;
 	}
 	.modal-close {
-		position: absolute; top: var(--space-md); right: var(--space-md);
-		background: rgba(255,255,255,0.08);
-		border: none; color: rgba(255,255,255,0.6);
+		position: absolute; top: var(--space-md); right: var(--space-md); z-index: 10;
+		background: rgba(0,0,0,0.5);
+		border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.7);
 		width: 32px; height: 32px; border-radius: 50%;
 		display: flex; align-items: center; justify-content: center;
 		cursor: pointer; font-size: 0.9rem;
+		backdrop-filter: blur(4px);
 		transition: all 0.15s;
 	}
-	.modal-close:hover { background: rgba(255,255,255,0.15); color: #fff; }
+	.modal-close:hover { background: rgba(0,0,0,0.8); color: #fff; }
 	.modal-title {
 		font-family: var(--font-display);
 		font-size: var(--text-xl);
@@ -395,12 +623,54 @@
 		border-radius: var(--radius);
 		transition: all var(--transition-base);
 		margin-top: auto;
+		align-self: flex-start;
+		white-space: nowrap;
 	}
 	.view-original:hover { background: rgba(255,255,255,0.07); }
 
 	@media (max-width: 768px) {
-		.modal-content { flex-direction: column; max-height: 95vh; width: 100%; border-radius: 0.5rem; }
-		.modal-media { flex: 0 0 55%; }
-		.modal-info { flex: 1; }
+		.modal-overlay { align-items: flex-end; padding: 0; }
+		.modal-content {
+			flex-direction: column;
+			width: 100%;
+			max-width: 100%;
+			max-height: 100dvh;
+			height: 100dvh;
+			border-radius: 0;
+			overflow-y: auto;
+			overflow-x: hidden;
+		}
+		/* Reset desktop video overrides for mobile */
+		.modal-content:has(video) {
+			width: 100%;
+			max-width: 100%;
+		}
+		.modal-content:has(video) .modal-media,
+		.modal-media {
+			flex: 0 0 auto;
+		}
+		.modal-content:has(video) .modal-info {
+			flex: 0 0 auto;
+			width: auto;
+		}
+		.modal-media img {
+			width: 100%;
+			height: auto;
+			max-height: 75dvh;
+			object-fit: contain;
+		}
+		.modal-media video {
+			width: 100%;
+			height: auto;
+			max-height: 75dvh;
+			max-width: 100%;
+		}
+		.modal-info {
+			flex: 0 0 auto;
+			max-height: none;
+			overflow-y: visible;
+			padding-bottom: var(--space-xl);
+		}
+		.view-original { margin-top: var(--space-md); }
 	}
 </style>
