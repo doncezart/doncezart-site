@@ -103,6 +103,7 @@ export const discoveryItem = pgTable('discovery_item', {
 	sectionId: integer('section_id').notNull().references(() => discoverySection.id, { onDelete: 'cascade' }),
 	title: text('title').notNull(),
 	description: text('description'),
+	notes: text('notes'),
 	mediaType: text('media_type').notNull(),
 	imageUrl: text('image_url'),
 	thumbnailUrl: text('thumbnail_url'),

@@ -4,7 +4,22 @@
     import Badge from './ui/Badge.svelte';
     import Button from './ui/Button.svelte';
 
-    let { items = [], columns = 4, showMoreHref = '/my-work', onItemClick = null, showAll = false } = $props();
+    let { items = [], columns = 4, showMoreHref = '/my-work', onItemClick = null, showAll = false, enableHoverPreview = false } = $props();
+
+    function hoverStart(e) {
+        const video = e.currentTarget.querySelector('.hover-preview');
+        if (!video) return;
+        video.src = video.dataset.src;
+        video.play().catch(() => {});
+    }
+
+    function hoverEnd(e) {
+        const video = e.currentTarget.querySelector('.hover-preview');
+        if (!video) return;
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+    }
 
     let gridEl = $state(null);
     let wrapEl = $state(null);
@@ -108,7 +123,7 @@
         </div>
     {/if}
     <div class="gallery-grid" class:visible={masonryDone} bind:this={gridEl}>
-        {#each items as item (item.src)}
+        {#each items as item (item.id)}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
             <div
@@ -116,17 +131,31 @@
                 class:clickable={!!onItemClick}
                 onclick={() => handleClick(item)}
                 onkeydown={(e) => e.key === 'Enter' && handleClick(item)}
+                onmouseenter={enableHoverPreview ? hoverStart : undefined}
+                onmouseleave={enableHoverPreview ? hoverEnd : undefined}
                 role={onItemClick ? 'button' : undefined}
                 tabindex={onItemClick ? 0 : undefined}
             >
                 {#if item.videoSrc}
                     <!-- svelte-ignore a11y_media_has_caption -->
-                    <video src={item.videoSrc} muted playsinline preload="metadata" disablepictureinpicture controlslist="nopictureinpicture nodownload" class="thumb-video"></video>
+                    <video src={item.videoSrc} muted playsinline preload="metadata" disablepictureinpicture controlslist="nopictureinpicture nodownload" class="thumb-video"
+                        onloadeddata={(e) => { e.currentTarget.currentTime = 0.001; }}
+                    ></video>
                 {:else}
                     <img src={item.src} alt={item.alt} loading="lazy" />
                 {/if}
-                {#if item.previewUrl}
-                    <img src={item.previewUrl} alt="" class="thumb-preview" aria-hidden="true" loading="lazy" />
+                {#if enableHoverPreview && item.previewUrl}
+                    <!-- svelte-ignore a11y_media_has_caption -->
+                    <video
+                        class="hover-preview"
+                        data-src={item.previewUrl}
+                        muted
+                        playsinline
+                        loop
+                        disablepictureinpicture
+                        controlslist="nopictureinpicture nodownload noremoteplayback"
+                        tabindex="-1"
+                    ></video>
                 {/if}
                 {#if item.imageCount > 1}
                     <Badge dark position="top-left">
@@ -275,18 +304,20 @@
     /* No min-height — masonry re-runs on loadedmetadata for correct ratio even on short/wide videos */
     .thumb-video { pointer-events: none; background: #000; }
 
-    .thumb-preview {
+    .hover-preview {
         position: absolute;
         inset: 0;
         width: 100%;
         height: 100%;
         object-fit: cover;
         opacity: 0;
-        transition: opacity 0.25s ease;
+        transition: opacity 0.15s ease;
         pointer-events: none;
-        border-radius: inherit;
+        display: block;
+        background: transparent;
     }
-    .gallery-item:hover .thumb-preview {
+
+    .gallery-item:hover .hover-preview {
         opacity: 1;
     }
 

@@ -35,7 +35,7 @@
 <style>
     .socials-list {
         list-style: none;
-        padding: 0;
+        padding: 0 var(--container-pad);
         margin: 0 auto;
         max-width: 48rem;
         padding-bottom: var(--space-4xl);

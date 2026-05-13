@@ -87,6 +87,29 @@
     animation: flicker 0.15s infinite;
 } */
  
+:global(html) {
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: #444 transparent;
+}
+
+:global(::-webkit-scrollbar) {
+    width: 6px;
+}
+
+:global(::-webkit-scrollbar-track) {
+    background: transparent;
+}
+
+:global(::-webkit-scrollbar-thumb) {
+    background: #444;
+    border-radius: 3px;
+}
+
+:global(::-webkit-scrollbar-thumb:hover) {
+    background: #666;
+}
+
 :global(body) {
     display: flex;
     flex-direction: column;

@@ -2,11 +2,20 @@
 	import { enhance } from '$app/forms';
 	let { data, form } = $props();
 
-	let mediaType = $state('image');
+	let useYoutube = $state(false);
 	let selectedFiles = $state([]);
 	let uploading = $state(false);
 	let hiddenInput = $state(null);
 	let dragOver = $state(false);
+
+	// Derived detected type from selected files
+	let detectedType = $derived.by(() => {
+		if (selectedFiles.length === 0) return null;
+		const first = selectedFiles[0];
+		if (first.type.startsWith('video/')) return 'video';
+		if (selectedFiles.length > 1) return 'carousel';
+		return 'image';
+	});
 
 	function syncHidden(files) {
 		if (!hiddenInput) return;
@@ -17,27 +26,18 @@
 
 	function handleFileChange(e) {
 		const files = Array.from(e.target.files || []);
-		if (mediaType === 'image') {
-			selectedFiles = files.slice(0, 1);
-		} else {
-			selectedFiles = [...selectedFiles, ...files];
-		}
+		const isVideo = files[0]?.type.startsWith('video/');
+		selectedFiles = isVideo ? files.slice(0, 1) : [...selectedFiles, ...files];
 		syncHidden(selectedFiles);
 	}
 
 	function handleDrop(e) {
 		e.preventDefault();
 		dragOver = false;
-		// Don't filter by MIME type — Linux file managers often send type=""
 		const files = Array.from(e.dataTransfer.files);
 		if (!files.length) return;
-		if (mediaType === 'image') {
-			selectedFiles = files.slice(0, 1);
-		} else if (mediaType === 'video') {
-			selectedFiles = files.slice(0, 1);
-		} else {
-			selectedFiles = [...selectedFiles, ...files];
-		}
+		const isVideo = files[0]?.type.startsWith('video/');
+		selectedFiles = isVideo ? files.slice(0, 1) : [...selectedFiles, ...files];
 		syncHidden(selectedFiles);
 	}
 
@@ -47,41 +47,45 @@
 	}
 
 	$effect(() => {
-		// Reset selected files when media type changes
-		mediaType;
-		selectedFiles = [];
-		if (hiddenInput) hiddenInput.value = '';
+		if (useYoutube) {
+			selectedFiles = [];
+			if (hiddenInput) hiddenInput.value = '';
+		}
 	});
 </script>
 
 <div class="page-header">
 	<h1>New Discovery Item</h1>
+	<div class="header-actions">
+		<a href="/admin/discovery" class="btn-secondary">Cancel</a>
+		<button type="submit" class="btn-cta" disabled={uploading} form="new-form">
+			{#if uploading}<i class="fa-solid fa-spinner fa-spin"></i> Uploading…{:else}Create Item{/if}
+		</button>
+	</div>
 </div>
 
 {#if form?.error}
 	<p class="error">{form.error}</p>
 {/if}
 
+<div class="page-layout">
 <form
+	id="new-form"
 	method="POST"
 	enctype="multipart/form-data"
 	use:enhance={() => {
 		uploading = true;
 		return async ({ update }) => { uploading = false; await update(); };
 	}}
-	class="item-form"
+	class="form-contents"
 >
-	<label>
-		Title *
-		<input type="text" name="title" required value={form?.title ?? ''} />
-	</label>
+	<!-- ── LEFT: all fields ───────────────────────── -->
+	<div class="col col-left">
+		<label>
+			Title *
+			<input type="text" name="title" required value={form?.title ?? ''} />
+		</label>
 
-	<label>
-		Description
-		<textarea name="description" rows="3">{form?.description ?? ''}</textarea>
-	</label>
-
-	<div class="row">
 		<label>
 			Section *
 			<select name="section_id" required>
@@ -92,146 +96,175 @@
 			</select>
 		</label>
 
-		<label>
-			Media Type *
-			<select name="media_type" bind:value={mediaType}>
-				<option value="image">Image</option>
-				<option value="carousel">Carousel (multiple images)</option>
-				<option value="video">Video (self-hosted)</option>
-				<option value="youtube">YouTube</option>
-			</select>
+		<label class="toggle-label">
+			<input type="checkbox" name="visible" value="true" checked />
+			Visible on public site
 		</label>
-	</div>
 
-	{#if mediaType === 'youtube'}
 		<label>
-			YouTube URL or Video ID *
-			<input type="text" name="youtube_url" placeholder="https://youtube.com/watch?v=… or dQw4w9WgXcQ" required />
+			Description
+			<textarea name="description" rows="3">{form?.description ?? ''}</textarea>
 		</label>
-	{:else}
-		<!-- Hidden real file input for form submission -->
-		<input
-			bind:this={hiddenInput}
-			type="file"
-			name={mediaType === 'video' ? 'video' : mediaType === 'carousel' ? 'images' : 'image'}
-			multiple={mediaType === 'carousel'}
-			class="sr-only"
-			tabindex="-1"
-			aria-hidden="true"
-		/>
 
-		<p class="field-label">
-			{#if mediaType === 'image'}Image *{:else if mediaType === 'carousel'}Images * (at least 2){:else}Video * (mp4, webm, mov — max 200 MB){/if}
-		</p>
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div
-			class="dropzone"
-			class:drag-over={dragOver}
-			class:has-files={selectedFiles.length > 0}
-			ondragover={(e) => { e.preventDefault(); dragOver = true; }}
-			ondragleave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) dragOver = false; }}
-			ondrop={handleDrop}
-		>
-			{#if selectedFiles.length === 0}
-				<i class="fa-solid {mediaType === 'video' ? 'fa-film' : 'fa-cloud-arrow-up'} dropzone-icon"></i>
-				<p class="dropzone-text">Drag & drop {mediaType === 'video' ? 'a video' : 'images'} here</p>
-				<span class="dropzone-or">or</span>
-				<label class="browse-btn">
-					Browse Files
-					<input
-						type="file"
-						accept={mediaType === 'video' ? 'video/mp4,video/webm,video/quicktime' : 'image/webp,image/png,image/jpeg,image/gif,image/avif'}
-						multiple={mediaType === 'carousel'}
-						onchange={handleFileChange}
-					/>
-				</label>
-				<span class="dropzone-hint">
-					{#if mediaType === 'video'}MP4, WebM, MOV — max 200 MB{:else}WebP, PNG, JPEG, GIF, AVIF{/if}
-				</span>
-			{:else}
-				<div class="file-preview-list">
-					{#each selectedFiles as f, i (f.name + i)}
-						<div class="file-preview-item">
-							{#if mediaType !== 'video'}
-								<img src={URL.createObjectURL(f)} alt={f.name} />
-							{:else}
-								<div class="file-preview-icon"><i class="fa-solid fa-film"></i></div>
-							{/if}
-							<div class="file-preview-info">
-								<span class="file-name">{f.name}</span>
-								<span class="file-size">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
-							</div>
-							{#if mediaType === 'carousel'}
-								<span class="position-badge">#{i + 1}</span>
-							{/if}
-							<button type="button" class="remove-file" onclick={() => removeFile(i)} aria-label="Remove">
-								<i class="fa-solid fa-xmark"></i>
-							</button>
-						</div>
+		<label>
+			Notes <span class="field-hint">(public — shown in the full-view popup)</span>
+			<textarea name="notes" rows="3">{form?.notes ?? ''}</textarea>
+		</label>
+
+		<div class="row">
+			<label>
+				Creator Name
+				<input type="text" name="creator_name" value={form?.creatorName ?? ''} />
+			</label>
+			<label>
+				Creator URL
+				<input type="url" name="creator_url" placeholder="https://…" value={form?.creatorUrl ?? ''} />
+			</label>
+		</div>
+
+		<label>
+			Source / Original URL
+			<input type="url" name="source_url" placeholder="https://…" value={form?.sourceUrl ?? ''} />
+		</label>
+
+		{#if data.tags.length > 0}
+			<fieldset>
+				<legend>Tags</legend>
+				<div class="tag-checks">
+					{#each data.tags as t}
+						<label class="tag-check">
+							<input type="checkbox" name="tags" value={t.id} />
+							{t.name}
+						</label>
 					{/each}
 				</div>
-				<label class="add-more-btn">
-					<i class="fa-solid fa-plus"></i> {mediaType === 'image' || mediaType === 'video' ? 'Replace' : 'Add more'}
-					<input
-						type="file"
-						accept={mediaType === 'video' ? 'video/mp4,video/webm,video/quicktime' : 'image/webp,image/png,image/jpeg,image/gif,image/avif'}
-						multiple={mediaType === 'carousel'}
-						onchange={handleFileChange}
-					/>
-				</label>
-			{/if}
-		</div>
-	{/if}
-
-	<hr />
-
-	<div class="row">
-		<label>
-			Creator Name
-			<input type="text" name="creator_name" value={form?.creatorName ?? ''} />
-		</label>
-		<label>
-			Creator URL
-			<input type="url" name="creator_url" placeholder="https://…" value={form?.creatorUrl ?? ''} />
-		</label>
+			</fieldset>
+		{/if}
 	</div>
 
-	<label>
-		Source / Original URL
-		<input type="url" name="source_url" placeholder="https://…" value={form?.sourceUrl ?? ''} />
-	</label>
+	<!-- ── RIGHT: media ───────────────────────────── -->
+	<div class="col col-media">
+		<p class="section-heading"><i class="fa-solid fa-cloud-arrow-up"></i> Media</p>
 
-	<label class="toggle-label">
-		<input type="checkbox" name="visible" value="true" checked />
-		Visible on public site
-	</label>
+		<label class="toggle-label">
+			<input type="checkbox" bind:checked={useYoutube} />
+			Use YouTube URL instead of file upload
+		</label>
 
-	{#if data.tags.length > 0}
-		<fieldset>
-			<legend>Tags</legend>
-			<div class="tag-checks">
-				{#each data.tags as t}
-					<label class="tag-check">
-						<input type="checkbox" name="tags" value={t.id} />
-						{t.name}
+		{#if useYoutube}
+			<label>
+				YouTube URL or Video ID *
+				<input type="text" name="youtube_url" placeholder="https://youtube.com/watch?v=… or dQw4w9WgXcQ" />
+			</label>
+		{:else}
+			<input
+				bind:this={hiddenInput}
+				type="file"
+				name="media"
+				multiple
+				class="sr-only"
+				tabindex="-1"
+				aria-hidden="true"
+			/>
+
+			{#if detectedType}
+				<p class="detected-type">
+					<i class="fa-solid {detectedType === 'video' ? 'fa-film' : detectedType === 'carousel' ? 'fa-images' : 'fa-image'}"></i>
+					Detected: <strong>{detectedType === 'carousel' ? `Carousel (${selectedFiles.length} images)` : detectedType === 'video' ? 'Video' : 'Image'}</strong>
+				</p>
+			{/if}
+
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div
+				class="dropzone"
+				class:drag-over={dragOver}
+				class:has-files={selectedFiles.length > 0}
+				ondragover={(e) => { e.preventDefault(); dragOver = true; }}
+				ondragleave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) dragOver = false; }}
+				ondrop={handleDrop}
+			>
+				{#if selectedFiles.length === 0}
+					<i class="fa-solid fa-cloud-arrow-up dropzone-icon"></i>
+					<p class="dropzone-text">Drag & drop image(s) or a video here</p>
+					<span class="dropzone-or">or</span>
+					<label class="browse-btn">
+						Browse Files
+						<input
+							type="file"
+							accept="image/webp,image/png,image/jpeg,image/gif,image/avif,video/mp4,video/webm,video/quicktime"
+							multiple
+							onchange={handleFileChange}
+						/>
 					</label>
-				{/each}
+					<span class="dropzone-hint">Images (WebP, PNG, JPEG…) or Video (MP4, WebM, MOV — max 200 MB). Multiple images = carousel.</span>
+				{:else}
+					<div class="file-preview-list">
+						{#each selectedFiles as f, i (f.name + i)}
+							<div class="file-preview-item">
+								{#if f.type.startsWith('image/')}
+									<img src={URL.createObjectURL(f)} alt={f.name} />
+								{:else}
+									<div class="file-preview-icon"><i class="fa-solid fa-film"></i></div>
+								{/if}
+								<div class="file-preview-info">
+									<span class="file-name">{f.name}</span>
+									<span class="file-size">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+								</div>
+								{#if selectedFiles.length > 1}
+									<span class="position-badge">#{i + 1}</span>
+								{/if}
+								<button type="button" class="remove-file" onclick={() => removeFile(i)} aria-label="Remove">
+									<i class="fa-solid fa-xmark"></i>
+								</button>
+							</div>
+						{/each}
+					</div>
+					<label class="add-more-btn">
+						<i class="fa-solid fa-plus"></i> Add more
+						<input
+							type="file"
+							accept="image/webp,image/png,image/jpeg,image/gif,image/avif,video/mp4,video/webm,video/quicktime"
+							multiple
+							onchange={handleFileChange}
+						/>
+					</label>
+				{/if}
 			</div>
-		</fieldset>
-	{/if}
-
-	<div class="form-actions">
-		<a href="/admin/discovery" class="btn-secondary">Cancel</a>
-		<button type="submit" class="btn-cta" disabled={uploading}>
-			{#if uploading}<i class="fa-solid fa-spinner fa-spin"></i> Uploading…{:else}Create Item{/if}
-		</button>
+		{/if}
 	</div>
 </form>
+</div>
 
 <style>
 	.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
-	.page-header { margin-bottom: 1.5rem; }
-	.item-form { display: flex; flex-direction: column; gap: 1.25rem; max-width: 640px; margin-top: 1rem; }
+	.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap; }
+	.header-actions { display: flex; gap: 0.75rem; align-items: center; flex-shrink: 0; }
+
+	/* ── Layout grid ─────────────────────────────── */
+	.page-layout {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 1.5rem;
+		margin-top: 1rem;
+		align-items: start;
+	}
+	.form-contents { display: contents; }
+	.col { display: flex; flex-direction: column; gap: 1.25rem; }
+	.section-heading {
+		font-size: 0.82rem; font-weight: 600;
+		color: rgba(255,255,255,0.45);
+		text-transform: uppercase; letter-spacing: 0.06em;
+		margin: 0; display: flex; align-items: center; gap: 0.4rem;
+	}
+
+	@media (min-width: 768px) {
+		.page-layout { grid-template-columns: 1fr 1.4fr; }
+		.col-left  { grid-column: 1; }
+		.col-media { grid-column: 2; }
+	}
+	.field-hint { font-size: 0.8rem; color: rgba(255,255,255,0.4); font-weight: normal; }
+	.detected-type { font-size: 0.85rem; color: rgba(255,255,255,0.6); margin: 0; }
+	.detected-type strong { color: #fff; }
 	label {
 		display: flex;
 		flex-direction: column;
@@ -373,7 +406,6 @@
 	.tag-check input[type="checkbox"] { display: none; }
 	.toggle-label { flex-direction: row; align-items: center; gap: 0.6rem; cursor: pointer; }
 	.toggle-label input[type="checkbox"] { width: 1rem; height: 1rem; accent-color: #ff0000; }
-	.form-actions { display: flex; gap: 0.75rem; padding-top: 0.5rem; align-items: center; }
 	.btn-cta {
 		padding: 0.7rem 1.5rem;
 		background: #ff0000;

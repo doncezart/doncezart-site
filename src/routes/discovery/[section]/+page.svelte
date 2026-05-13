@@ -96,13 +96,18 @@
 
 	const YOUTUBE_THUMB = (id) => `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
 
-	let allGridItems = $derived(data.items.map(item => ({
+	const VIDEO_EXT = /\.(mp4|webm|mov)$/i;
+	let allGridItems = $derived(data.items.map(item => {
+		const isVideoCarousel = item.mediaType === 'carousel' && VIDEO_EXT.test(item.imageUrl ?? '');
+		return {
 		id: item.id,
 		src: item.thumbnailUrl
 			?? (item.youtubeId ? YOUTUBE_THUMB(item.youtubeId) : null)
-			?? item.imageUrl
+			?? (isVideoCarousel ? null : item.imageUrl)
 			?? '',
-		videoSrc: item.mediaType === 'video' && !item.thumbnailUrl ? item.imageUrl : null,
+		videoSrc: item.mediaType === 'video' && !item.thumbnailUrl ? item.imageUrl
+			: isVideoCarousel && !item.thumbnailUrl ? (item.images?.[0] ?? item.imageUrl)
+			: null,
 		previewUrl: item.previewUrl ?? null,
 		alt: item.title,
 		title: item.title,
@@ -114,7 +119,8 @@
 		hasCaseStudy: false,
 		tags: item.tags,
 		_discovery: item
-	})));
+		};
+	}));
 
 	let filteredItems = $derived.by(() => {
 		let items = allGridItems;
@@ -223,8 +229,12 @@
 					type="range"
 					min={COL_MIN}
 					max={colMax}
-					value={columns}
-					oninput={(e) => setColumns(Number(e.currentTarget.value))}
+					bind:value={columns}
+					oninput={() => {
+						columns = Math.min(columns, colMax);
+						if (typeof localStorage !== 'undefined') localStorage.setItem(COL_KEY, String(columns));
+						window.umami?.track('discovery-columns', { columns, section: data.section.slug });
+					}}
 					aria-label="Grid columns"
 				/>
 				<i class="fa-solid fa-grip" style="opacity:0.5"></i>
@@ -239,6 +249,7 @@
 			columns={columns}
 			showAll={true}
 			onItemClick={openModal}
+			enableHoverPreview={true}
 		/>
 	</div>
 	{#if hasMore}
@@ -291,8 +302,27 @@
 					<img src={modalItem.imageUrl} alt={modalItem.title} />
 
 				{:else if modalItem.mediaType === 'carousel'}
+					<!-- Preload all non-video carousel frames -->
+					{#each modalItem.images as imgSrc}
+						{#if !VIDEO_EXT.test(imgSrc ?? '')}
+							<img src={imgSrc} loading="eager" aria-hidden="true" style="display:none;position:absolute;width:0;height:0" alt="" />
+						{/if}
+					{/each}
 					<div class="carousel-wrap">
-						<img src={modalItem.images[carouselIndex]} alt="{modalItem.title} ({carouselIndex + 1}/{modalItem.images.length})" />
+					{#if VIDEO_EXT.test(modalItem.images[carouselIndex] ?? '')}
+						<!-- svelte-ignore a11y_media_has_caption -->
+						<video
+							src={modalItem.images[carouselIndex]}
+							controls
+							autoplay
+							playsinline
+							disablepictureinpicture
+							controlslist="nopictureinpicture nodownload"
+							class="carousel-video"
+						></video>
+					{:else}
+							<img src={modalItem.images[carouselIndex]} alt="{modalItem.title} ({carouselIndex + 1}/{modalItem.images.length})" />
+						{/if}
 						{#if carouselIndex > 0}
 							<button class="carousel-arrow prev" onclick={carouselPrev} aria-label="Previous">
 								<i class="fa-solid fa-chevron-left"></i>
@@ -364,16 +394,63 @@
 					</p>
 				{/if}
 
+				{#if modalItem.notes}
+					<div class="modal-notes">
+						<span class="modal-notes-label">Note:</span>
+						<p>{modalItem.notes}</p>
+					</div>
+				{/if}
+
+				{#if modalItem.creatorName}
+					{@const relatedItems = (data.creatorItems[modalItem.creatorName] ?? []).filter(r => r.id !== modalItem.id).slice(0, 6)}
+					{#if relatedItems.length > 0}
+						<div class="modal-related">
+							<span class="modal-related-label">More from {modalItem.creatorName}</span>
+							<div class="modal-related-grid">
+								{#each relatedItems as related}
+									<button
+									class="related-row"
+									onclick={() => { carouselIndex = 0; modalItem = related; }}
+									type="button"
+									aria-label={related.title}
+								>
+									<div class="related-row-thumb">
+									{#if related.previewUrl && VIDEO_EXT.test(related.previewUrl)}
+										<!-- svelte-ignore a11y_media_has_caption -->
+										<video src={related.previewUrl} muted playsinline preload="auto" disablepictureinpicture
+											onloadeddata={(e) => { e.currentTarget.currentTime = 0.001; }}
+											class="related-video-thumb"
+										></video>
+									{:else if related.previewUrl}
+											<img src={related.previewUrl} alt={related.title} />
+										{:else}
+											<i class="fa-solid fa-image"></i>
+										{/if}
+									</div>
+									<span class="related-row-title">{related.title}</span>
+									</button>
+								{/each}
+							</div>
+						</div>
+					{/if}
+				{/if}
+
 				{#if modalItem.sourceUrl}
-					<a
-						href={modalItem.sourceUrl}
-						target="_blank"
-						rel="noopener noreferrer"
-						class="view-original"
-					>
-						<i class="fa-solid fa-arrow-up-right-from-square"></i>
-						View Original
-					</a>
+					{@const sourceDomain = (() => { try { const h = new URL(modalItem.sourceUrl).hostname.replace(/^www\./, ''); const parts = h.split('.'); return parts.length >= 2 ? parts[parts.length - 2] : h; } catch { return null; } })()}
+					<div class="source-block">
+						{#if sourceDomain}
+							<span class="source-label">from: {sourceDomain}</span>
+						{/if}
+						<a
+							href={modalItem.sourceUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="view-original"
+						>
+							<i class="fa-solid fa-arrow-up-right-from-square"></i>
+							View Original
+						</a>
+					</div>
 				{/if}
 			</div>
 		</div>
@@ -531,8 +608,9 @@
 		border: none;
 		display: block;
 	}
-	.carousel-wrap { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+	.carousel-wrap { position: relative; width: calc(100% - 2.5rem); height: 100%; display: flex; align-items: center; justify-content: center; }
 	.carousel-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
+	.carousel-video { max-width: 100%; max-height: 100%; display: block; }
 	.carousel-arrow {
 		position: absolute; top: 50%; transform: translateY(-50%);
 		background: rgba(0,0,0,0.6); border: none; color: #fff;
@@ -542,8 +620,8 @@
 		transition: background 0.15s;
 	}
 	.carousel-arrow:hover { background: rgba(0,0,0,0.9); }
-	.carousel-arrow.prev { left: 0.75rem; }
-	.carousel-arrow.next { right: 0.75rem; }
+	.carousel-arrow.prev { left: -1.25rem; }
+	.carousel-arrow.next { right: -1.25rem; }
 	.carousel-dots {
 		display: flex; gap: 0.4rem;
 		padding: 0.75rem 0;
@@ -593,13 +671,85 @@
 		line-height: 1.6;
 		margin: 0;
 	}
+	.modal-notes {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+	}
+	.modal-notes-label {
+		font-family: var(--font-body);
+		font-size: var(--text-xs);
+		color: var(--color-text-primary);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+	}
+	.modal-notes p {
+		font-family: var(--font-body);
+		font-size: var(--text-sm);
+		color: var(--color-text-secondary);
+		line-height: 1.6;
+		margin: 0;
+	}
+	.modal-related {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	.modal-related-label {
+		font-family: var(--font-body);
+		font-size: var(--text-xs);
+		color: var(--color-text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+	}
+	.modal-related-grid {
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+	}
+	.related-row {
+		display: flex;
+		align-items: center;
+		gap: 0.65rem;
+		width: 100%;
+		background: rgba(255,255,255,0.04);
+		border: 1px solid rgba(255,255,255,0.08);
+		border-radius: 0.4rem;
+		padding: 0.4rem;
+		cursor: pointer;
+		transition: border-color 0.15s, background 0.15s;
+		text-align: left;
+	}
+	.related-row:hover { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.07); }
+	.related-row-thumb {
+		flex: 0 0 52px;
+		height: 52px;
+		border-radius: 0.25rem;
+		overflow: hidden;
+		background: #111;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: rgba(255,255,255,0.3);
+		font-size: 1.2rem;
+	}
+	.related-row-thumb img, .related-video-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
+	.related-row-title {
+		font-family: var(--font-body);
+		font-size: var(--text-sm);
+		color: var(--color-text-primary);
+		overflow: hidden;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+	}
 	.modal-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 	.tag-badge {
-		padding: 0.2rem 0.6rem;
+		padding: 0.35rem 0.9rem;
 		border: var(--border);
 		border-radius: 999px;
 		font-family: var(--font-body);
-		font-size: var(--text-xs);
+		font-size: var(--text-sm);
 		color: var(--color-text-secondary);
 	}
 	.modal-creator {
@@ -613,6 +763,20 @@
 		text-decoration: underline;
 		text-underline-offset: 3px;
 	}
+	.source-block {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.35rem;
+		margin-top: auto;
+	}
+	.source-label {
+		font-family: var(--font-body);
+		font-size: var(--text-xs);
+		color: var(--color-text-secondary);
+		letter-spacing: 0.02em;
+		text-transform: lowercase;
+	}
 	.view-original {
 		display: inline-flex; align-items: center; gap: 0.5rem;
 		padding: 0.6rem 1.25rem;
@@ -623,7 +787,6 @@
 		font-size: var(--text-sm);
 		border-radius: var(--radius);
 		transition: all var(--transition-base);
-		margin-top: auto;
 		align-self: flex-start;
 		white-space: nowrap;
 	}
@@ -672,6 +835,6 @@
 			overflow-y: visible;
 			padding-bottom: var(--space-xl);
 		}
-		.view-original { margin-top: var(--space-md); }
+		.source-block { margin-top: var(--space-md); }
 	}
 </style>

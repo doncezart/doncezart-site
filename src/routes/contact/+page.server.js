@@ -53,7 +53,9 @@ send: async ({request, getClientAddress}) => {
     var options = {
       method: 'POST', headers: {'Content-Type': 'application/json',},
       body: JSON.stringify({content: 'New Message from `'+safeEmail+'` |`'+safeName+'`'+`\n\n`+safeMessage ,username: 'System Alert',}),}
-    await fetch(WEBHOOK_URL, options)
+    if (WEBHOOK_URL && WEBHOOK_URL.startsWith('http')) {
+        await fetch(WEBHOOK_URL, options);
+    }
 
     return { success: true };
 }

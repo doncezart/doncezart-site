@@ -2,19 +2,25 @@
 	import { enhance } from '$app/forms';
 	let { data, form } = $props();
 
-	let mediaType = $state(data.item.mediaType);
+	let useYoutube = $state(data.item.mediaType === 'youtube');
 	let selectedFiles = $state([]);
 	let uploading = $state(false);
 	let hiddenInput = $state(null);
 	let dragOver = $state(false);
 	let regenning = $state(false);
 	let regenResult = $state(null);
-	// live thumbnail preview after regen
 	let thumbPreview = $state(data.item.thumbnailUrl ?? null);
-	// video scrubber for thumbnail selection
 	let scrubVideo = $state(null);
 	let scrubOffset = $state(0);
 	let videoDuration = $state(0);
+
+	let detectedType = $derived.by(() => {
+		if (selectedFiles.length === 0) return null;
+		const first = selectedFiles[0];
+		if (first.type.startsWith('video/')) return 'video';
+		if (selectedFiles.length > 1) return 'carousel';
+		return 'image';
+	});
 
 	function syncHidden(files) {
 		if (!hiddenInput) return;
@@ -25,11 +31,8 @@
 
 	function handleFileChange(e) {
 		const files = Array.from(e.target.files || []);
-		if (mediaType === 'image' || mediaType === 'video') {
-			selectedFiles = files.slice(0, 1);
-		} else {
-			selectedFiles = [...selectedFiles, ...files];
-		}
+		const isVideo = files[0]?.type.startsWith('video/');
+		selectedFiles = isVideo ? files.slice(0, 1) : [...selectedFiles, ...files];
 		syncHidden(selectedFiles);
 	}
 
@@ -38,11 +41,8 @@
 		dragOver = false;
 		const files = Array.from(e.dataTransfer.files);
 		if (!files.length) return;
-		if (mediaType === 'image' || mediaType === 'video') {
-			selectedFiles = files.slice(0, 1);
-		} else {
-			selectedFiles = [...selectedFiles, ...files];
-		}
+		const isVideo = files[0]?.type.startsWith('video/');
+		selectedFiles = isVideo ? files.slice(0, 1) : [...selectedFiles, ...files];
 		syncHidden(selectedFiles);
 	}
 
@@ -50,36 +50,48 @@
 		selectedFiles = selectedFiles.filter((_, idx) => idx !== i);
 		syncHidden(selectedFiles);
 	}
+
+	$effect(() => {
+		if (useYoutube) {
+			selectedFiles = [];
+			if (hiddenInput) hiddenInput.value = '';
+		}
+	});
 </script>
 
 <div class="page-header">
 	<h1>Edit Discovery Item</h1>
+	<div class="header-actions">
+		<a href="/admin/discovery" class="btn-secondary">Cancel</a>
+		<button type="submit" class="btn-cta" disabled={uploading} form="main-form">
+			{#if uploading}<i class="fa-solid fa-spinner fa-spin"></i> Saving…{:else}Save Changes{/if}
+		</button>
+	</div>
 </div>
 
 {#if form?.error}
 	<p class="error">{form.error}</p>
 {/if}
 
+<div class="page-layout">
 <form
+	id="main-form"
 	method="POST"
+	action="?/update"
 	enctype="multipart/form-data"
 	use:enhance={() => {
 		uploading = true;
 		return async ({ update }) => { uploading = false; await update(); };
 	}}
-	class="item-form"
+	class="form-contents"
 >
-	<label>
-		Title *
-		<input type="text" name="title" required value={data.item.title} />
-	</label>
+	<!-- ── LEFT: all fields ───────────────────────── -->
+	<div class="col col-left">
+		<label>
+			Title *
+			<input type="text" name="title" required value={data.item.title} />
+		</label>
 
-	<label>
-		Description
-		<textarea name="description" rows="3">{data.item.description ?? ''}</textarea>
-	</label>
-
-	<div class="row">
 		<label>
 			Section *
 			<select name="section_id" required>
@@ -89,244 +101,266 @@
 			</select>
 		</label>
 
-		<label>
-			Media Type *
-			<select name="media_type" bind:value={mediaType}>
-				<option value="image">Image</option>
-				<option value="carousel">Carousel (multiple images)</option>
-				<option value="video">Video (self-hosted)</option>
-				<option value="youtube">YouTube</option>
-			</select>
+		<label class="toggle-label">
+			<input type="checkbox" name="visible" value="true" checked={data.item.visible} />
+			Visible on public site
 		</label>
-	</div>
 
-	{#if data.item.thumbnailUrl || data.item.imageUrl}
-		<div class="current-media">
-			<p class="current-label">Current media</p>
-			<div class="media-preview-box">
-				{#if data.item.mediaType === 'video'}
-					<!-- svelte-ignore a11y_media_has_caption -->
-					<video
-						src={data.item.imageUrl}
-						controls
-						disablepictureinpicture
-						controlslist="nopictureinpicture nodownload"
-						class="media-preview-el"
-					></video>
-				{:else if data.item.mediaType === 'carousel'}
-					<img
-						src={data.item.thumbnailUrl || data.item.imageUrl}
-						alt="carousel thumbnail"
-						class="media-preview-el"
-					/>
-					<span class="preview-badge"><i class="fa-solid fa-images"></i> Carousel</span>
-				{:else}
-					<img src={data.item.imageUrl} alt="current" class="media-preview-el" />
-				{/if}
-			</div>
-		</div>
-	{/if}
-
-	<hr />
-	<p class="section-heading"><i class="fa-solid fa-cloud-arrow-up"></i> Replace media</p>
-
-	{#if mediaType === 'youtube'}
 		<label>
-			YouTube URL or Video ID *
-			<input
-				type="text"
-				name="youtube_url"
-				placeholder="https://youtube.com/watch?v=… or dQw4w9WgXcQ"
-				value={data.item.youtubeId ?? ''}
-				required
-			/>
+			Description
+			<textarea name="description" rows="3">{data.item.description ?? ''}</textarea>
 		</label>
-	{:else}
-		<!-- Hidden real file input -->
-		<input
-			bind:this={hiddenInput}
-			type="file"
-			name={mediaType === 'video' ? 'video' : mediaType === 'carousel' ? 'images' : 'image'}
-			multiple={mediaType === 'carousel'}
-			class="sr-only"
-			tabindex="-1"
-			aria-hidden="true"
-		/>
 
-		<p class="field-label">
-			{#if mediaType === 'image'}Replace image (leave empty to keep current){:else if mediaType === 'carousel'}Replace all frames (upload 2+ to replace, leave empty to keep){:else}Replace video (leave empty to keep current){/if}
-		</p>
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div
-			class="dropzone"
-			class:drag-over={dragOver}
-			class:has-files={selectedFiles.length > 0}
-			ondragover={(e) => { e.preventDefault(); dragOver = true; }}
-			ondragleave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) dragOver = false; }}
-			ondrop={handleDrop}
-		>
-			{#if selectedFiles.length === 0}
-				<i class="fa-solid {mediaType === 'video' ? 'fa-film' : 'fa-cloud-arrow-up'} dropzone-icon"></i>
-				<p class="dropzone-text">Drag & drop {mediaType === 'video' ? 'a video' : 'images'} here</p>
-				<span class="dropzone-or">or</span>
-				<label class="browse-btn">
-					Browse Files
-					<input
-						type="file"
-						accept={mediaType === 'video' ? 'video/mp4,video/webm,video/quicktime' : 'image/webp,image/png,image/jpeg,image/gif,image/avif'}
-						multiple={mediaType === 'carousel'}
-						onchange={handleFileChange}
-					/>
-				</label>
-				<span class="dropzone-hint">
-					{#if mediaType === 'video'}MP4, WebM, MOV — max 200 MB{:else}WebP, PNG, JPEG, GIF, AVIF{/if}
-				</span>
-			{:else}
-				<div class="file-preview-list">
-					{#each selectedFiles as f, i (f.name + i)}
-						<div class="file-preview-item">
-							{#if mediaType !== 'video'}
-								<img src={URL.createObjectURL(f)} alt={f.name} />
-							{:else}
-								<div class="file-preview-icon"><i class="fa-solid fa-film"></i></div>
-							{/if}
-							<div class="file-preview-info">
-								<span class="file-name">{f.name}</span>
-								<span class="file-size">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
-							</div>
-							{#if mediaType === 'carousel'}
-								<span class="position-badge">#{i + 1}</span>
-							{/if}
-							<button type="button" class="remove-file" onclick={() => removeFile(i)} aria-label="Remove">
-								<i class="fa-solid fa-xmark"></i>
-							</button>
-						</div>
-					{/each}
-				</div>
-				<label class="add-more-btn">
-					<i class="fa-solid fa-plus"></i> {mediaType === 'carousel' ? 'Add more' : 'Replace'}
-					<input
-						type="file"
-						accept={mediaType === 'video' ? 'video/mp4,video/webm,video/quicktime' : 'image/webp,image/png,image/jpeg,image/gif,image/avif'}
-						multiple={mediaType === 'carousel'}
-						onchange={handleFileChange}
-					/>
-				</label>
-			{/if}
-		</div>
-	{/if}
+		<label>
+			Notes <span class="field-hint">(public — shown in full-view popup)</span>
+			<textarea name="notes" rows="3">{data.item.notes ?? ''}</textarea>
+		</label>
 
-	<hr />
-
-	<div class="row">
 		<label>
 			Creator Name
 			<input type="text" name="creator_name" value={data.item.creatorName ?? ''} />
 		</label>
+
 		<label>
 			Creator URL
 			<input type="url" name="creator_url" value={data.item.creatorUrl ?? ''} />
 		</label>
+
+		<label>
+			Source / Original URL
+			<input type="url" name="source_url" value={data.item.sourceUrl ?? ''} />
+		</label>
+
+		{#if data.allTags.length > 0}
+			<fieldset>
+				<legend>Tags</legend>
+				<div class="tag-checks">
+					{#each data.allTags as t}
+						<label class="tag-check">
+							<input type="checkbox" name="tags" value={t.id} checked={t.checked} />
+							{t.name}
+						</label>
+					{/each}
+				</div>
+			</fieldset>
+		{/if}
 	</div>
 
-	<label>
-		Source / Original URL
-		<input type="url" name="source_url" value={data.item.sourceUrl ?? ''} />
-	</label>
-
-	<label class="toggle-label">
-		<input type="checkbox" name="visible" value="true" checked={data.item.visible} />
-		Visible on public site
-	</label>
-
-	{#if data.allTags.length > 0}
-		<fieldset>
-			<legend>Tags</legend>
-			<div class="tag-checks">
-				{#each data.allTags as t}
-					<label class="tag-check">
-						<input type="checkbox" name="tags" value={t.id} checked={t.checked} />
-						{t.name}
-					</label>
-				{/each}
+	<!-- ── CENTER: media ──────────────────────────── -->
+	<div class="col col-media">
+		{#if data.item.thumbnailUrl || data.item.imageUrl}
+			<div class="current-media">
+				<p class="current-label">Current media <span class="media-type-badge">{data.item.mediaType}</span></p>
+				<div class="media-preview-box">
+					{#if data.item.mediaType === 'video'}
+						<!-- svelte-ignore a11y_media_has_caption -->
+						<video
+							src={data.item.imageUrl}
+							controls
+							disablepictureinpicture
+							controlslist="nopictureinpicture nodownload"
+							class="media-preview-el"
+						></video>
+					{:else if data.item.mediaType === 'carousel'}
+						<img
+							src={data.item.thumbnailUrl || data.item.imageUrl}
+							alt="carousel thumbnail"
+							class="media-preview-el"
+						/>
+						<span class="preview-badge"><i class="fa-solid fa-images"></i> Carousel</span>
+					{:else}
+						<img src={data.item.imageUrl} alt="current" class="media-preview-el" />
+					{/if}
+				</div>
 			</div>
-		</fieldset>
-	{/if}
+		{/if}
 
-	<div class="form-actions">
-		<a href="/admin/discovery" class="btn-secondary">Cancel</a>
-		<button type="submit" class="btn-cta" disabled={uploading}>
-			{#if uploading}<i class="fa-solid fa-spinner fa-spin"></i> Saving…{:else}Save Changes{/if}
-		</button>
+		<p class="section-heading"><i class="fa-solid fa-cloud-arrow-up"></i> Replace media</p>
+
+		<label class="toggle-label">
+			<input type="checkbox" bind:checked={useYoutube} />
+			Use YouTube URL instead of file upload
+		</label>
+
+		{#if useYoutube}
+			<label>
+				YouTube URL or Video ID
+				<input
+					type="text"
+					name="youtube_url"
+					placeholder="https://youtube.com/watch?v=… or dQw4w9WgXcQ"
+					value={data.item.youtubeId ?? ''}
+				/>
+			</label>
+		{:else}
+			<input
+				bind:this={hiddenInput}
+				type="file"
+				name="media"
+				multiple
+				class="sr-only"
+				tabindex="-1"
+				aria-hidden="true"
+			/>
+
+			{#if detectedType}
+				<p class="detected-type">
+					<i class="fa-solid {detectedType === 'video' ? 'fa-film' : detectedType === 'carousel' ? 'fa-images' : 'fa-image'}"></i>
+					Detected: <strong>{detectedType === 'carousel' ? `Carousel (${selectedFiles.length} images)` : detectedType === 'video' ? 'Video' : 'Image'}</strong>
+				</p>
+			{/if}
+
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div
+				class="dropzone"
+				class:drag-over={dragOver}
+				class:has-files={selectedFiles.length > 0}
+				ondragover={(e) => { e.preventDefault(); dragOver = true; }}
+				ondragleave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) dragOver = false; }}
+				ondrop={handleDrop}
+			>
+				{#if selectedFiles.length === 0}
+					<i class="fa-solid fa-cloud-arrow-up dropzone-icon"></i>
+					<p class="dropzone-text">Drag & drop to replace (leave empty to keep current)</p>
+					<span class="dropzone-or">or</span>
+					<label class="browse-btn">
+						Browse Files
+						<input
+							type="file"
+							accept="image/webp,image/png,image/jpeg,image/gif,image/avif,video/mp4,video/webm,video/quicktime"
+							multiple
+							onchange={handleFileChange}
+						/>
+					</label>
+					<span class="dropzone-hint">Images or Video — type detected automatically. Multiple = carousel.</span>
+				{:else}
+					<div class="file-preview-list">
+						{#each selectedFiles as f, i (f.name + i)}
+							<div class="file-preview-item">
+								{#if f.type.startsWith('image/')}
+									<img src={URL.createObjectURL(f)} alt={f.name} />
+								{:else}
+									<div class="file-preview-icon"><i class="fa-solid fa-film"></i></div>
+								{/if}
+								<div class="file-preview-info">
+									<span class="file-name">{f.name}</span>
+									<span class="file-size">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+								</div>
+								{#if selectedFiles.length > 1}
+									<span class="position-badge">#{i + 1}</span>
+								{/if}
+								<button type="button" class="remove-file" onclick={() => removeFile(i)} aria-label="Remove">
+									<i class="fa-solid fa-xmark"></i>
+								</button>
+							</div>
+						{/each}
+					</div>
+					<label class="add-more-btn">
+						<i class="fa-solid fa-plus"></i> Add more
+						<input
+							type="file"
+							accept="image/webp,image/png,image/jpeg,image/gif,image/avif,video/mp4,video/webm,video/quicktime"
+							multiple
+							onchange={handleFileChange}
+						/>
+					</label>
+				{/if}
+			</div>
+		{/if}
+
+		{#if data.item.mediaType === 'video' && data.item.imageUrl}
+			<div class="regen-section">
+				<p class="section-heading"><i class="fa-solid fa-image"></i> Thumbnail</p>
+				{#if thumbPreview}
+					<img src={thumbPreview} alt="thumbnail" class="thumb-preview-img" />
+				{:else}
+					<p class="regen-hint">No thumbnail — first frame used as fallback.</p>
+				{/if}
+
+				<div class="scrubber-wrap">
+					<p class="scrubber-hint">Scrub to pick a frame, then save it as the thumbnail:</p>
+					<!-- svelte-ignore a11y_media_has_caption -->
+					<video
+						bind:this={scrubVideo}
+						src={data.item.imageUrl}
+						muted
+						playsinline
+						preload="auto"
+						disablepictureinpicture
+						controlslist="nopictureinpicture nodownload noplaybackrate"
+						class="scrub-video"
+						onloadedmetadata={() => { videoDuration = scrubVideo?.duration ?? 0; }}
+					></video>
+					<input
+						type="range"
+						min="0"
+						max={videoDuration || 100}
+						step="0.05"
+						bind:value={scrubOffset}
+						oninput={() => { if (scrubVideo) scrubVideo.currentTime = scrubOffset; }}
+						class="scrub-slider"
+					/>
+					<span class="scrub-time">{scrubOffset.toFixed(1)}s{videoDuration ? ` / ${videoDuration.toFixed(1)}s` : ''}</span>
+				</div>
+
+				<input type="hidden" name="offset" value={scrubOffset} form="regen-form" />
+				<button type="submit" class="btn-secondary" disabled={regenning} form="regen-form">
+					{#if regenning}<i class="fa-solid fa-spinner fa-spin"></i> Generating…{:else}<i class="fa-solid fa-camera"></i> Save as Thumbnail{/if}
+				</button>
+				{#if regenResult}<p class="regen-success">{regenResult}</p>{/if}
+				{#if form?.regenError}<p class="error">{form.regenError}</p>{/if}
+			</div>
+		{/if}
 	</div>
+
 </form>
 
 {#if data.item.mediaType === 'video' && data.item.imageUrl}
-	<div class="regen-section">
-		<p class="section-heading"><i class="fa-solid fa-image"></i> Thumbnail</p>
-		{#if thumbPreview}
-			<img src={thumbPreview} alt="thumbnail" class="thumb-preview-img" />
-		{:else}
-			<p class="regen-hint">No thumbnail — first frame used as fallback.</p>
-		{/if}
-
-		<div class="scrubber-wrap">
-			<p class="scrubber-hint">Scrub to pick a frame, then save it as the thumbnail:</p>
-			<!-- svelte-ignore a11y_media_has_caption -->
-			<video
-				bind:this={scrubVideo}
-				src={data.item.imageUrl}
-				muted
-				playsinline
-				preload="auto"
-				disablepictureinpicture
-				controlslist="nopictureinpicture nodownload noplaybackrate"
-				class="scrub-video"
-				onloadedmetadata={() => { videoDuration = scrubVideo?.duration ?? 0; }}
-			></video>
-			<input
-				type="range"
-				min="0"
-				max={videoDuration || 100}
-				step="0.05"
-				bind:value={scrubOffset}
-				oninput={() => { if (scrubVideo) scrubVideo.currentTime = scrubOffset; }}
-				class="scrub-slider"
-			/>
-			<span class="scrub-time">{scrubOffset.toFixed(1)}s{videoDuration ? ` / ${videoDuration.toFixed(1)}s` : ''}</span>
-		</div>
-
-		<form
-			method="POST"
-			action="?/regen_thumb"
-			use:enhance={() => {
-				regenning = true;
-				return async ({ result, update }) => {
-					regenning = false;
-					if (result.type === 'success' && result.data?.thumbUrl) {
-						thumbPreview = result.data.thumbUrl + '?t=' + Date.now();
-						regenResult = 'Thumbnail updated!';
-					} else {
-						await update();
-					}
-				};
-			}}
-			class="regen-form"
-		>
-			<input type="hidden" name="offset" value={scrubOffset} />
-			<button type="submit" class="btn-secondary" disabled={regenning}>
-				{#if regenning}<i class="fa-solid fa-spinner fa-spin"></i> Generating…{:else}<i class="fa-solid fa-camera"></i> Save as Thumbnail{/if}
-			</button>
-		</form>
-		{#if regenResult}<p class="regen-success">{regenResult}</p>{/if}
-		{#if form?.regenError}<p class="error">{form.regenError}</p>{/if}
-	</div>
+	<form
+		id="regen-form"
+		method="POST"
+		action="?/regen_thumb"
+		use:enhance={() => {
+			regenning = true;
+			return async ({ result, update }) => {
+				regenning = false;
+				if (result.type === 'success' && result.data?.thumbUrl) {
+					thumbPreview = result.data.thumbUrl + '?t=' + Date.now();
+					regenResult = 'Thumbnail updated!';
+				} else {
+					await update();
+				}
+			};
+		}}
+		class="regen-form-hidden"
+	></form>
 {/if}
+</div>
 
 <style>
 	.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
-	.page-header { margin-bottom: 1.5rem; }
-	.item-form { display: flex; flex-direction: column; gap: 1.25rem; max-width: 640px; margin-top: 1rem; }
+	.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap; }
+	.header-actions { display: flex; gap: 0.75rem; align-items: center; flex-shrink: 0; }
+
+	/* ── Layout grid ─────────────────────────────── */
+	.page-layout {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 1.5rem;
+		margin-top: 1rem;
+		align-items: start;
+	}
+	.form-contents { display: contents; }
+	.col { display: flex; flex-direction: column; gap: 1.25rem; }
+
+	@media (min-width: 768px) {
+		.page-layout {
+			grid-template-columns: 1fr 1.4fr;
+		}
+		.col-left    { grid-column: 1; }
+		.col-media   { grid-column: 2; }
+	}
+
 	label { display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.9rem; color: rgba(255,255,255,0.7); }
 	input[type="text"], input[type="url"], textarea, select {
 		padding: 0.6rem 0.8rem;
@@ -341,11 +375,13 @@
 	select { cursor: pointer; }
 	select option { background: #1a1a1a; }
 	textarea { resize: vertical; }
-	.row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 	hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); }
 	.field-label { font-size: 0.9rem; color: rgba(255,255,255,0.7); margin: 0; }
+	.field-hint { font-size: 0.75rem; color: rgba(255,255,255,0.4); font-weight: 400; }
+	.detected-type { font-size: 0.85rem; color: rgba(255,255,255,0.6); margin: 0; display: flex; align-items: center; gap: 0.4rem; }
+	.media-type-badge { font-size: 0.7rem; color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.08); padding: 0.1rem 0.5rem; border-radius: 999px; margin-left: 0.4rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
 	.current-media { display: flex; flex-direction: column; gap: 0.5rem; }
-	.current-label { font-size: 0.8rem; color: rgba(255,255,255,0.4); margin: 0; }
+	.current-label { font-size: 0.8rem; color: rgba(255,255,255,0.4); margin: 0; display: flex; align-items: center; }
 	.media-preview-box {
 		position: relative;
 		background: #000;
@@ -474,7 +510,6 @@
 	.tag-check input[type="checkbox"] { display: none; }
 	.toggle-label { flex-direction: row; align-items: center; gap: 0.6rem; cursor: pointer; }
 	.toggle-label input[type="checkbox"] { width: 1rem; height: 1rem; accent-color: #ff0000; }
-	.form-actions { display: flex; gap: 0.75rem; padding-top: 0.5rem; align-items: center; }
 	.btn-cta {
 		padding: 0.7rem 1.5rem;
 		background: #ff0000;
@@ -513,13 +548,13 @@
 	}
 
 	/* Regen thumbnail section */
+	.regen-form-hidden { display: none; }
 	.regen-section {
 		display: flex; flex-direction: column; gap: 0.75rem;
 		background: rgba(255,255,255,0.03);
 		border: 1px solid rgba(255,255,255,0.08);
 		border-radius: 0.6rem;
 		padding: 1rem;
-		max-width: 640px;
 	}
 	.section-heading {
 		font-size: 0.82rem; font-weight: 600;

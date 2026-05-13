@@ -146,6 +146,10 @@
             </button>
 
             {#if lightboxItem.displayMode === 'carousel' && lightboxItem.images.length > 1}
+                <!-- Preload all carousel images to eliminate switching lag -->
+                {#each lightboxItem.images as imgSrc}
+                    <img src={imgSrc} loading="eager" aria-hidden="true" style="display:none;position:absolute;width:0;height:0" alt="" />
+                {/each}
                 {@const n = lightboxItem.images.length}
                 <div class="carousel-outer">
                     <img
@@ -398,8 +402,8 @@
     }
     .carousel-btn:hover { background: rgba(0,0,0,0.85); }
     .carousel-btn:disabled { opacity: 0.25; cursor: default; pointer-events: none; }
-    .carousel-btn-prev { left: 0.5rem; }
-    .carousel-btn-next { right: 0.5rem; }
+    .carousel-btn-prev { left: -1.25rem; }
+    .carousel-btn-next { right: -1.25rem; }
 
     /* Dots */
     .carousel-dots {

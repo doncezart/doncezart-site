@@ -1,15 +1,16 @@
 /**
- * Generate animated GIF hover previews for video discovery items.
+ * Generate 480p MP4 hover previews for video discovery items.
  *
- * For each video item that has no previewUrl (or all with --all), this script:
- *   1. Feeds the video URL directly into ffmpeg (streams only what it needs).
- *   2. Generates a palette-optimized animated GIF (2s, 8fps, 360px wide).
- *   3. Uploads the GIF to R2 as discovery/previews/{id}.gif.
+ * Covers both media_type='video' and video-carousel items (carousel where
+ * image_url is an mp4/webm/mov file). For each item it:
+ *   1. Deletes the old .gif from R2 (if present).
+ *   2. Encodes the first 5 seconds at 480p, no audio, H.264 faststart.
+ *   3. Uploads as discovery/previews/{id}.mp4.
  *   4. Writes the public URL back to discovery_item.preview_url.
  *
  * Usage:
  *   node --env-file=.env scripts/generate-previews.js
- *   node --env-file=.env scripts/generate-previews.js --all   # re-generate existing
+ *   node --env-file=.env scripts/generate-previews.js --all   # re-generate existing too
  *
  * Requirements: ffmpeg installed (apt install ffmpeg)
  */
@@ -19,7 +20,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import postgres from 'postgres';
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -49,98 +50,90 @@ const R2 = new S3Client({
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-async function uploadToR2(body, key) {
-	await R2.send(new PutObjectCommand({ Bucket: R2_BUCKET, Key: key, Body: body, ContentType: 'image/gif' }));
-	return `${R2_PUBLIC_URL}/${key}?v=${Date.now()}`;
-}
-
 /**
- * Get video duration in seconds via ffprobe.
- */
-function getVideoDuration(videoUrl) {
-	const out = execFileSync('ffprobe', [
-		'-v', 'error',
-		'-show_entries', 'format=duration',
-		'-of', 'default=noprint_wrappers=1:nokey=1',
-		videoUrl
-	], { stdio: ['pipe', 'pipe', 'pipe'] });
-	return parseFloat(out.toString().trim()) || 10;
-}
-
-/**
- * Generate a palette-optimized animated GIF using chapter-burst sampling:
- * the video is divided into N evenly-spaced chapters; each chapter contributes
- * a short burst of real consecutive frames (5 fps, up to 2.5 s). The bursts
- * are concatenated with hard cuts so the viewer sees motion from multiple
- * distinct parts of the video.
+ * Generate a 480p, first-5-second, muted H.264 preview MP4.
  * Returns a Buffer.
  */
-function generateGif(videoUrl) {
+function generatePreviewMp4(videoUrl) {
 	const tmpDir = mkdtempSync(join(tmpdir(), 'disc-preview-'));
 	try {
-		const palette = join(tmpDir, 'palette.png');
-		const output  = join(tmpDir, 'preview.gif');
-
-		const duration  = getVideoDuration(videoUrl);
-		const numChapters = duration >= 30 ? 4 : 3;
-		const burstLen  = Math.min(2.5, (duration * 0.7) / numChapters);
-		const fps = 5;
-		const scale = 'scale=360:-1:flags=lanczos';
-
-		// Distribute chapter start times evenly (first at 0, last ending near the end)
-		const starts = Array.from({ length: numChapters }, (_, i) =>
-			Math.max(0, i === 0 ? 0 : (i * (duration - burstLen)) / (numChapters - 1)).toFixed(3)
-		);
-
-		// Build repeated -ss -t -i triplets (one per chapter, same source URL)
-		const inputArgs = starts.flatMap(s => ['-ss', s, '-t', burstLen.toFixed(3), '-i', videoUrl]);
-		const videoLabels = starts.map((_, i) => `[${i}:v]`).join('');
-		const concatBase = `${videoLabels}concat=n=${numChapters}:v=1:a=0,fps=${fps},${scale}`;
-
-		// Pass 1: palette from the concatenated chapter bursts
+		const output = join(tmpDir, 'preview.mp4');
 		execFileSync('ffmpeg', [
 			'-y',
-			...inputArgs,
-			'-filter_complex', `${concatBase},palettegen=stats_mode=diff`,
-			palette
-		], { stdio: 'pipe' });
-
-		// Pass 2: render GIF using the palette
-		execFileSync('ffmpeg', [
-			'-y',
-			...inputArgs,
-			'-i', palette,
-			'-filter_complex',
-			`${concatBase}[x];[x][${numChapters}:v]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle`,
-			'-loop', '0',
+			'-t', '5',
+			'-i', videoUrl,
+			'-vf', "scale='if(gte(iw,ih),720,-2)':'if(gte(iw,ih),-2,720)':flags=lanczos",
+			'-an',
+			'-c:v', 'libx264',
+			'-preset', 'fast',
+			'-crf', '23',
+			'-movflags', '+faststart',
+			'-pix_fmt', 'yuv420p',
 			output
-		], { stdio: 'pipe' });
-
+		], { stdio: 'pipe', timeout: 90000 });
 		return readFileSync(output);
 	} finally {
 		rmSync(tmpDir, { recursive: true, force: true });
 	}
 }
 
+async function deleteOldGif(itemId) {
+	try {
+		await R2.send(new DeleteObjectCommand({
+			Bucket: R2_BUCKET,
+			Key: `discovery/previews/${itemId}.gif`
+		}));
+	} catch { /* not found — ignore */ }
+}
+
+async function uploadMp4(buf, key) {
+	await R2.send(new PutObjectCommand({
+		Bucket: R2_BUCKET,
+		Key: key,
+		Body: buf,
+		ContentType: 'video/mp4'
+	}));
+	return `${R2_PUBLIC_URL}/${key}?v=${Date.now()}`;
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
-	const rows = forceAll
-		? await sql`SELECT id, title, image_url FROM discovery_item WHERE media_type = 'video' AND image_url IS NOT NULL ORDER BY id`
-		: await sql`SELECT id, title, image_url FROM discovery_item WHERE media_type = 'video' AND image_url IS NOT NULL AND preview_url IS NULL ORDER BY id`;
+	const withPreview = await sql`
+		SELECT id, title, image_url, preview_url
+		FROM discovery_item
+		WHERE (
+			media_type = 'video'
+			OR (
+				media_type = 'carousel'
+				AND (image_url LIKE '%.mp4' OR image_url LIKE '%.webm' OR image_url LIKE '%.mov')
+			)
+		)
+		AND image_url IS NOT NULL
+		ORDER BY id
+	`;
 
-	console.log(`Found ${rows.length} video item(s) to process${forceAll ? ' (--all)' : ' (no previewUrl yet)'}.`);
-	if (rows.length === 0) { await sql.end(); return; }
+	const toProcess = forceAll
+		? withPreview
+		: withPreview.filter(r => !r.preview_url || r.preview_url.includes('.gif'));
+
+	console.log(`Found ${toProcess.length} item(s) to process${forceAll ? ' (--all)' : ' (missing or GIF preview)'}.`);
+	if (toProcess.length === 0) { await sql.end(); return; }
 
 	let done = 0, errors = 0;
 
-	for (const item of rows) {
+	for (const item of toProcess) {
 		const label = `[${item.id}] ${(item.title ?? '').slice(0, 45).padEnd(45)}`;
 		process.stdout.write(`  ${label} … `);
 		try {
-			const buf = generateGif(item.image_url);
-			const key = `discovery/previews/${item.id}.gif`;
-			const url = await uploadToR2(buf, key);
+			// Delete old GIF from R2 if present
+			if (item.preview_url?.includes('.gif')) {
+				await deleteOldGif(item.id);
+			}
+
+			const buf = generatePreviewMp4(item.image_url);
+			const key = `discovery/previews/${item.id}.mp4`;
+			const url = await uploadMp4(buf, key);
 			await sql`UPDATE discovery_item SET preview_url = ${url} WHERE id = ${item.id}`;
 			console.log(`✓  ${(buf.length / 1024).toFixed(0)} KB`);
 			done++;

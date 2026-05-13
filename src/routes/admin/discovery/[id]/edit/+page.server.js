@@ -74,15 +74,15 @@ export async function load({ params }) {
 }
 
 export const actions = {
-	default: async ({ request, params }) => {
+	update: async ({ request, params }) => {
 		const id = Number(params.id);
 		if (!id) return fail(400, { error: 'Invalid id.' });
 
 		const data = await request.formData();
 		const title = data.get('title')?.toString().trim();
 		const description = data.get('description')?.toString().trim() || null;
+		const notes = data.get('notes')?.toString().trim() || null;
 		const sectionId = Number(data.get('section_id'));
-		const mediaType = data.get('media_type')?.toString();
 		const creatorName = data.get('creator_name')?.toString().trim() || null;
 		const creatorUrl = data.get('creator_url')?.toString().trim() || null;
 		const sourceUrl = data.get('source_url')?.toString().trim() || null;
@@ -90,8 +90,8 @@ export const actions = {
 		const youtubeInput = data.get('youtube_url')?.toString().trim() || null;
 		const visible = data.get('visible') === 'true';
 
-		if (!title || !sectionId || !mediaType) {
-			return fail(400, { error: 'Title, section, and media type are required.' });
+		if (!title || !sectionId) {
+			return fail(400, { error: 'Title and section are required.' });
 		}
 
 		const [existing] = await db.select().from(discoveryItem).where(eq(discoveryItem.id, id));
@@ -105,69 +105,68 @@ export const actions = {
 		let existingPreviewUrl = existing.previewUrl;
 		let carouselImages = null;
 
-		if (mediaType === 'youtube') {
+		// Determine mediaType: youtube toggle > uploaded file type > keep existing
+		let mediaType = existing.mediaType;
+
+		if (youtubeInput) {
+			mediaType = 'youtube';
 			youtubeId = extractYoutubeId(youtubeInput);
 			if (!youtubeId) return fail(400, { error: 'Invalid YouTube URL or video ID.' });
 			thumbnailUrl = `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`;
 			imageUrl = null;
 
-		} else if (mediaType === 'image') {
-			const file = data.get('image');
-			if (file instanceof File && file.size > 0) {
-				if (!ALLOWED_IMAGE_TYPES.includes(file.type)) return fail(400, { error: 'Unsupported image format.' });
-				try {
-					const r = await processAndUpload(file, `discovery/${slug}-${ts}`);
-					imageUrl = r.imageUrl;
-					thumbnailUrl = r.thumbnailUrl;
-				} catch (e) {
-					console.error(e);
-					return fail(500, { error: 'Image upload failed.' });
-				}
-			}
-			youtubeId = null;
-
-		} else if (mediaType === 'carousel') {
-			const files = data.getAll('images').filter(f => f instanceof File && f.size > 0);
-			if (files.length > 0) {
-				if (files.length < 2) return fail(400, { error: 'Carousel requires at least 2 images.' });
-				for (const f of files) {
-					if (!ALLOWED_IMAGE_TYPES.includes(f.type)) return fail(400, { error: 'Unsupported image format.' });
-				}
-				try {
-					const results = await Promise.all(
-						files.map((f, i) => processAndUpload(f, `discovery/${slug}-${ts}-${i}`))
-					);
-					imageUrl = results[0].imageUrl;
-					thumbnailUrl = results[0].thumbnailUrl;
-					carouselImages = results;
-				} catch (e) {
-					console.error(e);
-					return fail(500, { error: 'Image upload failed.' });
-				}
-			}
-			youtubeId = null;
-
-		} else if (mediaType === 'video') {
-			const file = data.get('video');
-			if (file instanceof File && file.size > 0) {
-				if (!ALLOWED_VIDEO_TYPES.includes(file.type)) return fail(400, { error: 'Unsupported video format.' });
-				if (file.size > MAX_VIDEO_SIZE) return fail(400, { error: 'Video must be under 200 MB.' });
-				try {
-					let buffer = Buffer.from(await file.arrayBuffer());
-					const ext = file.name.split('.').pop() || 'mp4';
-					try { buffer = applyFaststart(buffer, ext); } catch { /* non-fatal */ }
-					imageUrl = await uploadToR2(buffer, `discovery/${slug}-${ts}.${ext}`, file.type);
-					thumbnailUrl = null;
-				} catch (e) {
-					console.error(e);
-					return fail(500, { error: 'Video upload failed.' });
-				}
-			}
-			youtubeId = null;
-			// reset preview when video changes
-			if (imageUrl !== existing.imageUrl) existingPreviewUrl = null;
 		} else {
-			return fail(400, { error: 'Invalid media type.' });
+			youtubeId = null;
+			const mediaFile = data.get('media');
+			const hasNewFile = mediaFile instanceof File && mediaFile.size > 0;
+
+			if (hasNewFile) {
+				if (ALLOWED_VIDEO_TYPES.includes(mediaFile.type)) {
+					mediaType = 'video';
+					if (mediaFile.size > MAX_VIDEO_SIZE) return fail(400, { error: 'Video must be under 200 MB.' });
+					try {
+						let buffer = Buffer.from(await mediaFile.arrayBuffer());
+						const ext = mediaFile.name.split('.').pop() || 'mp4';
+						try { buffer = applyFaststart(buffer, ext); } catch { /* non-fatal */ }
+						imageUrl = await uploadToR2(buffer, `discovery/${slug}-${ts}.${ext}`, mediaFile.type);
+						thumbnailUrl = null;
+						existingPreviewUrl = null;
+					} catch (e) {
+						console.error(e);
+						return fail(500, { error: 'Video upload failed.' });
+					}
+
+				} else if (ALLOWED_IMAGE_TYPES.includes(mediaFile.type)) {
+					const allFiles = data.getAll('media').filter(f => f instanceof File && f.size > 0);
+					if (allFiles.length > 1) {
+						mediaType = 'carousel';
+						try {
+							const results = await Promise.all(
+								allFiles.map((f, i) => processAndUpload(f, `discovery/${slug}-${ts}-${i}`))
+							);
+							imageUrl = results[0].imageUrl;
+							thumbnailUrl = results[0].thumbnailUrl;
+							carouselImages = results;
+						} catch (e) {
+							console.error(e);
+							return fail(500, { error: 'Image upload failed.' });
+						}
+					} else {
+						mediaType = 'image';
+						try {
+							const r = await processAndUpload(mediaFile, `discovery/${slug}-${ts}`);
+							imageUrl = r.imageUrl;
+							thumbnailUrl = r.thumbnailUrl;
+						} catch (e) {
+							console.error(e);
+							return fail(500, { error: 'Image upload failed.' });
+						}
+					}
+					youtubeId = null;
+				} else {
+					return fail(400, { error: 'Unsupported file type.' });
+				}
+			}
 		}
 
 		// non-video types have no preview
@@ -175,7 +174,7 @@ export const actions = {
 
 		await db.update(discoveryItem)
 			.set({
-				title, description, sectionId, mediaType,
+				title, description, notes, sectionId, mediaType,
 				imageUrl, thumbnailUrl, youtubeId,
 				previewUrl: existingPreviewUrl,
 				sourceUrl, creatorName, creatorUrl, visible,
