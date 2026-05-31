@@ -47,7 +47,7 @@ function buildPreviewMp4(videoUrl) {
 			'-movflags', '+faststart',
 			'-pix_fmt', 'yuv420p',
 			output
-		], { stdio: 'pipe' });
+		], { stdio: 'pipe', timeout: 60_000, maxBuffer: 32 * 1024 * 1024 });
 		return readFileSync(output);
 	} finally {
 		rmSync(tmpDir, { recursive: true, force: true });
@@ -55,35 +55,61 @@ function buildPreviewMp4(videoUrl) {
 }
 
 /**
+ * SSRF allow-list: only fetch URLs whose host matches our own R2 endpoint
+ * or the public CDN. Prevents `file://`, internal IPs, metadata services, etc.
+ */
+function assertSafeUrl(rawUrl) {
+	let u;
+	try { u = new URL(rawUrl); } catch { throw new Error('Invalid video URL'); }
+	if (u.protocol !== 'https:' && u.protocol !== 'http:') {
+		throw new Error(`Disallowed scheme: ${u.protocol}`);
+	}
+	const allowed = new Set();
+	for (const v of [env.R2_PUBLIC_URL, 'https://cdn.doncez.art', 'https://doncezart.nyc3.cdn.digitaloceanspaces.com']) {
+		if (!v) continue;
+		try { allowed.add(new URL(v).host); } catch { /* ignore */ }
+	}
+	if (!allowed.has(u.host)) {
+		throw new Error(`Host not in allow-list: ${u.host}`);
+	}
+}
+
+/**
  * Generate a preview MP4 for a discovery video item and persist it.
  * Deletes the old GIF from R2 if present.
- * Safe to call without awaiting — all errors are surfaced only in logs.
+ * Safe to call without awaiting — all errors are caught internally and logged.
  * @param {number} itemId
  * @param {string} videoUrl  Public CDN URL of the video
  */
 export async function generatePreviewAsync(itemId, videoUrl) {
-	const buf = buildPreviewMp4(videoUrl);
-	const key = `discovery/previews/${itemId}.mp4`;
-
-	const R2 = getR2Client();
-
-	// Delete old GIF preview if it exists
 	try {
-		await R2.send(new DeleteObjectCommand({
+		assertSafeUrl(videoUrl);
+		const buf = buildPreviewMp4(videoUrl);
+		const key = `discovery/previews/${itemId}.mp4`;
+
+		const R2 = getR2Client();
+
+		// Delete old GIF preview if it exists
+		try {
+			await R2.send(new DeleteObjectCommand({
+				Bucket: env.R2_BUCKET,
+				Key: `discovery/previews/${itemId}.gif`
+			}));
+		} catch { /* not found — ignore */ }
+
+		await R2.send(new PutObjectCommand({
 			Bucket: env.R2_BUCKET,
-			Key: `discovery/previews/${itemId}.gif`
+			Key: key,
+			Body: buf,
+			ContentType: 'video/mp4',
+			CacheControl: 'public, max-age=31536000, immutable'
 		}));
-	} catch { /* not found — ignore */ }
 
-	await R2.send(new PutObjectCommand({
-		Bucket: env.R2_BUCKET,
-		Key: key,
-		Body: buf,
-		ContentType: 'video/mp4'
-	}));
-
-	const previewUrl = `${env.R2_PUBLIC_URL}/${key}?v=${Date.now()}`;
-	await db.update(discoveryItem)
-		.set({ previewUrl, updatedAt: new Date() })
-		.where(eq(discoveryItem.id, itemId));
+		const previewUrl = `${env.R2_PUBLIC_URL}/${key}?v=${Date.now()}`;
+		await db.update(discoveryItem)
+			.set({ previewUrl, updatedAt: new Date() })
+			.where(eq(discoveryItem.id, itemId));
+	} catch (err) {
+		console.error(`[generatePreviewAsync] item=${itemId} failed:`, err?.message || err);
+	}
 }

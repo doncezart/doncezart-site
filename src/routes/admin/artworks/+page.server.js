@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db/index.js';
-import { artwork, artworkImage, artworkTag, tag } from '$lib/server/db/schema.ts';
+import { artwork, artworkImage, artworkTag, tag, auditEvent } from '$lib/server/db/schema.ts';
 import { eq } from 'drizzle-orm';
 import { fail } from '@sveltejs/kit';
 import { deleteFromR2 } from '$lib/server/r2.js';
@@ -49,30 +49,43 @@ export async function load() {
 }
 
 export const actions = {
-	delete: async ({ request }) => {
+	delete: async ({ request, locals, getClientAddress }) => {
 		const data = await request.formData();
 		const id = Number(data.get('id'));
 		if (!id) return fail(400, { error: 'Invalid id' });
 
 		// Gather all R2 URLs before deleting rows
 		const [item] = await db.select().from(artwork).where(eq(artwork.id, id)).limit(1);
+		if (!item) return fail(404, { error: 'Not found' });
 		const images = await db.select().from(artworkImage).where(eq(artworkImage.artworkId, id));
 
-		// Delete DB rows
-		await db.delete(artworkImage).where(eq(artworkImage.artworkId, id));
-		await db.delete(artworkTag).where(eq(artworkTag.artworkId, id));
-		await db.delete(artwork).where(eq(artwork.id, id));
-
-		// Delete all R2 objects (best-effort — don't fail if R2 errors)
-		if (item) {
-			const keys = [
-				...allVariantKeys(item.imageUrl),
-				...images.flatMap(img => allVariantKeys(img.imageUrl))
-			];
-			// Deduplicate in case artwork.imageUrl duplicates artworkImage entries
-			const unique = [...new Set(keys)];
-			await Promise.allSettled(unique.map(k => deleteFromR2(k)));
+		try {
+			await db.transaction(async (tx) => {
+				await tx.delete(artworkImage).where(eq(artworkImage.artworkId, id));
+				await tx.delete(artworkTag).where(eq(artworkTag.artworkId, id));
+				await tx.delete(artwork).where(eq(artwork.id, id));
+				await tx.insert(auditEvent).values({
+					actorId: locals.user?.id ?? null,
+					actorUsername: locals.user?.username ?? null,
+					action: 'artwork.delete',
+					entityType: 'artwork',
+					entityId: String(id),
+					payload: { slug: item.slug, title: item.title, imageCount: images.length },
+					ip: getClientAddress()
+				});
+			});
+		} catch (e) {
+			console.error('[admin/artworks/delete] tx failed:', e);
+			return fail(500, { error: 'Database error.' });
 		}
+
+		// Delete R2 objects best-effort after DB commit
+		const keys = [
+			...allVariantKeys(item.imageUrl),
+			...images.flatMap((img) => allVariantKeys(img.imageUrl))
+		];
+		const unique = [...new Set(keys)];
+		await Promise.allSettled(unique.map((k) => deleteFromR2(k)));
 
 		return { deleted: true };
 	}

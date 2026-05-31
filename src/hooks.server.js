@@ -1,20 +1,9 @@
 import { validateSession } from '$lib/server/auth.js';
+import { db } from '$lib/server/db/index.js';
+import { slugRedirect } from '$lib/server/db/schema.ts';
+import { eq } from 'drizzle-orm';
 
 const SESSION_COOKIE = 'session_id';
-
-const CSP = [
-	"default-src 'self'",
-	"script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://analytics.ceza.ro",
-	"style-src 'self' 'unsafe-inline' https://fonts.cdnfonts.com",
-	"font-src 'self' https://fonts.cdnfonts.com https://fonts.gstatic.com",
-	"img-src 'self' data: blob: https://doncezart.nyc3.cdn.digitaloceanspaces.com https://cdn.doncez.art",
-	"media-src 'self' https://cdn.doncez.art",
-	"connect-src 'self' https://challenges.cloudflare.com https://analytics.ceza.ro",
-	"frame-src https://challenges.cloudflare.com",
-	"object-src 'none'",
-	"base-uri 'self'",
-	"form-action 'self'"
-].join('; ');
 
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event, resolve }) {
@@ -24,7 +13,6 @@ export async function handle({ event, resolve }) {
 	event.locals.user = result?.user ?? null;
 	event.locals.session = result?.session ?? null;
 
-	// Protect /admin routes
 	if (event.url.pathname.startsWith('/admin') && !event.url.pathname.startsWith('/admin/login')) {
 		if (!event.locals.user) {
 			return new Response(null, {
@@ -34,13 +22,45 @@ export async function handle({ event, resolve }) {
 		}
 	}
 
+	// 301 redirect for renamed artwork slugs
+	if (event.url.pathname.startsWith('/work/')) {
+		const oldSlug = event.url.pathname.slice('/work/'.length).split('/')[0];
+		if (oldSlug) {
+			try {
+				const [r] = await db
+					.select()
+					.from(slugRedirect)
+					.where(eq(slugRedirect.fromSlug, oldSlug))
+					.limit(1);
+				if (r && r.toSlug !== oldSlug) {
+					return new Response(null, {
+						status: 301,
+						headers: { location: `/work/${r.toSlug}` }
+					});
+				}
+			} catch {
+				// slug_redirect table may not exist yet; ignore.
+			}
+		}
+	}
+
 	const response = await resolve(event);
 
+	// CSP is set by SvelteKit (see svelte.config.js -> kit.csp).
 	response.headers.set('X-Frame-Options', 'SAMEORIGIN');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
-	response.headers.set('Content-Security-Policy', CSP);
+	response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+	response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+	response.headers.set('Cross-Origin-Resource-Policy', 'same-site');
+	response.headers.set('X-DNS-Prefetch-Control', 'off');
+
+	// Block search engines from indexing /admin/* and ensure no caching.
+	if (event.url.pathname.startsWith('/admin')) {
+		response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+		response.headers.set('Cache-Control', 'no-store, max-age=0');
+	}
 
 	return response;
 }

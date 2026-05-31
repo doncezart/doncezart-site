@@ -1,9 +1,13 @@
 import { db } from '$lib/server/db/index.js';
 import { artwork, artworkImage, artworkTag, tag, category, subcategory } from '$lib/server/db/schema.ts';
-import { desc } from 'drizzle-orm';
+import { desc, and, eq, isNull } from 'drizzle-orm';
 
-export async function load() {
-	const artworks = await db.select().from(artwork).orderBy(desc(artwork.createdAt));
+export async function load({ setHeaders }) {
+	const artworks = await db
+		.select()
+		.from(artwork)
+		.where(and(eq(artwork.visible, true), isNull(artwork.deletedAt)))
+		.orderBy(desc(artwork.createdAt));
 
 	const allTags = await db.select().from(tag);
 	const atRows = await db.select().from(artworkTag);

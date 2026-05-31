@@ -1,9 +1,8 @@
 import { db } from '$lib/server/db/index.js';
-import { discoveryItem, discoveryItemImage, discoverySection } from '$lib/server/db/schema.ts';
+import { discoveryItem, discoveryItemImage, discoverySection, auditEvent } from '$lib/server/db/schema.ts';
 import { eq, asc, desc } from 'drizzle-orm';
 import { fail } from '@sveltejs/kit';
 import { deleteFromR2 } from '$lib/server/r2.js';
-import { env } from '$env/dynamic/private';
 
 function urlToKey(url) {
 	if (!url) return null;
@@ -21,38 +20,64 @@ export async function load() {
 }
 
 export const actions = {
-	delete: async ({ request }) => {
+	delete: async ({ request, locals, getClientAddress }) => {
 		const data = await request.formData();
 		const id = Number(data.get('id'));
 		if (!id) return fail(400, { error: 'Invalid id.' });
 
-		// Gather all media URLs before deleting
 		const [item] = await db.select().from(discoveryItem).where(eq(discoveryItem.id, id));
 		if (!item) return fail(404, { error: 'Not found.' });
 
-		const carouselImages = await db.select().from(discoveryItemImage).where(eq(discoveryItemImage.itemId, id));
+		const carouselImages = await db
+			.select()
+			.from(discoveryItemImage)
+			.where(eq(discoveryItemImage.itemId, id));
 
-		// Delete DB rows (cascade removes discoveryItemImage + discoveryItemTag)
-		await db.delete(discoveryItem).where(eq(discoveryItem.id, id));
+		try {
+			await db.transaction(async (tx) => {
+				await tx.delete(discoveryItem).where(eq(discoveryItem.id, id));
+				await tx.insert(auditEvent).values({
+					actorId: locals.user?.id ?? null,
+					actorUsername: locals.user?.username ?? null,
+					action: 'discovery.delete',
+					entityType: 'discovery_item',
+					entityId: String(id),
+					payload: { title: item.title, mediaType: item.mediaType },
+					ip: getClientAddress()
+				});
+			});
+		} catch (e) {
+			console.error('[admin/discovery/delete] tx failed:', e);
+			return fail(500, { error: 'Database error.' });
+		}
 
-		// Delete media from R2 (best-effort, don't fail if R2 errors)
 		const keysToDelete = [
 			urlToKey(item.imageUrl),
 			urlToKey(item.thumbnailUrl),
-			...carouselImages.flatMap(img => [urlToKey(img.imageUrl), urlToKey(img.thumbnailUrl)])
+			urlToKey(item.previewUrl),
+			...carouselImages.flatMap((img) => [urlToKey(img.imageUrl), urlToKey(img.thumbnailUrl)])
 		].filter(Boolean);
 
-		await Promise.allSettled(keysToDelete.map(key => deleteFromR2(key)));
+		await Promise.allSettled(keysToDelete.map((key) => deleteFromR2(key)));
 
 		return { deleted: true };
 	},
 
-	toggleVisible: async ({ request }) => {
+	toggleVisible: async ({ request, locals, getClientAddress }) => {
 		const data = await request.formData();
 		const id = Number(data.get('id'));
 		const visible = data.get('visible') === 'true';
 		if (!id) return fail(400, { error: 'Invalid id.' });
 		await db.update(discoveryItem).set({ visible: !visible }).where(eq(discoveryItem.id, id));
+		await db.insert(auditEvent).values({
+			actorId: locals.user?.id ?? null,
+			actorUsername: locals.user?.username ?? null,
+			action: 'discovery.toggle_visible',
+			entityType: 'discovery_item',
+			entityId: String(id),
+			payload: { from: visible, to: !visible },
+			ip: getClientAddress()
+		});
 		return { toggled: true };
 	}
 };

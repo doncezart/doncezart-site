@@ -3,10 +3,38 @@ import adapter from '@sveltejs/adapter-node';
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
 	kit: {
-		// adapter-auto only supports some environments, see https://kit.svelte.dev/docs/adapter-auto for a list.
-		// If your environment is not supported or you settled on a specific environment, switch out the adapter.
-		// See https://kit.svelte.dev/docs/adapters for more information about adapters.
-		adapter: adapter()
+		adapter: adapter(),
+		csp: {
+			mode: 'auto',
+			directives: {
+				'default-src': ["'self'"],
+				'script-src': [
+					"'self'",
+					'https://challenges.cloudflare.com',
+					'https://analytics.ceza.ro'
+				],
+				'style-src': ["'self'", "'unsafe-inline'"],
+				'font-src': ["'self'"],
+				'img-src': [
+					"'self'",
+					'data:',
+					'blob:',
+					'https://doncezart.nyc3.cdn.digitaloceanspaces.com',
+					'https://cdn.doncez.art'
+				],
+				'media-src': ["'self'", 'https://cdn.doncez.art'],
+				'connect-src': [
+					"'self'",
+					'https://challenges.cloudflare.com',
+					'https://analytics.ceza.ro'
+				],
+				'frame-src': ['https://challenges.cloudflare.com'],
+				'object-src': ["'none'"],
+				'base-uri': ["'self'"],
+				'form-action': ["'self'"],
+				'frame-ancestors': ["'self'"]
+			}
+		}
 	}
 };
 

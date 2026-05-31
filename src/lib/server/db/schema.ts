@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, boolean, serial } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, timestamp, boolean, serial, jsonb, index } from 'drizzle-orm/pg-core';
 
 // ── Auth ───────────────────────────────────────────────
 export const user = pgTable('user', {
@@ -30,9 +30,14 @@ export const artwork = pgTable('artwork', {
     caseStudyId: integer('case_study_id'),
     hasCaseStudy: boolean('has_case_study').notNull().default(false),
     caseStudyContent: text('case_study_content'),
+    visible: boolean('visible').notNull().default(true),
+    deletedAt: timestamp('deleted_at', { withTimezone: true, mode: 'date' }),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
-});
+}, (t) => ({
+    visibleIdx: index('artwork_visible_idx').on(t.visible, t.deletedAt),
+    categoryIdx: index('artwork_category_idx').on(t.category)
+}));
 
 // ── Artwork Images ─────────────────────────────────────
 export const artworkImage = pgTable('artwork_image', {
@@ -81,6 +86,45 @@ export const artworkTag = pgTable('artwork_tag', {
     artworkId: integer('artwork_id').notNull().references(() => artwork.id, { onDelete: 'cascade' }),
     tagId: integer('tag_id').notNull().references(() => tag.id, { onDelete: 'cascade' })
 });
+
+// ── Slug Redirects ─────────────────────────────────────
+// Old artwork slug → current slug, for 301s after a rename.
+export const slugRedirect = pgTable('slug_redirect', {
+    fromSlug: text('from_slug').primaryKey(),
+    toSlug: text('to_slug').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
+});
+
+// ── Services (sales pages) ─────────────────────────────
+export const service = pgTable('service', {
+    id: serial('id').primaryKey(),
+    slug: text('slug').notNull().unique(),
+    title: text('title').notNull(),
+    tagline: text('tagline'),
+    body: text('body'),
+    priceFrom: integer('price_from'),
+    visible: boolean('visible').notNull().default(true),
+    position: integer('position').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
+});
+
+// ── Audit Log ──────────────────────────────────────────
+// Append-only record of admin actions for accountability + debugging.
+export const auditEvent = pgTable('audit_event', {
+    id: serial('id').primaryKey(),
+    actorId: text('actor_id'),
+    actorUsername: text('actor_username'),
+    action: text('action').notNull(),
+    entityType: text('entity_type'),
+    entityId: text('entity_id'),
+    payload: jsonb('payload'),
+    ip: text('ip'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
+}, (t) => ({
+    entityIdx: index('audit_event_entity_idx').on(t.entityType, t.entityId),
+    createdIdx: index('audit_event_created_idx').on(t.createdAt)
+}));
 
 // ── Discovery ──────────────────────────────────────────
 export const discoverySection = pgTable('discovery_section', {
@@ -140,6 +184,9 @@ export type CaseStudy = typeof caseStudy.$inferSelect;
 export type Tag = typeof tag.$inferSelect;
 export type Category = typeof category.$inferSelect;
 export type Subcategory = typeof subcategory.$inferSelect;
+export type SlugRedirect = typeof slugRedirect.$inferSelect;
+export type Service = typeof service.$inferSelect;
+export type AuditEvent = typeof auditEvent.$inferSelect;
 export type DiscoverySection = typeof discoverySection.$inferSelect;
 export type DiscoveryTag = typeof discoveryTag.$inferSelect;
 export type DiscoveryItem = typeof discoveryItem.$inferSelect;

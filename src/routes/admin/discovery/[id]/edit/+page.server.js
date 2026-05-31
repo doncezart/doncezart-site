@@ -1,18 +1,14 @@
 import { db } from '$lib/server/db/index.js';
 import {
 	discoveryItem, discoveryItemImage, discoveryItemTag,
-	discoverySection, discoveryTag
+	discoverySection, discoveryTag, auditEvent
 } from '$lib/server/db/schema.ts';
 import { eq, asc } from 'drizzle-orm';
 import { uploadToR2 } from '$lib/server/r2.js';
-import { processImage } from '$lib/server/image.js';
 import { applyFaststart, extractFrame } from '$lib/server/video.js';
 import { generatePreviewAsync } from '$lib/server/generatePreview.js';
 import { fail, redirect, error } from '@sveltejs/kit';
-
-function slugify(text) {
-	return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
+import { slugify, validateUploads, processAndUpload } from '$lib/server/upload.js';
 
 function extractYoutubeId(input) {
 	if (!input) return null;
@@ -26,22 +22,8 @@ function extractYoutubeId(input) {
 	return null;
 }
 
-const ALLOWED_IMAGE_TYPES = ['image/webp', 'image/png', 'image/jpeg', 'image/gif', 'image/avif'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
 const MAX_VIDEO_SIZE = 200 * 1024 * 1024;
-
-async function processAndUpload(file, baseKey) {
-	const buffer = Buffer.from(await file.arrayBuffer());
-	const result = await processImage(buffer, baseKey);
-	const uploads = await Promise.all(
-		result.variants.map(async (v) => {
-			const url = await uploadToR2(v.buffer, v.key, v.contentType);
-			return { name: v.name, url };
-		})
-	);
-	const urlMap = Object.fromEntries(uploads.map(u => [u.name, u.url]));
-	return { imageUrl: urlMap.full, thumbnailUrl: urlMap.thumb };
-}
 
 export async function load({ params }) {
 	const id = Number(params.id);
@@ -74,7 +56,7 @@ export async function load({ params }) {
 }
 
 export const actions = {
-	update: async ({ request, params }) => {
+	update: async ({ request, params, locals, getClientAddress }) => {
 		const id = Number(params.id);
 		if (!id) return fail(400, { error: 'Invalid id.' });
 
@@ -136,8 +118,10 @@ export const actions = {
 						return fail(500, { error: 'Video upload failed.' });
 					}
 
-				} else if (ALLOWED_IMAGE_TYPES.includes(mediaFile.type)) {
+				} else if (ALLOWED_IMAGE_TYPES.includes(mediaFile.type) || mediaFile.type.startsWith('image/')) {
 					const allFiles = data.getAll('media').filter(f => f instanceof File && f.size > 0);
+					const v = validateUploads(allFiles);
+					if (!v.ok) return fail(400, { error: v.message });
 					if (allFiles.length > 1) {
 						mediaType = 'carousel';
 						try {
@@ -148,8 +132,8 @@ export const actions = {
 							thumbnailUrl = results[0].thumbnailUrl;
 							carouselImages = results;
 						} catch (e) {
-							console.error(e);
-							return fail(500, { error: 'Image upload failed.' });
+							console.error('[admin/discovery/edit] carousel upload failed:', e);
+							return fail(400, { error: e.message || 'Image upload failed.' });
 						}
 					} else {
 						mediaType = 'image';
@@ -158,8 +142,8 @@ export const actions = {
 							imageUrl = r.imageUrl;
 							thumbnailUrl = r.thumbnailUrl;
 						} catch (e) {
-							console.error(e);
-							return fail(500, { error: 'Image upload failed.' });
+							console.error('[admin/discovery/edit] image upload failed:', e);
+							return fail(400, { error: e.message || 'Image upload failed.' });
 						}
 					}
 					youtubeId = null;
@@ -199,6 +183,16 @@ export const actions = {
 			await db.insert(discoveryItemTag).values(tagIds.map(tagId => ({ itemId: id, tagId })));
 		}
 
+		await db.insert(auditEvent).values({
+			actorId: locals.user?.id ?? null,
+			actorUsername: locals.user?.username ?? null,
+			action: 'discovery.update',
+			entityType: 'discovery_item',
+			entityId: String(id),
+			payload: { mediaType, sectionId },
+			ip: getClientAddress()
+		});
+
 		// fire-and-forget preview generation when video was replaced
 		if (mediaType === 'video' && imageUrl && imageUrl !== existing.imageUrl) {
 			generatePreviewAsync(id, imageUrl).catch(e => console.error('[preview]', e.message));
@@ -207,7 +201,7 @@ export const actions = {
 		redirect(303, '/admin/discovery');
 	},
 
-	regen_thumb: async ({ request, params }) => {
+	regen_thumb: async ({ request, params, locals, getClientAddress }) => {
 		const id = Number(params.id);
 		if (!id) return fail(400, { error: 'Invalid id.' });
 
@@ -228,6 +222,15 @@ export const actions = {
 			await db.update(discoveryItem)
 				.set({ thumbnailUrl: thumbUrl, updatedAt: new Date() })
 				.where(eq(discoveryItem.id, id));
+			await db.insert(auditEvent).values({
+				actorId: locals.user?.id ?? null,
+				actorUsername: locals.user?.username ?? null,
+				action: 'discovery.regen_thumb',
+				entityType: 'discovery_item',
+				entityId: String(id),
+				payload: { offset },
+				ip: getClientAddress()
+			});
 			return { success: true, thumbUrl };
 		} catch (e) {
 			console.error(e);

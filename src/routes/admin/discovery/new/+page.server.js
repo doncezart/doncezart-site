@@ -1,18 +1,21 @@
 import { db } from '$lib/server/db/index.js';
 import {
-	discoveryItem, discoveryItemImage, discoveryItemTag,
-	discoverySection, discoveryTag
+	discoveryItem,
+	discoveryItemImage,
+	discoveryItemTag,
+	discoverySection,
+	discoveryTag,
+	auditEvent
 } from '$lib/server/db/schema.ts';
 import { asc } from 'drizzle-orm';
 import { uploadToR2 } from '$lib/server/r2.js';
-import { processImage } from '$lib/server/image.js';
 import { applyFaststart } from '$lib/server/video.js';
 import { generatePreviewAsync } from '$lib/server/generatePreview.js';
 import { fail, redirect } from '@sveltejs/kit';
+import { slugify, validateUploads, processAndUpload } from '$lib/server/upload.js';
 
-function slugify(text) {
-	return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
+const MAX_VIDEO_SIZE = 200 * 1024 * 1024;
 
 function extractYoutubeId(input) {
 	if (!input) return null;
@@ -22,25 +25,10 @@ function extractYoutubeId(input) {
 		const url = new URL(trimmed);
 		if (url.hostname.includes('youtube.com')) return url.searchParams.get('v');
 		if (url.hostname === 'youtu.be') return url.pathname.slice(1).split('?')[0];
-	} catch {}
+	} catch {
+		/* not a URL */
+	}
 	return null;
-}
-
-const ALLOWED_IMAGE_TYPES = ['image/webp', 'image/png', 'image/jpeg', 'image/gif', 'image/avif'];
-const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
-const MAX_VIDEO_SIZE = 200 * 1024 * 1024;
-
-async function processAndUpload(file, baseKey) {
-	const buffer = Buffer.from(await file.arrayBuffer());
-	const result = await processImage(buffer, baseKey);
-	const uploads = await Promise.all(
-		result.variants.map(async (v) => {
-			const url = await uploadToR2(v.buffer, v.key, v.contentType);
-			return { name: v.name, url };
-		})
-	);
-	const urlMap = Object.fromEntries(uploads.map(u => [u.name, u.url]));
-	return { imageUrl: urlMap.full, thumbnailUrl: urlMap.thumb };
 }
 
 export async function load() {
@@ -50,7 +38,7 @@ export async function load() {
 }
 
 export const actions = {
-	default: async ({ request }) => {
+	default: async ({ request, locals, getClientAddress }) => {
 		const data = await request.formData();
 		const title = data.get('title')?.toString().trim();
 		const description = data.get('description')?.toString().trim() || null;
@@ -69,96 +57,128 @@ export const actions = {
 
 		// Determine mediaType from what was submitted
 		let mediaType;
+		let videoFile = null;
+		let imageFiles = [];
 		if (youtubeInput) {
 			mediaType = 'youtube';
 		} else {
-			const mediaFile = data.get('media');
-			if (!(mediaFile instanceof File) || mediaFile.size === 0) {
+			const allFiles = data.getAll('media').filter((f) => f instanceof File && f.size > 0);
+			if (allFiles.length === 0) {
 				return fail(400, { error: 'Please upload a file or enter a YouTube URL.' });
 			}
-			if (ALLOWED_VIDEO_TYPES.includes(mediaFile.type)) {
+			const first = allFiles[0];
+			if (ALLOWED_VIDEO_TYPES.includes(first.type)) {
+				if (allFiles.length > 1) {
+					return fail(400, { error: 'Upload one video at a time.' });
+				}
+				videoFile = first;
 				mediaType = 'video';
-			} else if (ALLOWED_IMAGE_TYPES.includes(mediaFile.type)) {
-				// check if multiple images (carousel)
-				const allFiles = data.getAll('media').filter(f => f instanceof File && f.size > 0);
-				mediaType = allFiles.length > 1 ? 'carousel' : 'image';
 			} else {
-				return fail(400, { error: 'Unsupported file type.' });
+				imageFiles = allFiles;
+				const v = validateUploads(imageFiles);
+				if (!v.ok) return fail(400, { error: v.message });
+				mediaType = imageFiles.length > 1 ? 'carousel' : 'image';
 			}
 		}
 
-		const slug = slugify(title);
+		const slug = slugify(title) || `item-${Date.now()}`;
 		const ts = Date.now();
-		let imageUrl = null, thumbnailUrl = null, youtubeId = null;
+		let imageUrl = null;
+		let thumbnailUrl = null;
+		let youtubeId = null;
 		let carouselImages = [];
 
-		if (mediaType === 'youtube') {
-			youtubeId = extractYoutubeId(youtubeInput);
-			if (!youtubeId) return fail(400, { error: 'Invalid YouTube URL or video ID.' });
-			thumbnailUrl = `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`;
-
-		} else if (mediaType === 'image') {
-			const file = data.get('media');
-			try {
-				const r = await processAndUpload(file, `discovery/${slug}-${ts}`);
+		try {
+			if (mediaType === 'youtube') {
+				youtubeId = extractYoutubeId(youtubeInput);
+				if (!youtubeId) return fail(400, { error: 'Invalid YouTube URL or video ID.' });
+				thumbnailUrl = `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`;
+			} else if (mediaType === 'image') {
+				const r = await processAndUpload(imageFiles[0], `discovery/${slug}-${ts}`);
 				imageUrl = r.imageUrl;
 				thumbnailUrl = r.thumbnailUrl;
-			} catch (e) {
-				console.error(e);
-				return fail(500, { error: 'Image upload failed.' });
-			}
-
-		} else if (mediaType === 'carousel') {
-			const files = data.getAll('media').filter(f => f instanceof File && f.size > 0);
-			try {
-				const results = await Promise.all(
-					files.map((f, i) => processAndUpload(f, `discovery/${slug}-${ts}-${i}`))
+			} else if (mediaType === 'carousel') {
+				carouselImages = await Promise.all(
+					imageFiles.map((f, i) => processAndUpload(f, `discovery/${slug}-${ts}-${i}`))
 				);
-				imageUrl = results[0].imageUrl;
-				thumbnailUrl = results[0].thumbnailUrl;
-				carouselImages = results;
-			} catch (e) {
-				console.error(e);
-				return fail(500, { error: 'Image upload failed.' });
+				imageUrl = carouselImages[0].imageUrl;
+				thumbnailUrl = carouselImages[0].thumbnailUrl;
+			} else if (mediaType === 'video') {
+				if (videoFile.size > MAX_VIDEO_SIZE) {
+					return fail(400, { error: 'Video must be under 200 MB.' });
+				}
+				let buffer = Buffer.from(await videoFile.arrayBuffer());
+				const ext = (videoFile.name.split('.').pop() || 'mp4').toLowerCase();
+				try {
+					buffer = applyFaststart(buffer, ext);
+				} catch {
+					/* faststart is best-effort */
+				}
+				imageUrl = await uploadToR2(buffer, `discovery/${slug}-${ts}.${ext}`, videoFile.type);
 			}
-
-		} else if (mediaType === 'video') {
-			const file = data.get('media');
-			if (file.size > MAX_VIDEO_SIZE) return fail(400, { error: 'Video must be under 200 MB.' });
-			try {
-				let buffer = Buffer.from(await file.arrayBuffer());
-				const ext = file.name.split('.').pop() || 'mp4';
-				try { buffer = applyFaststart(buffer, ext); } catch { /* non-fatal */ }
-				imageUrl = await uploadToR2(buffer, `discovery/${slug}-${ts}.${ext}`, file.type);
-			} catch (e) {
-				console.error(e);
-				return fail(500, { error: 'Video upload failed.' });
-			}
+		} catch (e) {
+			console.error('[admin/discovery/new] media pipeline failed:', e);
+			return fail(400, { error: e.message || 'Media upload failed.' });
 		}
 
-		const [inserted] = await db.insert(discoveryItem).values({
-			sectionId, title, description, notes, mediaType,
-			imageUrl, thumbnailUrl, youtubeId,
-			sourceUrl, creatorName, creatorUrl, visible
-		}).returning({ id: discoveryItem.id });
+		let insertedId;
+		try {
+			await db.transaction(async (tx) => {
+				const [row] = await tx
+					.insert(discoveryItem)
+					.values({
+						sectionId,
+						title,
+						description,
+						notes,
+						mediaType,
+						imageUrl,
+						thumbnailUrl,
+						youtubeId,
+						sourceUrl,
+						creatorName,
+						creatorUrl,
+						visible
+					})
+					.returning({ id: discoveryItem.id });
+				insertedId = row.id;
 
-		if (mediaType === 'carousel' && carouselImages.length > 0) {
-			await db.insert(discoveryItemImage).values(
-				carouselImages.map((img, i) => ({
-					itemId: inserted.id,
-					imageUrl: img.imageUrl,
-					thumbnailUrl: img.thumbnailUrl,
-					position: i
-				}))
-			);
-		}
+				if (mediaType === 'carousel' && carouselImages.length > 0) {
+					await tx.insert(discoveryItemImage).values(
+						carouselImages.map((img, i) => ({
+							itemId: row.id,
+							imageUrl: img.imageUrl,
+							thumbnailUrl: img.thumbnailUrl,
+							position: i
+						}))
+					);
+				}
 
-		if (tagIds.length > 0) {
-			await db.insert(discoveryItemTag).values(tagIds.map(tagId => ({ itemId: inserted.id, tagId })));
+				if (tagIds.length > 0) {
+					await tx
+						.insert(discoveryItemTag)
+						.values(tagIds.map((tagId) => ({ itemId: row.id, tagId })));
+				}
+
+				await tx.insert(auditEvent).values({
+					actorId: locals.user?.id ?? null,
+					actorUsername: locals.user?.username ?? null,
+					action: 'discovery.create',
+					entityType: 'discovery_item',
+					entityId: String(row.id),
+					payload: { sectionId, mediaType, slug },
+					ip: getClientAddress()
+				});
+			});
+		} catch (e) {
+			console.error('[admin/discovery/new] DB insert failed:', e);
+			return fail(500, { error: 'Database error. Please retry.' });
 		}
 
 		if (mediaType === 'video' && imageUrl) {
-			generatePreviewAsync(inserted.id, imageUrl).catch(e => console.error('[preview]', e.message));
+			generatePreviewAsync(insertedId, imageUrl).catch((e) =>
+				console.error('[preview]', e.message)
+			);
 		}
 
 		redirect(303, '/admin/discovery');

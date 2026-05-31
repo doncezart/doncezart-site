@@ -23,7 +23,8 @@ export async function uploadToR2(body, key, contentType) {
 			Bucket: env.R2_BUCKET,
 			Key: key,
 			Body: body,
-			ContentType: contentType
+			ContentType: contentType,
+			CacheControl: 'public, max-age=31536000, immutable'
 		})
 	);
 	return `${env.R2_PUBLIC_URL}/${key}`;

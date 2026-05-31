@@ -1,13 +1,18 @@
 import { db } from '$lib/server/db/index.js';
 import { artwork, artworkTag, tag } from '$lib/server/db/schema.ts';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 
 export async function load({ params }) {
 	const [item] = await db
 		.select()
 		.from(artwork)
-		.where(and(eq(artwork.slug, params.slug), eq(artwork.hasCaseStudy, true)))
+		.where(and(
+			eq(artwork.slug, params.slug),
+			eq(artwork.hasCaseStudy, true),
+			eq(artwork.visible, true),
+			isNull(artwork.deletedAt)
+		))
 		.limit(1);
 
 	if (!item) throw error(404, 'Case study not found');

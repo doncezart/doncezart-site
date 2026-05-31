@@ -55,10 +55,17 @@ pnpm dev               # http://localhost:6969
 
 ## Database
 
+Schema changes are **manual** (this Postgres instance is shared across multiple
+projects, so `drizzle-kit push` is unsafe). Apply pre-written SQL from
+`drizzle/manual/` in numbered order:
+
 ```bash
-npx drizzle-kit push    # apply schema to DB
-node --env-file=.env scripts/seed-admin.js   # create admin user
+psql "$DATABASE_URL" -f drizzle/manual/001_audit_slugredirect_service_visibility.sql
+node --env-file=.env scripts/seed-admin.js   # create the first admin user
 ```
+
+The `drizzle-kit` CLI is installed for inspecting / generating diffs, but never
+run `push`/`migrate` against production from this repo.
 
 ## Scripts
 
@@ -70,9 +77,18 @@ node --env-file=.env scripts/import-assets.js             # bulk-import assets
 ## Building
 
 ```bash
-pnpm build
-pnpm preview
+pnpm build                                # → build/
+node --env-file=.env build/index.js       # run the production server
 ```
+
+In production, env vars are typically injected by the deploy environment
+(systemd `EnvironmentFile=`, Docker `--env-file`, etc.) so `--env-file` is
+only needed for local smoke tests of the compiled output.
+
+## Health Check
+
+`GET /healthz` returns `{ ok, db, ts }` and a 200 / 503 status — wire this
+into your uptime monitor.
 
 ## Admin
 

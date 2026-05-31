@@ -8,19 +8,32 @@ export async function hashPassword(password) {
 	const salt = crypto.randomBytes(16).toString('hex');
 	return new Promise((resolve, reject) => {
 		crypto.scrypt(password, salt, 64, (err, derived) => {
-			if (err) reject(err);
+			if (err) return reject(err);
 			resolve(`${salt}:${derived.toString('hex')}`);
 		});
 	});
 }
 
-/** Verify a password against a stored hash. */
+/** Verify a password against a stored hash. Robust to malformed input. */
 export async function verifyPassword(password, stored) {
-	const [salt, hash] = stored.split(':');
+	if (typeof stored !== 'string' || !stored.includes(':')) return false;
+	const [salt, hashHex] = stored.split(':');
+	if (!salt || !hashHex || !/^[0-9a-f]+$/i.test(hashHex)) return false;
+	let hashBuf;
+	try {
+		hashBuf = Buffer.from(hashHex, 'hex');
+	} catch {
+		return false;
+	}
+	if (hashBuf.length !== 64) return false;
 	return new Promise((resolve, reject) => {
 		crypto.scrypt(password, salt, 64, (err, derived) => {
-			if (err) reject(err);
-			resolve(crypto.timingSafeEqual(Buffer.from(hash, 'hex'), derived));
+			if (err) return reject(err);
+			try {
+				resolve(crypto.timingSafeEqual(hashBuf, derived));
+			} catch {
+				resolve(false);
+			}
 		});
 	});
 }
