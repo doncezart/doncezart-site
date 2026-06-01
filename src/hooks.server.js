@@ -5,6 +5,11 @@ import { eq } from 'drizzle-orm';
 
 const SESSION_COOKIE = 'session_id';
 
+// Cloudflare Rocket Loader rewrites nonce-protected scripts and breaks SvelteKit hydration.
+function disableRocketLoader(html) {
+	return html.replace(/<script(?![^>]*\bdata-cfasync=)/g, '<script data-cfasync="false"');
+}
+
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event, resolve }) {
 	const sessionId = event.cookies.get(SESSION_COOKIE);
@@ -44,7 +49,9 @@ export async function handle({ event, resolve }) {
 		}
 	}
 
-	const response = await resolve(event);
+	const response = await resolve(event, {
+		transformPageChunk: ({ html }) => disableRocketLoader(html)
+	});
 
 	// CSP is set by SvelteKit (see svelte.config.js -> kit.csp).
 	response.headers.set('X-Frame-Options', 'SAMEORIGIN');
