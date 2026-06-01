@@ -5,7 +5,7 @@ const config = {
 	kit: {
 		adapter: adapter(),
 		csp: {
-			mode: 'auto',
+			mode: 'manual',
 			directives: {
 				'default-src': ["'self'"],
 				'script-src': [
