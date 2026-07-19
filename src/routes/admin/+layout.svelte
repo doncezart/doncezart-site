@@ -17,6 +17,7 @@
 			.some(p => page.url.pathname.startsWith(p))
 	);
 	let discoveryOpen = $state(page.url.pathname.startsWith('/admin/discovery'));
+	let balancesOpen = $state(page.url.pathname.startsWith('/admin/balances'));
 
 	function isDiscoveryItems() {
 		return currentPath === '/admin/discovery' ||
@@ -86,6 +87,24 @@
 							</a>
 							<a href="/admin/discovery/tags" class="nav-subitem" class:active={isActive('/admin/discovery/tags')}>
 								Tags
+							</a>
+						</div>
+					{/if}
+
+					<!-- Balances group -->
+					<button
+						class="nav-group"
+						class:nav-group--open={balancesOpen}
+						onclick={() => (balancesOpen = !balancesOpen)}
+					>
+						<i class="fa-solid fa-receipt"></i>
+						<span>Balances</span>
+						<i class="fa-solid fa-chevron-down nav-chevron" class:rotated={balancesOpen}></i>
+					</button>
+					{#if balancesOpen}
+						<div class="nav-subitems">
+							<a href="/admin/balances" class="nav-subitem" class:active={isActive('/admin/balances')}>
+								All Balances
 							</a>
 						</div>
 					{/if}
