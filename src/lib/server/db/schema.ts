@@ -175,6 +175,37 @@ export const discoveryItemTag = pgTable('discovery_item_tag', {
 	tagId: integer('tag_id').notNull().references(() => discoveryTag.id, { onDelete: 'cascade' })
 });
 
+// ── Client Balances ────────────────────────────────────
+export const balance = pgTable('balance', {
+    id: text('id').primaryKey(),
+    shortId: text('short_id').notNull().unique(),
+    pinHash: text('pin_hash').notNull(),
+    initialAmount: integer('initial_amount').notNull(),
+    paymentDate: timestamp('payment_date', { withTimezone: true, mode: 'date' }).notNull(),
+    paymentMethod: text('payment_method').notNull(),
+    label: text('label'),
+    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
+}, (t) => ({
+    shortIdIdx: index('balance_short_id_idx').on(t.shortId)
+}));
+
+export const balanceItem = pgTable('balance_item', {
+    id: text('id').primaryKey(),
+    balanceId: text('balance_id').notNull().references(() => balance.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    amount: integer('amount').notNull(),
+    type: text('type').notNull(),
+    url: text('url'),
+    discountPct: integer('discount_pct').notNull().default(0),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
+}, (t) => ({
+    balanceIdIdx: index('balance_item_balance_id_idx').on(t.balanceId)
+}));
+
 // ── Types ──────────────────────────────────────────────
 export type Session = typeof session.$inferSelect;
 export type User = typeof user.$inferSelect;
@@ -191,3 +222,7 @@ export type DiscoverySection = typeof discoverySection.$inferSelect;
 export type DiscoveryTag = typeof discoveryTag.$inferSelect;
 export type DiscoveryItem = typeof discoveryItem.$inferSelect;
 export type DiscoveryItemImage = typeof discoveryItemImage.$inferSelect;
+export type Balance = typeof balance.$inferSelect;
+export type BalanceInsert = typeof balance.$inferInsert;
+export type BalanceItem = typeof balanceItem.$inferSelect;
+export type BalanceItemInsert = typeof balanceItem.$inferInsert;
