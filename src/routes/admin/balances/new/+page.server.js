@@ -24,8 +24,8 @@ export const actions = {
         if (!paymentMethod) {
             return fail(400, { error: 'Payment method is required.', values: { label, initialAmount: initialAmountStr, paymentDate, expiresAt: expiresAtStr } });
         }
-        if (!pin || pin.length !== 4 || !/^[a-zA-Z]{4}$/.test(pin)) {
-            return fail(400, { error: 'PIN must be exactly 4 letters.', values: { label, initialAmount: initialAmountStr, paymentDate, paymentMethod, expiresAt: expiresAtStr } });
+        if (!pin || pin.length !== 4 || !/^[0-9]{4}$/.test(pin)) {
+            return fail(400, { error: 'PIN must be exactly 4 digits.', values: { label, initialAmount: initialAmountStr, paymentDate, paymentMethod, expiresAt: expiresAtStr } });
         }
 
         const id = crypto.randomUUID();

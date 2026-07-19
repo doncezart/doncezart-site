@@ -16,12 +16,11 @@ export function generateShortId() {
     return result;
 }
 
-/** Hash a 4-letter PIN with scrypt. PIN is uppercased before hashing. */
+/** Hash a 4-digit PIN with scrypt. */
 export async function hashPin(pin) {
     const salt = crypto.randomBytes(16).toString('hex');
-    const upper = pin.toUpperCase();
     return new Promise((resolve, reject) => {
-        crypto.scrypt(upper, salt, 64, (err, derived) => {
+        crypto.scrypt(pin, salt, 64, (err, derived) => {
             if (err) return reject(err);
             resolve(`${salt}:${derived.toString('hex')}`);
         });
@@ -30,7 +29,6 @@ export async function hashPin(pin) {
 
 /**
  * Verify a PIN against a stored scrypt hash.
- * PIN is uppercased before comparison.
  * Returns false for malformed stored hashes.
  */
 export async function verifyPin(pin, stored) {
@@ -44,9 +42,8 @@ export async function verifyPin(pin, stored) {
         return false;
     }
     if (hashBuf.length !== 64) return false;
-    const upper = pin.toUpperCase();
     return new Promise((resolve, reject) => {
-        crypto.scrypt(upper, salt, 64, (err, derived) => {
+        crypto.scrypt(pin, salt, 64, (err, derived) => {
             if (err) return reject(err);
             try {
                 resolve(crypto.timingSafeEqual(hashBuf, derived));
@@ -63,9 +60,9 @@ export async function verifyPin(pin, stored) {
  * to a real (but incorrect) PIN attempt.
  */
 export async function dummyVerify() {
-    // Pre-computed hash of "AAAA" — just a fixed target for timing padding.
+    // Pre-computed hash of "0000" — just a fixed target for timing padding.
     const dummy = '00000000000000000000000000000000:00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
-    return verifyPin('AAAA', dummy);
+    return verifyPin('0000', dummy);
 }
 
 /**

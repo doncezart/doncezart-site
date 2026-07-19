@@ -25,7 +25,7 @@
                     <input type="text" name="label" value={form?.values?.label ?? ''} placeholder="e.g. Client name or project" />
                 </label>
                 <label>
-                    <span>Initial Amount (RON)</span>
+                    <span>Initial Amount ($)</span>
                     <input type="number" name="initialAmount" value={form?.values?.initialAmount ?? ''} step="0.01" min="0" placeholder="500.00" required />
                 </label>
                 <label>
@@ -37,8 +37,8 @@
                     <input type="text" name="paymentMethod" value={form?.values?.paymentMethod ?? ''} placeholder="Bank transfer, Revolut..." required />
                 </label>
                 <label>
-                    <span>PIN (4 letters)</span>
-                    <input type="text" name="pin" maxlength="4" minlength="4" pattern="[a-zA-Z]{4}" placeholder="ABCD" required autocomplete="off" style="text-transform:uppercase;letter-spacing:0.3em" />
+                    <span>PIN (4 digits)</span>
+                    <input type="text" name="pin" maxlength="4" placeholder="1234" required autocomplete="off" inputmode="numeric" style="letter-spacing:0.3em" />
                 </label>
                 <label>
                     <span>Expiry Date (optional)</span>

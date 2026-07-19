@@ -359,6 +359,7 @@
 		padding: 2.5rem 3rem;
 		overflow-y: auto;
 		min-width: 0;
+		color: rgba(255, 255, 255, 0.85);
 	}
 
 	@media (max-width: 768px) {

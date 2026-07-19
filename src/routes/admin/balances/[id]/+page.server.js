@@ -43,8 +43,8 @@ export const actions = {
         if (!initialAmountStr || isNaN(Number(initialAmountStr)) || Number(initialAmountStr) <= 0) {
             return fail(400, { error: 'Initial amount must be greater than 0.' });
         }
-        if (newPin && (newPin.length !== 4 || !/^[a-zA-Z]{4}$/.test(newPin))) {
-            return fail(400, { error: 'PIN must be exactly 4 letters.' });
+        if (newPin && (newPin.length !== 4 || !/^[0-9]{4}$/.test(newPin))) {
+            return fail(400, { error: 'PIN must be exactly 4 digits.' });
         }
 
         const updateData = {

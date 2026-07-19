@@ -1,29 +1,17 @@
-import { verifyPin, dummyVerify, getBalanceByShortId, getBalanceWithItems, sessionCookieName } from '$lib/server/balance.js';
+import { verifyPin, dummyVerify, getBalanceByShortId, getBalanceWithItems } from '$lib/server/balance.js';
 import { rateLimit, rateLimitReset } from '$lib/server/rate-limit.js';
-import { fail, redirect } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
 
-export async function load({ params, cookies }) {
-    const cookieName = sessionCookieName(params.shortId);
-    const balanceId = cookies.get(cookieName);
-    if (!balanceId) {
-        return { authenticated: false };
-    }
-    const data = await getBalanceWithItems(balanceId);
-    if (!data) {
-        return { authenticated: false };
-    }
-    return {
-        authenticated: true,
-        balance: data.balance,
-        items: data.items
-    };
+export async function load() {
+    // Always show PIN screen — no session persistence
+    return { authenticated: false };
 }
 
 export const actions = {
-    default: async ({ request, cookies, getClientAddress, params, url }) => {
+    default: async ({ request, getClientAddress, params }) => {
         const ip = getClientAddress();
         const shortId = params.shortId;
 
@@ -37,14 +25,13 @@ export const actions = {
         const data = await request.formData();
         const pin = data.get('pin')?.toString() ?? '';
 
-        if (pin.length !== 4 || !/^[a-zA-Z]{4}$/.test(pin)) {
+        if (pin.length !== 4 || !/^[0-9]{4}$/.test(pin)) {
             return fail(400, { error: 'Invalid PIN.' });
         }
 
         const bal = await getBalanceByShortId(shortId);
 
         if (!bal) {
-            // Balance doesn't exist — run dummy verify for timing parity, then return generic error
             await dummyVerify();
             return fail(401, { error: 'Invalid PIN.' });
         }
@@ -54,17 +41,9 @@ export const actions = {
             return fail(401, { error: 'Invalid PIN.' });
         }
 
-        // Correct PIN — reset rate limit, set session cookie and redirect
         rateLimitReset(rlKey);
-        const cookieName = sessionCookieName(shortId);
-        cookies.set(cookieName, bal.id, {
-            path: `/balances/${shortId}`,
-            httpOnly: true,
-            sameSite: 'lax',
-            secure: url.protocol === 'https:',
-            maxAge: 86400 // 24 hours
-        });
 
-        throw redirect(303, `/balances/${shortId}`);
+        const { balance: balData, items } = await getBalanceWithItems(bal.id);
+        return { success: true, balance: balData, items };
     }
 };

@@ -43,9 +43,9 @@
                         <tr class="clickable" onclick={() => window.location = `/admin/balances/${b.id}`}>
                             <td class="cell-label">{b.label || '—'}</td>
                             <td>{new Date(b.paymentDate).toLocaleDateString('en-GB')}</td>
-                            <td>{displayCents(b.initialAmount)} RON</td>
-                            <td>{displayCents(b.totalSpent)} RON</td>
-                            <td class:negative={remaining < 0}>{displayCents(remaining)} RON</td>
+                            <td>${displayCents(b.initialAmount)}</td>
+                            <td>${displayCents(b.totalSpent)}</td>
+                            <td class:negative={remaining < 0}>${displayCents(remaining)}</td>
                             <td>
                                 {#if isExpired(b)}
                                     <span class="status-badge expired">Expired</span>

@@ -5,8 +5,8 @@
 
     let { data, form } = $props();
 
-    let balance = $state(data.balance);
-    let items = $state(data.items);
+    let balance = $derived(data.balance);
+    let items = $derived(data.items);
 
     // Update local state when form returns success
     $effect(() => {
@@ -24,7 +24,39 @@
 
     let confirmDelete = $state(false);
     let deleteItemTarget = $state(null);
-    let deleteMode = $state('delete');
+    let dragItem = $state(null);
+
+    function dragStart(e, item) {
+        dragItem = item;
+        e.dataTransfer.effectAllowed = 'move';
+    }
+    function dragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    }
+    async function drop(e, targetItem) {
+        e.preventDefault();
+        if (!dragItem || dragItem.id === targetItem.id) return;
+        const reordered = [...items];
+        const fromIdx = reordered.findIndex(i => i.id === dragItem.id);
+        const toIdx = reordered.findIndex(i => i.id === targetItem.id);
+        reordered.splice(fromIdx, 1);
+        reordered.splice(toIdx, 0, dragItem);
+        const order = reordered.map((item, idx) => ({ id: item.id, sortOrder: idx }));
+        const formData = new FormData();
+        formData.set('order', JSON.stringify(order));
+        await fetch('?/reorderItems', { method: 'POST', body: formData });
+        invalidateAll();
+    }
+
+    let copied = $state(false);
+
+    async function copyLink() {
+        const url = `${window.location.origin}/balances/${balance.shortId}`;
+        await navigator.clipboard.writeText(url);
+        copied = true;
+        setTimeout(() => copied = false, 2000);
+    }
 </script>
 
 <svelte:head>
@@ -36,6 +68,9 @@
         <h1>{balance.label || 'Balance'}</h1>
         <div class="header-actions">
             <span class="short-id">/balances/{balance.shortId}</span>
+            <button class="btn-sm copy-btn" onclick={copyLink}>
+                {copied ? 'Copied!' : 'Copy link'}
+            </button>
             <a href="/admin/balances" class="back-link">← Back</a>
         </div>
     </div>
@@ -56,7 +91,7 @@
                             <input type="text" name="label" value={balance.label ?? ''} />
                         </label>
                         <label>
-                            <span>Initial Amount (RON)</span>
+                            <span>Initial Amount ($)</span>
                             <input type="number" name="initialAmount" value={balance.initialAmount / 100} step="0.01" min="0" required />
                         </label>
                         <label>
@@ -69,7 +104,7 @@
                         </label>
                         <label>
                             <span>New PIN (leave blank to keep)</span>
-                            <input type="text" name="newPin" maxlength="4" minlength="4" pattern="[a-zA-Z]{4}" placeholder="ABCD" autocomplete="off" style="text-transform:uppercase;letter-spacing:0.3em" />
+                            <input type="text" name="newPin" maxlength="4" placeholder="1234" autocomplete="off" inputmode="numeric" style="letter-spacing:0.3em" />
                         </label>
                         <label>
                             <span>Expiry Date</span>
@@ -125,7 +160,7 @@
                                     <input type="text" name="type" value={editingItem?.type ?? ''} required placeholder="Video editing, Thumbnail..." />
                                 </label>
                                 <label>
-                                    <span>Amount (RON)</span>
+                                    <span>Amount ($)</span>
                                     <input type="number" name="amount" value={editingItem ? editingItem.amount / 100 : ''} step="0.01" min="0" required />
                                 </label>
                                 <label>
@@ -150,17 +185,15 @@
                 {:else}
                     <div class="items-table">
                         {#each items as item (item.id)}
-                            <div class="item-row">
+                            <div class="item-row" ondragover={dragOver} ondrop={(e) => drop(e, item)}>
+                                <span class="drag-handle" draggable="true" ondragstart={(e) => dragStart(e, item)} title="Drag to reorder">≡</span>
                                 <div class="item-info">
                                     <span class="item-title">{item.title}</span>
-                                    <span class="item-meta">{item.type} · {displayCents(item.amount)} RON{#if item.discountPct > 0} · -{item.discountPct}%{/if}</span>
+                                    <span class="item-meta">{item.type} · ${displayCents(item.amount)}{#if item.discountPct > 0} · -{item.discountPct}%{/if}</span>
                                 </div>
                                 <div class="item-actions">
                                     <button class="btn-sm" onclick={() => { editingItem = item; showAddItem = false; }}>Edit</button>
-                                    <button class="btn-sm danger" onclick={() => { deleteItemTarget = item; deleteMode = 'delete'; }}>Remove</button>
-                                    {#if item.discountPct < 100}
-                                        <button class="btn-sm" onclick={() => { deleteItemTarget = item; deleteMode = 'free'; }}>Make Free</button>
-                                    {/if}
+                                    <button class="btn-sm danger" onclick={() => { deleteItemTarget = item; }}>Remove</button>
                                 </div>
                             </div>
                         {/each}
@@ -169,15 +202,13 @@
                     {#if deleteItemTarget}
                         <div class="confirm-overlay">
                             <div class="confirm-box">
-                                <p>{deleteMode === 'free' ? 'Mark this item as FREE?' : 'Permanently delete this item?'}</p>
+                                <p>Permanently delete this item?</p>
                                 <p class="confirm-item-name">"{deleteItemTarget.title}"</p>
                                 <form method="POST" action="?/deleteItem" use:enhance>
                                     <input type="hidden" name="itemId" value={deleteItemTarget.id} />
-                                    <input type="hidden" name="mode" value={deleteMode} />
+                                    <input type="hidden" name="mode" value="delete" />
                                     <div class="section-actions">
-                                        <button type="submit" class={deleteMode === 'free' ? 'btn-cta' : 'btn-danger'}>
-                                            {deleteMode === 'free' ? 'Yes, Make Free' : 'Yes, Delete'}
-                                        </button>
+                                        <button type="submit" class="btn-danger">Yes, Delete</button>
                                         <button type="button" class="btn-secondary" onclick={() => deleteItemTarget = null}>Cancel</button>
                                     </div>
                                 </form>
@@ -284,6 +315,14 @@
         border-color: rgba(255, 255, 255, 0.3);
         outline: none;
     }
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="date"]::-webkit-inner-spin-button {
+        display: none;
+        -webkit-appearance: none;
+    }
+    input[type="date"] {
+        -moz-appearance: textfield;
+    }
     .form-error {
         background: rgba(248, 113, 113, 0.1);
         border: 1px solid rgba(248, 113, 113, 0.3);
@@ -335,6 +374,10 @@
         color: #f87171;
         border-color: rgba(248, 113, 113, 0.3);
     }
+    .copy-btn {
+        font-family: inherit;
+        white-space: nowrap;
+    }
     .danger-zone {
         border-color: rgba(248, 113, 113, 0.25);
     }
@@ -364,15 +407,32 @@
     }
     .item-row {
         display: flex;
-        justify-content: space-between;
         align-items: center;
+        gap: 0.5rem;
         padding: 0.6rem 0;
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .drag-handle {
+        cursor: grab;
+        color: rgba(255, 255, 255, 0.25);
+        font-size: 1.2rem;
+        user-select: none;
+        flex-shrink: 0;
+        padding: 0 0.25rem;
+        transition: color 0.15s;
+    }
+    .drag-handle:hover {
+        color: rgba(255, 255, 255, 0.5);
+    }
+    .drag-handle:active {
+        cursor: grabbing;
     }
     .item-row:last-child {
         border-bottom: none;
     }
     .item-info {
+        flex: 1;
+        min-width: 0;
         display: flex;
         flex-direction: column;
         gap: 0.1rem;
@@ -423,6 +483,7 @@
     .preview-panel {
         position: sticky;
         top: 1rem;
+        padding-right: 1rem;
     }
     .preview-heading {
         font-size: 0.85rem;
