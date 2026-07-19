@@ -2,7 +2,7 @@
     let { balance, items } = $props();
 
     function displayPrice(cents, discountPct = 0) {
-        const discounted = cents * (1 - discountPct / 100);
+        const discounted = Math.round(cents * (100 - discountPct) / 100);
         return (discounted / 100).toFixed(2);
     }
 

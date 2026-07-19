@@ -15,8 +15,8 @@ export const actions = {
         const pin = data.get('pin')?.toString().trim();
         const expiresAtStr = data.get('expiresAt')?.toString().trim() || null;
 
-        if (!initialAmountStr || isNaN(Number(initialAmountStr)) || Number(initialAmountStr) < 0) {
-            return fail(400, { error: 'Valid initial amount is required.', values: { label, initialAmount: initialAmountStr, paymentDate, paymentMethod, expiresAt: expiresAtStr } });
+        if (!initialAmountStr || isNaN(Number(initialAmountStr)) || Number(initialAmountStr) <= 0) {
+            return fail(400, { error: 'Initial amount must be greater than 0.', values: { label, initialAmount: initialAmountStr, paymentDate, paymentMethod, expiresAt: expiresAtStr } });
         }
         if (!paymentDate) {
             return fail(400, { error: 'Payment date is required.', values: { label, initialAmount: initialAmountStr, paymentMethod, expiresAt: expiresAtStr } });

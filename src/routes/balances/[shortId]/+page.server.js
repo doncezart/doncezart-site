@@ -1,5 +1,5 @@
 import { verifyPin, dummyVerify, getBalanceByShortId, getBalanceWithItems, sessionCookieName } from '$lib/server/balance.js';
-import { rateLimit } from '$lib/server/rate-limit.js';
+import { rateLimit, rateLimitReset } from '$lib/server/rate-limit.js';
 import { fail, redirect } from '@sveltejs/kit';
 
 const WINDOW_MS = 15 * 60 * 1000;
@@ -54,7 +54,8 @@ export const actions = {
             return fail(401, { error: 'Invalid PIN.' });
         }
 
-        // Correct PIN — set session cookie and redirect
+        // Correct PIN — reset rate limit, set session cookie and redirect
+        rateLimitReset(rlKey);
         const cookieName = sessionCookieName(shortId);
         cookies.set(cookieName, bal.id, {
             path: `/balances/${shortId}`,

@@ -13,7 +13,7 @@ export async function load() {
             paymentMethod: balance.paymentMethod,
             expiresAt: balance.expiresAt,
             createdAt: balance.createdAt,
-            totalSpent: sql`COALESCE(SUM(${balanceItem.amount} * (1.0 - ${balanceItem.discountPct} / 100.0)), 0)`.mapWith(Number)
+            totalSpent: sql`COALESCE(ROUND(SUM(${balanceItem.amount} * (100 - ${balanceItem.discountPct}) / 100.0)), 0)`.mapWith(Number)
         })
         .from(balance)
         .leftJoin(balanceItem, eq(balance.id, balanceItem.balanceId))

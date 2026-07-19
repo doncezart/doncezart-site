@@ -1,5 +1,6 @@
 <script>
     import { enhance } from '$app/forms';
+    import { invalidateAll } from '$app/navigation';
     import Receipt from '$lib/components/Receipt.svelte';
 
     let { data, form } = $props();
@@ -10,7 +11,7 @@
     // Update local state when form returns success
     $effect(() => {
         if (form?.success) {
-            window.location.reload();
+            invalidateAll();
         }
     });
 

@@ -4,6 +4,7 @@
     let chars = $state(['', '', '', '']);
     let refs = $state([null, null, null, null]);
     let submitting = $state(false);
+    let pin = $derived(chars.join(''));
 
     function handleInput(index, e) {
         const val = e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 1);
@@ -31,10 +32,6 @@
         refs[next]?.focus();
     }
 
-    function getPin() {
-        return chars.join('');
-    }
-
     function canSubmit() {
         return chars.every(c => c.length === 1);
     }
@@ -60,7 +57,7 @@
                 />
             {/each}
         </div>
-        <input type="hidden" name="pin" value={getPin()} />
+        <input type="hidden" name="pin" value={pin} />
         {#if error}
             <p class="pin-error">{error}</p>
         {/if}

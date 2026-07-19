@@ -40,8 +40,8 @@ export const actions = {
 
         if (!paymentDate) return fail(400, { error: 'Payment date is required.' });
         if (!paymentMethod) return fail(400, { error: 'Payment method is required.' });
-        if (!initialAmountStr || isNaN(Number(initialAmountStr)) || Number(initialAmountStr) < 0) {
-            return fail(400, { error: 'Valid initial amount is required.' });
+        if (!initialAmountStr || isNaN(Number(initialAmountStr)) || Number(initialAmountStr) <= 0) {
+            return fail(400, { error: 'Initial amount must be greater than 0.' });
         }
         if (newPin && (newPin.length !== 4 || !/^[a-zA-Z]{4}$/.test(newPin))) {
             return fail(400, { error: 'PIN must be exactly 4 letters.' });
@@ -89,6 +89,9 @@ export const actions = {
             return fail(400, { itemError: 'Valid amount is required.' });
         }
         if (!type) return fail(400, { itemError: 'Type is required.' });
+        if (url && !/^https?:\/\//i.test(url)) {
+            return fail(400, { itemError: 'URL must start with http:// or https://' });
+        }
 
         const discountPct = Math.min(100, Math.max(0, parseInt(discountStr) || 0));
         const amount = Math.round(Number(amountStr) * 100);
@@ -127,6 +130,9 @@ export const actions = {
             return fail(400, { itemError: 'Valid amount is required.' });
         }
         if (!type) return fail(400, { itemError: 'Type is required.' });
+        if (url && !/^https?:\/\//i.test(url)) {
+            return fail(400, { itemError: 'URL must start with http:// or https://' });
+        }
 
         const discountPct = Math.min(100, Math.max(0, parseInt(discountStr) || 0));
         const amount = Math.round(Number(amountStr) * 100);
