@@ -101,11 +101,16 @@
 <style>
     .receipt {
         width: 100%;
+        max-width: 100%;
+        min-width: 0;
         padding: 2rem;
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 1rem;
         color: rgba(255, 255, 255, 0.85);
+        box-sizing: border-box;
+        overflow-wrap: break-word;
+        overflow-x: hidden;
     }
     .receipt-meta {
         display: flex;
@@ -160,8 +165,11 @@
         gap: 0.15rem;
         min-width: 0;
         flex: 1;
+        overflow: hidden;
     }
     .item-title {
+        display: block;
+        width: 100%;
         font-weight: 500;
         font-size: 0.95rem;
         overflow: hidden;
@@ -174,6 +182,9 @@
     }
     .item-title a:hover {
         text-decoration: underline;
+    }
+    .item-title:has(a) {
+        color: #60a5fa;
     }
     .item-type {
         font-size: 0.8rem;
@@ -239,12 +250,16 @@
 
     @media (max-width: 480px) {
         .receipt {
-            padding: 1.25rem;
+            padding: 1rem;
             border-radius: 0.75rem;
         }
         .item-row {
             flex-direction: column;
+            align-items: stretch;
             gap: 0.25rem;
+        }
+        .item-info {
+            flex: none;
         }
         .item-title {
             font-size: 0.9rem;

@@ -17,9 +17,12 @@
 
 <style>
     .balance-page {
+        width: 100%;
         max-width: 640px;
-        margin: 8vh auto;
+        margin: 1.5rem auto;
         padding: 0 1rem;
+        box-sizing: border-box;
+        overflow-x: hidden;
     }
     .pin-page {
         display: flex;

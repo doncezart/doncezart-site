@@ -204,9 +204,12 @@
             gap: var(--space-xl);
         }
         .footer-right {
-            flex-direction: column;
-            gap: var(--space-xl);
-            align-items: flex-start;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-xl) var(--space-md);
+        }
+        .footer-col:last-child {
+            grid-column: 1 / -1;
         }
         .footer-col {
             align-items: flex-start;

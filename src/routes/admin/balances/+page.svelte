@@ -83,12 +83,14 @@
     }
     .table-wrap {
         overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 0.75rem;
     }
     table {
         width: 100%;
+        min-width: 600px;
         border-collapse: collapse;
     }
     th {
@@ -129,5 +131,20 @@
     .status-badge.expired {
         background: rgba(248, 113, 113, 0.15);
         color: #f87171;
+    }
+
+    @media (max-width: 666px) {
+        .balances-page {
+            padding: 1rem;
+        }
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        th, td {
+            padding: 0.6rem 0.75rem;
+            font-size: 0.8rem;
+        }
     }
 </style>
