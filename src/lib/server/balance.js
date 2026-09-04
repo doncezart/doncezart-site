@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db/index.js';
-import { balance, balanceItem } from '$lib/server/db/schema.ts';
+import { balance, balanceItem, balancePrevious } from '$lib/server/db/schema.ts';
 import { eq } from 'drizzle-orm';
 import crypto from 'node:crypto';
 
@@ -100,4 +100,23 @@ export async function getBalanceWithItems(balanceId) {
 /** Session cookie name pattern */
 export function sessionCookieName(shortId) {
     return `balance_session_${shortId}`;
+}
+
+/**
+ * Get the previous balances linked to this one, in link order.
+ * Returns an array of balance rows (id, shortId, label, paymentDate).
+ */
+export async function getPreviousBalances(balanceId) {
+    const rows = await db
+        .select({
+            id: balance.id,
+            shortId: balance.shortId,
+            label: balance.label,
+            paymentDate: balance.paymentDate
+        })
+        .from(balancePrevious)
+        .innerJoin(balance, eq(balance.id, balancePrevious.previousId))
+        .where(eq(balancePrevious.balanceId, balanceId))
+        .orderBy(balancePrevious.position, balance.createdAt);
+    return rows;
 }

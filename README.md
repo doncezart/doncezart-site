@@ -61,6 +61,8 @@ projects, so `drizzle-kit push` is unsafe). Apply pre-written SQL from
 
 ```bash
 psql "$DATABASE_URL" -f drizzle/manual/001_audit_slugredirect_service_visibility.sql
+psql "$DATABASE_URL" -f drizzle/manual/002_balance_item_subservices.sql
+psql "$DATABASE_URL" -f drizzle/manual/003_balance_previous.sql
 node --env-file=.env scripts/seed-admin.js   # create the first admin user
 ```
 

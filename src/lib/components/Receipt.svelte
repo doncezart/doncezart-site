@@ -14,6 +14,21 @@
         return cents === 0 || discountPct === 100 || Math.round(cents * (100 - discountPct) / 100) === 0;
     }
 
+    // Group into main services with their sub-services nested underneath.
+    // Items arrive ordered (sort_order, created_at), so group order is preserved.
+    let groups = $derived.by(() => {
+        const byParent = new Map();
+        for (const item of items) {
+            const key = item.parentId ?? '__root__';
+            if (!byParent.has(key)) byParent.set(key, []);
+            byParent.get(key).push(item);
+        }
+        return (byParent.get('__root__') ?? []).map(item => ({
+            item,
+            children: byParent.get(item.id) ?? []
+        }));
+    });
+
     let totalSpent = $derived(items.reduce((sum, item) => {
         return sum + Math.round(item.amount * (100 - item.discountPct) / 100);
     }, 0));
@@ -50,29 +65,47 @@
         {#if items.length === 0}
             <p class="items-empty">No items yet.</p>
         {:else}
-            {#each items as item}
-                <div class="item-row">
-                    <div class="item-info">
-                        <span class="item-title" title={item.title}>
-                            {#if item.url}
-                                <a href={item.url} target="_blank" rel="noopener noreferrer">{item.title}</a>
+            {#each groups as group}
+                <div class="receipt-group">
+                    <div class="item-row" class:has-subs={group.children.length > 0}>
+                        <div class="item-info">
+                            <span class="item-title" title={group.item.title}>
+                                {#if group.item.url}
+                                    <a href={group.item.url} target="_blank" rel="noopener noreferrer">{group.item.title}</a>
+                                {:else}
+                                    {group.item.title}
+                                {/if}
+                            </span>
+                            <span class="item-type">{group.item.type}</span>
+                        </div>
+                        <div class="item-price">
+                            {#if isFree(group.item.amount, group.item.discountPct)}
+                                <span class="price-free">FREE</span>
+                            {:else if group.item.discountPct > 0}
+                                <span class="price-original">${displayCents(group.item.amount)}</span>
+                                <span class="price-discounted">${displayPrice(group.item.amount, group.item.discountPct)}</span>
+                                <span class="discount-badge">-{group.item.discountPct}%</span>
                             {:else}
-                                {item.title}
+                                <span class="price-normal">${displayPrice(group.item.amount)}</span>
                             {/if}
-                        </span>
-                        <span class="item-type">{item.type}</span>
+                        </div>
                     </div>
-                    <div class="item-price">
-                        {#if isFree(item.amount, item.discountPct)}
-                            <span class="price-free">FREE</span>
-                        {:else if item.discountPct > 0}
-                            <span class="price-original">${displayCents(item.amount)}</span>
-                            <span class="price-discounted">${displayPrice(item.amount, item.discountPct)}</span>
-                            <span class="discount-badge">-{item.discountPct}%</span>
-                        {:else}
-                            <span class="price-normal">${displayPrice(item.amount)}</span>
-                        {/if}
-                    </div>
+                    {#each group.children as sub}
+                        <div class="item-row sub-row">
+                            <span class="sub-type" title={sub.title}>{sub.title}</span>
+                            <div class="item-price sub-price">
+                                {#if isFree(sub.amount, sub.discountPct)}
+                                    <span class="price-free">FREE</span>
+                                {:else if sub.discountPct > 0}
+                                    <span class="price-original">${displayCents(sub.amount)}</span>
+                                    <span class="price-discounted">${displayPrice(sub.amount, sub.discountPct)}</span>
+                                    <span class="discount-badge">-{sub.discountPct}%</span>
+                                {:else}
+                                    <span class="price-normal sub-price-normal">${displayPrice(sub.amount)}</span>
+                                {/if}
+                            </div>
+                        </div>
+                    {/each}
                 </div>
             {/each}
         {/if}
@@ -148,16 +181,44 @@
         margin: 0;
         font-size: 0.9rem;
     }
+    .receipt-group {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .receipt-group:last-child {
+        border-bottom: none;
+    }
     .item-row {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
         padding: 0.6rem 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
         gap: 1rem;
     }
-    .item-row:last-child {
-        border-bottom: none;
+    .item-row.has-subs {
+        padding-bottom: 0.3rem;
+    }
+    /* Sub-services: a single subtle line — type on the left, price on the right.
+       No indentation, no rail, no title/url. */
+    .item-row.sub-row {
+        padding: 0.2rem 0 0.45rem;
+        gap: 0.75rem;
+        align-items: center;
+    }
+    .sub-type {
+        font-size: 0.82rem;
+        color: rgba(255, 255, 255, 0.42);
+        min-width: 0;
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .sub-price {
+        font-size: 0.82rem;
+    }
+    .sub-price-normal {
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.55);
     }
     .item-info {
         display: flex;
@@ -257,6 +318,12 @@
             flex-direction: column;
             align-items: stretch;
             gap: 0.25rem;
+        }
+        /* Sub-services stay on one line: title left, price right, price aligned with the title */
+        .item-row.sub-row {
+            flex-direction: row;
+            align-items: center;
+            gap: 0.75rem;
         }
         .item-info {
             flex: none;

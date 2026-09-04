@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, boolean, serial, jsonb, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, timestamp, boolean, serial, jsonb, index, primaryKey } from 'drizzle-orm/pg-core';
 
 // ── Auth ───────────────────────────────────────────────
 export const user = pgTable('user', {
@@ -194,6 +194,9 @@ export const balance = pgTable('balance', {
 export const balanceItem = pgTable('balance_item', {
     id: text('id').primaryKey(),
     balanceId: text('balance_id').notNull().references(() => balance.id, { onDelete: 'cascade' }),
+    // When set, this item is a sub-service rendered under the referenced
+    // (top-level, parent_id IS NULL) main service.
+    parentId: text('parent_id').references(() => balanceItem.id, { onDelete: 'cascade' }),
     title: text('title').notNull(),
     amount: integer('amount').notNull(),
     type: text('type').notNull(),
@@ -203,7 +206,19 @@ export const balanceItem = pgTable('balance_item', {
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
 }, (t) => ({
-    balanceIdIdx: index('balance_item_balance_id_idx').on(t.balanceId)
+    balanceIdIdx: index('balance_item_balance_id_idx').on(t.balanceId),
+    parentIdIdx: index('balance_item_parent_id_idx').on(t.parentId)
+}));
+
+// Previous-balance links: which other balances a client can jump to from this one.
+export const balancePrevious = pgTable('balance_previous', {
+    balanceId: text('balance_id').notNull().references(() => balance.id, { onDelete: 'cascade' }),
+    previousId: text('previous_id').notNull().references(() => balance.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
+}, (t) => ({
+    pk: primaryKey({ columns: [t.balanceId, t.previousId] }),
+    balanceIdIdx: index('balance_previous_balance_id_idx').on(t.balanceId)
 }));
 
 // ── Types ──────────────────────────────────────────────
@@ -226,3 +241,4 @@ export type Balance = typeof balance.$inferSelect;
 export type BalanceInsert = typeof balance.$inferInsert;
 export type BalanceItem = typeof balanceItem.$inferSelect;
 export type BalanceItemInsert = typeof balanceItem.$inferInsert;
+export type BalancePrevious = typeof balancePrevious.$inferSelect;

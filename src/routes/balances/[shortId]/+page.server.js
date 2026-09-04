@@ -1,4 +1,4 @@
-import { verifyPin, dummyVerify, getBalanceByShortId, getBalanceWithItems } from '$lib/server/balance.js';
+import { verifyPin, dummyVerify, getBalanceByShortId, getBalanceWithItems, getPreviousBalances } from '$lib/server/balance.js';
 import { rateLimit, rateLimitReset } from '$lib/server/rate-limit.js';
 import { fail } from '@sveltejs/kit';
 
@@ -44,6 +44,7 @@ export const actions = {
         rateLimitReset(rlKey);
 
         const { balance: balData, items } = await getBalanceWithItems(bal.id);
-        return { success: true, balance: balData, items };
+        const previousBalances = await getPreviousBalances(bal.id);
+        return { success: true, balance: balData, items, previousBalances };
     }
 };

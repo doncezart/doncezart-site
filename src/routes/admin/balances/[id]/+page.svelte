@@ -7,46 +7,147 @@
 
     let balance = $derived(data.balance);
     let items = $derived(data.items);
+    let previousBalances = $derived(data.previousBalances ?? []);
+    let linkableBalances = $derived(data.linkableBalances ?? []);
 
-    // Update local state when form returns success
-    $effect(() => {
-        if (form?.success) {
-            invalidateAll();
+    function formatShortDate(d) {
+        if (!d) return '';
+        return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    // ── Item grouping ─────────────────────────────────────
+    // Items arrive flat (sorted by sort_order, created_at). Group them into
+    // main services with their sub-services nested underneath.
+    let groups = $derived.by(() => {
+        const byParent = new Map();
+        for (const item of items) {
+            const key = item.parentId ?? '__root__';
+            if (!byParent.has(key)) byParent.set(key, []);
+            byParent.get(key).push(item);
         }
+        return (byParent.get('__root__') ?? []).map(item => ({
+            item,
+            children: byParent.get(item.id) ?? []
+        }));
     });
 
     function displayCents(cents) {
         return (cents / 100).toFixed(2);
     }
 
-    let showAddItem = $state(false);
-    let editingItem = $state(null);
+    // ── Item form state ───────────────────────────────────
+    // One form, three modes: add (top-level), addSub (under a parent), edit (by id).
+    // We track the id, not the object, so after a reload/reorder the form always
+    // resolves against the freshest item — never a stale one ("edits wrong item" bug).
+    let itemForm = $state(null); // null | { type: 'add' } | { type: 'addSub', parentId } | { type: 'edit', id }
+
+    let editingItem = $derived(
+        itemForm?.type === 'edit' ? items.find(i => i.id === itemForm.id) ?? null : null
+    );
+
+    function openAdd() { itemForm = { type: 'add' }; }
+    function openAddSub(parentId) { itemForm = { type: 'addSub', parentId }; }
+    function openEdit(item) { itemForm = { type: 'edit', id: item.id }; }
+    function closeItemForm() { itemForm = null; }
+
+    // Clear the form and reload fresh data after a successful add/update.
+    // On validation failure the form stays open so the error is visible.
+    function resetItemFormOnSubmit() {
+        return async ({ result, update }) => {
+            if (result.type === 'success') itemForm = null;
+            await update();
+        };
+    }
 
     let confirmDelete = $state(false);
     let deleteItemTarget = $state(null);
-    let dragItem = $state(null);
 
-    function dragStart(e, item) {
-        dragItem = item;
-        e.dataTransfer.effectAllowed = 'move';
+    // ── Reordering ────────────────────────────────────────
+    // Pointer-based drag on the grip handles with live drop indicators,
+    // plus up/down buttons for precise moves. Each scope is a sibling group:
+    // 'root' for main services, or a parent item id for its sub-services.
+    let drag = $state(null);      // { scope, id }
+    let dragHover = $state(null); // { id, pos: 'before' | 'after' }
+    let dragPointerId = $state(null);
+
+    function scopeIds(scope) {
+        if (scope === 'root') return groups.map(g => g.item.id);
+        const group = groups.find(g => g.item.id === scope);
+        return group ? group.children.map(c => c.id) : [];
     }
-    function dragOver(e) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
+
+    function rowAt(scope, clientX, clientY) {
+        const rows = document.querySelectorAll(`[data-drag-scope="${scope}"]`);
+        for (const el of rows) {
+            const r = el.getBoundingClientRect();
+            if (clientY >= r.top && clientY <= r.bottom && clientX >= r.left && clientX <= r.right) {
+                return {
+                    id: el.getAttribute('data-drag-id'),
+                    pos: clientY < r.top + r.height / 2 ? 'before' : 'after'
+                };
+            }
+        }
+        return null;
     }
-    async function drop(e, targetItem) {
+
+    function onGripPointerDown(e, scope, item) {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
         e.preventDefault();
-        if (!dragItem || dragItem.id === targetItem.id) return;
-        const reordered = [...items];
-        const fromIdx = reordered.findIndex(i => i.id === dragItem.id);
-        const toIdx = reordered.findIndex(i => i.id === targetItem.id);
-        reordered.splice(fromIdx, 1);
-        reordered.splice(toIdx, 0, dragItem);
-        const order = reordered.map((item, idx) => ({ id: item.id, sortOrder: idx }));
+        drag = { scope, id: item.id };
+        dragHover = null;
+        dragPointerId = e.pointerId;
+        e.currentTarget.setPointerCapture(e.pointerId);
+    }
+
+    function onGripPointerMove(e) {
+        if (!drag || e.pointerId !== dragPointerId) return;
+        dragHover = rowAt(drag.scope, e.clientX, e.clientY);
+    }
+
+    async function onGripPointerUp(e) {
+        if (!drag || e.pointerId !== dragPointerId) return;
+        const scope = drag.scope;
+        const fromId = drag.id;
+        const hit = dragHover;
+        const ids = scopeIds(scope);
+        const fromIdx = ids.indexOf(fromId);
+        drag = null;
+        dragHover = null;
+        dragPointerId = null;
+        if (fromIdx === -1) return;
+
+        let toIdx = fromIdx;
+        if (hit && hit.id !== fromId) {
+            const atIdx = ids.indexOf(hit.id);
+            let insertIdx = hit.pos === 'before' ? atIdx : atIdx + 1;
+            if (insertIdx > fromIdx) insertIdx -= 1;
+            toIdx = insertIdx;
+        }
+        if (toIdx === fromIdx) return;
+
+        const newIds = [...ids];
+        newIds.splice(fromIdx, 1);
+        newIds.splice(toIdx, 0, fromId);
+        await submitOrder(scope, newIds);
+    }
+
+    function onGripPointerCancel(e) {
+        if (!drag || e.pointerId !== dragPointerId) return;
+        drag = null;
+        dragHover = null;
+        dragPointerId = null;
+    }
+
+    async function submitOrder(scope, ids) {
+        const order = ids.map((id, idx) => ({
+            id,
+            parentId: scope === 'root' ? '' : scope,
+            sortOrder: idx
+        }));
         const formData = new FormData();
         formData.set('order', JSON.stringify(order));
-        await fetch('?/reorderItems', { method: 'POST', body: formData });
-        invalidateAll();
+        const res = await fetch('?/reorderItems', { method: 'POST', body: formData });
+        if (res.ok) invalidateAll();
     }
 
     let copied = $state(false);
@@ -132,69 +233,183 @@
                 </div>
             {/if}
 
+            <!-- Previous Balances -->
+            <div class="section">
+                <h2>Previous Balances</h2>
+                <p class="section-hint">Linked balances show as links at the top of the client's balance page.</p>
+
+                {#if form?.previousError}
+                    <p class="form-error">{form.previousError}</p>
+                {/if}
+
+                {#if previousBalances.length === 0}
+                    <p class="empty-text">No previous balances linked yet.</p>
+                {:else}
+                    <div class="prev-list">
+                        {#each previousBalances as pb}
+                            <div class="prev-row">
+                                <div class="prev-info">
+                                    <span class="prev-name">{pb.label || 'Unlabeled balance'}</span>
+                                    <span class="prev-meta">{formatShortDate(pb.paymentDate)} · <a href={`/balances/${pb.shortId}`} target="_blank" rel="noopener noreferrer" class="item-link">/balances/{pb.shortId}</a></span>
+                                </div>
+                                <form method="POST" action="?/unlinkPreviousBalance" use:enhance>
+                                    <input type="hidden" name="previousId" value={pb.id} />
+                                    <button class="btn-sm danger">Remove</button>
+                                </form>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+
+                {#if linkableBalances.length > 0}
+                    <form method="POST" action="?/linkPreviousBalance" use:enhance class="prev-link-form">
+                        <div class="form-grid" style="grid-template-columns: 1fr auto;">
+                            <label>
+                                <span>Link a previous balance</span>
+                                <select name="previousId">
+                                    <option value="">— Select a balance —</option>
+                                    {#each linkableBalances as lb}
+                                        <option value={lb.id}>{lb.label || 'Unlabeled'} · {formatShortDate(lb.paymentDate)}</option>
+                                    {/each}
+                                </select>
+                            </label>
+                            <div class="section-actions" style="align-self: end;">
+                                <button type="submit" class="btn-cta">Link</button>
+                            </div>
+                        </div>
+                    </form>
+                {/if}
+            </div>
+
             <!-- Items -->
             <div class="section">
                 <div class="section-header">
-                    <h2>Items</h2>
-                    <button class="btn-cta" onclick={() => { showAddItem = true; editingItem = null; }}>+ Add Item</button>
+                    <h2>Services</h2>
+                    <button class="btn-cta" onclick={openAdd}>+ Add Service</button>
                 </div>
 
                 {#if form?.itemError}
                     <p class="form-error">{form.itemError}</p>
                 {/if}
 
-                {#if showAddItem || editingItem}
-                    <div class="item-form">
-                        <h3>{editingItem ? 'Edit Item' : 'Add Item'}</h3>
-                        <form method="POST" action={editingItem ? '?/updateItem' : '?/addItem'} use:enhance>
-                            {#if editingItem}
-                                <input type="hidden" name="itemId" value={editingItem.id} />
-                            {/if}
-                            <div class="form-grid">
-                                <label>
-                                    <span>Title</span>
-                                    <input type="text" name="title" value={editingItem?.title ?? ''} required />
-                                </label>
-                                <label>
-                                    <span>Type</span>
-                                    <input type="text" name="type" value={editingItem?.type ?? ''} required placeholder="Video editing, Thumbnail..." />
-                                </label>
-                                <label>
-                                    <span>Amount ($)</span>
-                                    <input type="number" name="amount" value={editingItem ? editingItem.amount / 100 : ''} step="0.01" min="0" required />
-                                </label>
-                                <label>
-                                    <span>Discount %</span>
-                                    <input type="number" name="discountPct" value={editingItem?.discountPct ?? 0} min="0" max="100" />
-                                </label>
-                                <label style="grid-column: span 2;">
-                                    <span>URL (optional)</span>
-                                    <input type="url" name="url" value={editingItem?.url ?? ''} placeholder="https://..." />
-                                </label>
-                            </div>
-                            <div class="section-actions">
-                                <button type="submit" class="btn-cta">{editingItem ? 'Save' : 'Add Item'}</button>
-                                <button type="button" class="btn-secondary" onclick={() => { showAddItem = false; editingItem = null; }}>Cancel</button>
-                            </div>
-                        </form>
-                    </div>
-                {/if}
-
-                {#if items.length === 0}
-                    <p class="empty-text">No items yet.</p>
+                {#if groups.length === 0}
+                    <p class="empty-text">No services yet.</p>
                 {:else}
                     <div class="items-table">
-                        {#each items as item (item.id)}
-                            <div class="item-row" ondragover={dragOver} ondrop={(e) => drop(e, item)}>
-                                <span class="drag-handle" draggable="true" ondragstart={(e) => dragStart(e, item)} title="Drag to reorder">≡</span>
-                                <div class="item-info">
-                                    <span class="item-title">{item.title}</span>
-                                    <span class="item-meta">{item.type} · ${displayCents(item.amount)}{#if item.discountPct > 0} · -{item.discountPct}%{/if}</span>
+                        {#each groups as group (group.item.id)}
+                            <!-- Main service -->
+                            <div class="item-group">
+                                <div
+                                    class="item-row main-row"
+                                    data-drag-scope="root"
+                                    data-drag-id={group.item.id}
+                                    class:is-dragging={drag?.id === group.item.id}
+                                    class:indicator-before={dragHover?.id === group.item.id && dragHover.pos === 'before'}
+                                    class:indicator-after={dragHover?.id === group.item.id && dragHover.pos === 'after'}
+                                >
+                                    <span
+                                        class="drag-handle"
+                                        role="button"
+                                        tabindex="0"
+                                        aria-label="Drag to reorder"
+                                        title="Drag to reorder"
+                                        onpointerdown={(e) => onGripPointerDown(e, 'root', group.item)}
+                                        onpointermove={onGripPointerMove}
+                                        onpointerup={onGripPointerUp}
+                                        onpointercancel={onGripPointerCancel}
+                                    ><i class="fa-solid fa-grip-vertical"></i></span>
+                                    <div class="item-info">
+                                        <span class="item-title">{group.item.title}</span>
+                                        <span class="item-meta">
+                                            {group.item.type}
+                                            {#if group.item.url} · <a href={group.item.url} target="_blank" rel="noopener noreferrer" class="item-link">link</a>{/if}
+                                            · ${displayCents(group.item.amount)}{#if group.item.discountPct > 0} · -{group.item.discountPct}%{/if}
+                                        </span>
+                                    </div>
+                                    <div class="item-actions">
+                                        <button class="btn-sm" title="Add a sub-service under this one" onclick={() => openAddSub(group.item.id)}>+ Sub</button>
+                                        <button class="btn-sm" onclick={() => openEdit(group.item)}>Edit</button>
+                                        <button class="btn-sm danger" onclick={() => deleteItemTarget = group.item}>Remove</button>
+                                    </div>
                                 </div>
-                                <div class="item-actions">
-                                    <button class="btn-sm" onclick={() => { editingItem = item; showAddItem = false; }}>Edit</button>
-                                    <button class="btn-sm danger" onclick={() => { deleteItemTarget = item; }}>Remove</button>
-                                </div>
+
+                                <!-- Inline form for a new sub-service of this group -->
+                                {#if itemForm?.type === 'addSub' && itemForm.parentId === group.item.id}
+                                    <div class="inline-form">
+                                        <h4>Add sub-service under "{group.item.title}"</h4>
+                                        <form method="POST" action="?/addItem" use:enhance={resetItemFormOnSubmit}>
+                                            <input type="hidden" name="parentId" value={group.item.id} />
+                                            <div class="form-grid">
+                                                <label>
+                                                    <span>Title</span>
+                                                    <input type="text" name="title" required placeholder="e.g. 200k views bonus" />
+                                                </label>
+                                                <label>
+                                                    <span>Amount ($)</span>
+                                                    <input type="number" name="amount" step="0.01" min="0" required />
+                                                </label>
+                                            </div>
+                                            <div class="section-actions">
+                                                <button type="submit" class="btn-cta">Add Sub-Service</button>
+                                                <button type="button" class="btn-secondary" onclick={closeItemForm}>Cancel</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                {/if}
+
+                                <!-- Sub-services -->
+                                {#each group.children as child (child.id)}
+                                    <div class="sub-row-wrap">
+                                        <div
+                                            class="item-row sub-row"
+                                            data-drag-scope={group.item.id}
+                                            data-drag-id={child.id}
+                                            class:is-dragging={drag?.id === child.id}
+                                            class:indicator-before={dragHover?.id === child.id && dragHover.pos === 'before'}
+                                            class:indicator-after={dragHover?.id === child.id && dragHover.pos === 'after'}
+                                        >
+                                            <span
+                                                class="drag-handle sub-handle"
+                                                role="button"
+                                                tabindex="0"
+                                                aria-label="Drag to reorder"
+                                                title="Drag to reorder"
+                                                onpointerdown={(e) => onGripPointerDown(e, group.item.id, child)}
+                                                onpointermove={onGripPointerMove}
+                                                onpointerup={onGripPointerUp}
+                                                onpointercancel={onGripPointerCancel}
+                                            ><i class="fa-solid fa-grip-vertical"></i></span>
+                                            <div class="item-info">
+                                                <span class="sub-title">{child.title}</span>
+                                                <span class="item-meta">
+                                                    {#if child.type}{child.type} · {/if}
+                                                    {#if child.url}<a href={child.url} target="_blank" rel="noopener noreferrer" class="item-link">link</a> · {/if}
+                                                    ${displayCents(child.amount)}{#if child.discountPct > 0} · -{child.discountPct}%{/if}
+                                                </span>
+                                            </div>
+                                            <div class="item-actions">
+                                                <button class="btn-sm" onclick={() => openEdit(child)}>Edit</button>
+                                                <button class="btn-sm danger" onclick={() => deleteItemTarget = child}>Remove</button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Inline edit form for a sub-service -->
+                                        {#if itemForm?.type === 'edit' && itemForm.id === child.id}
+                                            <div class="inline-form sub-inline">
+                                                <h4>Edit sub-service</h4>
+                                                <ItemFieldsForm item={editingItem ?? child} {resetItemFormOnSubmit} />
+                                            </div>
+                                        {/if}
+                                    </div>
+                                {/each}
+
+                                <!-- Inline edit form for the main service -->
+                                {#if itemForm?.type === 'edit' && itemForm.id === group.item.id}
+                                    <div class="inline-form">
+                                        <h4>Edit "{group.item.title}"</h4>
+                                        <ItemFieldsForm item={editingItem ?? group.item} {resetItemFormOnSubmit} />
+                                    </div>
+                                {/if}
                             </div>
                         {/each}
                     </div>
@@ -204,7 +419,13 @@
                             <div class="confirm-box">
                                 <p>Permanently delete this item?</p>
                                 <p class="confirm-item-name">"{deleteItemTarget.title}"</p>
-                                <form method="POST" action="?/deleteItem" use:enhance>
+                                {#if !deleteItemTarget.parentId}
+                                    {@const subCount = groups.find(g => g.item.id === deleteItemTarget.id)?.children.length ?? 0}
+                                    {#if subCount > 0}
+                                        <p class="confirm-warning">This will also delete its {subCount} sub-service{subCount !== 1 ? 's' : ''}.</p>
+                                    {/if}
+                                {/if}
+                                <form method="POST" action="?/deleteItem" use:enhance={() => { return async ({ result, update }) => { if (result.type === 'success') deleteItemTarget = null; await update(); }; }}>
                                     <input type="hidden" name="itemId" value={deleteItemTarget.id} />
                                     <input type="hidden" name="mode" value="delete" />
                                     <div class="section-actions">
@@ -216,6 +437,41 @@
                         </div>
                     {/if}
                 {/if}
+
+                <!-- Inline add-item form (shown below the list, so new services land at the bottom) -->
+                {#if itemForm?.type === 'add'}
+                    <div class="inline-form">
+                        <h4>Add Service</h4>
+                        <form method="POST" action="?/addItem" use:enhance={resetItemFormOnSubmit}>
+                            <div class="form-grid">
+                                <label>
+                                    <span>Title</span>
+                                    <input type="text" name="title" required placeholder="e.g. YouTube video edit" />
+                                </label>
+                                <label>
+                                    <span>Type</span>
+                                    <input type="text" name="type" required placeholder="Video editing, Thumbnail..." />
+                                </label>
+                                <label>
+                                    <span>Amount ($)</span>
+                                    <input type="number" name="amount" step="0.01" min="0" required />
+                                </label>
+                                <label>
+                                    <span>Discount %</span>
+                                    <input type="number" name="discountPct" min="0" max="100" value="0" />
+                                </label>
+                                <label style="grid-column: span 2;">
+                                    <span>URL (optional)</span>
+                                    <input type="url" name="url" placeholder="https://..." />
+                                </label>
+                            </div>
+                            <div class="section-actions">
+                                <button type="submit" class="btn-cta">Add Service</button>
+                                <button type="button" class="btn-secondary" onclick={closeItemForm}>Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                {/if}
             </div>
         </div>
 
@@ -226,6 +482,39 @@
         </div>
     </div>
 </div>
+
+<!-- Shared add/update item fields -->
+{#snippet ItemFieldsForm(item, { resetItemFormOnSubmit })}
+    <form method="POST" action="?/updateItem" use:enhance={resetItemFormOnSubmit}>
+        <input type="hidden" name="itemId" value={item.id} />
+        <div class="form-grid">
+            <label>
+                <span>Title</span>
+                <input type="text" name="title" value={item.title} required />
+            </label>
+            <label>
+                <span>Type</span>
+                <input type="text" name="type" value={item.type} required />
+            </label>
+            <label>
+                <span>Amount ($)</span>
+                <input type="number" name="amount" value={item.amount / 100} step="0.01" min="0" required />
+            </label>
+            <label>
+                <span>Discount %</span>
+                <input type="number" name="discountPct" value={item.discountPct} min="0" max="100" />
+            </label>
+            <label style="grid-column: span 2;">
+                <span>URL (optional)</span>
+                <input type="url" name="url" value={item.url ?? ''} placeholder="https://..." />
+            </label>
+        </div>
+        <div class="section-actions">
+            <button type="submit" class="btn-cta">Save</button>
+            <button type="button" class="btn-secondary" onclick={closeItemForm}>Cancel</button>
+        </div>
+    </form>
+{/snippet}
 
 <style>
     .edit-balance-page {
@@ -322,6 +611,7 @@
     }
     input[type="date"] {
         -moz-appearance: textfield;
+        appearance: textfield;
     }
     .form-error {
         background: rgba(248, 113, 113, 0.1);
@@ -366,13 +656,31 @@
         border-radius: 0.3rem;
         color: rgba(255, 255, 255, 0.7);
         cursor: pointer;
+        white-space: nowrap;
     }
-    .btn-sm:hover {
+    .btn-sm:hover:not(:disabled) {
         background: rgba(255, 255, 255, 0.12);
+    }
+    .btn-sm:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
     }
     .btn-sm.danger {
         color: #f87171;
         border-color: rgba(248, 113, 113, 0.3);
+    }
+    .btn-cta {
+        padding: 0.5rem 1rem;
+        background: #ff0000;
+        border: none;
+        border-radius: 0.4rem;
+        color: #fff;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .btn-cta:hover {
+        background: #e00000;
     }
     .copy-btn {
         font-family: inherit;
@@ -389,21 +697,69 @@
         font-size: 0.9rem;
         margin: 0 0 0.75rem;
     }
-    .item-form {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 0.5rem;
-        padding: 1rem;
-        margin-bottom: 1rem;
+    .empty-text {
+        color: rgba(255, 255, 255, 0.35);
+        font-style: italic;
+        font-size: 0.9rem;
+        margin: 0;
     }
-    .item-form h3 {
-        font-size: 0.95rem;
-        font-weight: 600;
+    .section-hint {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.4);
         margin: 0 0 0.75rem;
+    }
+    .prev-list {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 0.5rem;
+    }
+    .prev-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.45rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .prev-row:last-child {
+        border-bottom: none;
+    }
+    .prev-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        min-width: 0;
+    }
+    .prev-name {
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+    .prev-meta {
+        font-size: 0.78rem;
+        color: rgba(255, 255, 255, 0.4);
+    }
+    .prev-link-form {
+        margin-top: 0.5rem;
+    }
+    select {
+        padding: 0.5rem 0.7rem;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 0.35rem;
+        color: #fff;
+        font-size: 0.9rem;
+        width: 100%;
+    }
+    select option {
+        background: #1a1a1a;
+        color: #fff;
     }
     .items-table {
         display: flex;
         flex-direction: column;
+    }
+    .item-group {
+        position: relative;
     }
     .item-row {
         display: flex;
@@ -411,24 +767,57 @@
         gap: 0.5rem;
         padding: 0.6rem 0;
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        transition: opacity 0.15s, box-shadow 0.1s;
+    }
+    .item-row:last-child {
+        border-bottom: none;
+    }
+    .main-row {
+        font-weight: 500;
+    }
+    .item-row.is-dragging {
+        opacity: 0.35;
+    }
+    .item-row.indicator-before {
+        box-shadow: 0 -2px 0 0 #ff0000;
+    }
+    .item-row.indicator-after {
+        box-shadow: 0 2px 0 0 #ff0000;
+    }
+    /* Sub-service rows: tucked under their parent, clearly secondary */
+    .sub-row-wrap {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .sub-row {
+        margin-left: 1.6rem;
+        padding: 0.4rem 0 0.4rem 0.8rem;
+        border-left: 2px solid rgba(255, 255, 255, 0.12);
+        border-bottom: none;
+    }
+    .sub-title {
+        font-size: 0.82rem;
+        color: rgba(255, 255, 255, 0.6);
     }
     .drag-handle {
         cursor: grab;
         color: rgba(255, 255, 255, 0.25);
-        font-size: 1.2rem;
+        font-size: 0.9rem;
         user-select: none;
         flex-shrink: 0;
         padding: 0 0.25rem;
+        display: inline-flex;
+        align-items: center;
+        touch-action: none;
         transition: color 0.15s;
     }
     .drag-handle:hover {
-        color: rgba(255, 255, 255, 0.5);
+        color: rgba(255, 255, 255, 0.6);
     }
     .drag-handle:active {
         cursor: grabbing;
     }
-    .item-row:last-child {
-        border-bottom: none;
+    .sub-handle {
+        font-size: 0.7rem;
     }
     .item-info {
         flex: 1;
@@ -445,15 +834,33 @@
         font-size: 0.8rem;
         color: rgba(255, 255, 255, 0.4);
     }
+    .item-link {
+        color: #60a5fa;
+        text-decoration: none;
+    }
+    .item-link:hover {
+        text-decoration: underline;
+    }
     .item-actions {
         display: flex;
         gap: 0.3rem;
+        flex-shrink: 0;
     }
-    .empty-text {
-        color: rgba(255, 255, 255, 0.35);
-        font-style: italic;
+    .inline-form {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin: 0.5rem 0 1rem;
+    }
+    .inline-form h4 {
         font-size: 0.9rem;
-        margin: 0;
+        font-weight: 600;
+        margin: 0 0 0.75rem;
+        color: rgba(255, 255, 255, 0.75);
+    }
+    .sub-inline {
+        margin-left: 1.6rem;
     }
     .confirm-overlay {
         position: fixed;
@@ -478,6 +885,11 @@
     .confirm-item-name {
         font-weight: 600;
         color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 1rem !important;
+    }
+    .confirm-warning {
+        color: #fbbf24 !important;
+        font-size: 0.85rem;
         margin-bottom: 1rem !important;
     }
     .preview-panel {

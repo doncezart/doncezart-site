@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- Balance sub-services: `balance_item.parent_id` self-reference lets a service have multiple sub-services rendered directly under it (admin + client receipt), added via a "+ Sub" button on each main service
+- Migrated `balance_item` reordering to pointer drag with live drop indicators + up/down move buttons; new services now append at the bottom (`sort_order` = max+1) instead of jumping to the top
+- Fixed item edit flow: edit is tracked by id (not object reference), the inline form closes after a successful save, and deletes of a main service warn about its sub-services
+- Sub-services now display on the receipt as a subtle one-liner (type + price only — no title/url/indent/rail); removed the per-row up/down reorder buttons in the admin panel (pointer-drag ordering is retained)
+- Added previous-balance links: admins can link other balances to a balance (`balance_previous` table), and the client balance page shows them as links at the top so clients can jump to older balances; sub-service price on the receipt is now aligned with its title (stays on one line even on mobile)
 - Added `static/css/tokens.css` design token system (40+ CSS custom properties for colors, typography, spacing, layout, motion)
 - Added `Button.svelte` reusable button/link primitive (solid/outline/cta variants, Svelte 5)
 - Added `Badge.svelte` for absolute-positioned gallery item overlays

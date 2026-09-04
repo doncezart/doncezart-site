@@ -1,5 +1,0 @@
- id |   name    |   slug    |                   description                   | position |          created_at          
-----+-----------+-----------+-------------------------------------------------+----------+------------------------------
-  1 | Resources | resources | Tools, references & articles worth bookmarking. |        0 | 2026-05-11 16:56:02.90758+00
-(1 row)
-
