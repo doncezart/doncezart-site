@@ -3,6 +3,26 @@
 ## [Unreleased]
 
 ### Added
+- Tools hub: `tools` registry (`src/lib/data/tools.js`) drives the navbar Tools dropdown, `/tools` index, and footer link; the old standalone Assets entry is gone
+- YouTube Card Generator (`/tools/youtube-card`): paste any YouTube URL → customizable video reference card
+  - 8 layouts (Classic YouTube-native, Wide Split, Stacked, Hero overlay, Vertical, Terminal brutalist, Minimal, Magazine) with aspect, thumbnail/text ratio, and corner-radius controls
+  - YouTube-faithful metrics (Roboto, 16px/500 titles, 12px secondary, 8–12px thumb radius, rgba(0,0,0,0.8) duration badge) scaled from the 360px feed reference to a 1280px design width
+  - 4 color palettes (YouTube Light/Dark, OLED, custom pickers), 9 font families, title scaling, full content modularity (duration/title/description/channel/avatar/views+date/verified/live toggles)
+  - Export: PNG/JPEG/WebP at 1x/2x/3x (up to 3840px) + copy-to-clipboard via html2canvas
+  - Backend: `GET /api/youtube/info` (rate-limited 20/min/IP) — YouTube Data API v3 when `YOUTUBE_API_KEY` is set, oEmbed + `i.ytimg.com` fallback chain otherwise; 30-min in-memory cache
+- Added `src/lib/server/http-error.js` shared HTTP error; `src/lib/data/yt-format.js` shared view/date formatters
+
+### Changed
+- Navbar: replaced the Assets button with a Tools dropdown (desktop + mobile collapsible); Footer "Assets" link now points to `/tools`
+
+### Removed
+- Removed the `/assets` placeholder route and page
+
+---
+
+## [Unreleased]
+
+### Added
 - Balance sub-services: `balance_item.parent_id` self-reference lets a service have multiple sub-services rendered directly under it (admin + client receipt), added via a "+ Sub" button on each main service
 - Migrated `balance_item` reordering to pointer drag with live drop indicators + up/down move buttons; new services now append at the bottom (`sort_order` = max+1) instead of jumping to the top
 - Fixed item edit flow: edit is tracked by id (not object reference), the inline form closes after a successful save, and deletes of a main service warn about its sub-services

@@ -106,6 +106,21 @@
 - **What it does:** Tag pill buttons on the gallery allow filtering artworks by tag across all categories.
 - **Entry point:** `src/routes/+page.svelte` (tag-filters section)
 
+## Tools
+
+### Tools Hub
+- **What it does:** Public index of tools (`/tools`) listing every entry from the tools registry, plus the navbar Tools dropdown (desktop) and collapsible (mobile) driven by the same registry.
+- **Entry point:** `src/routes/tools/+page.svelte`, `src/lib/data/tools.js` (registry), `src/lib/components/Navbar.svelte`
+- **Data flow:** Registry array → navbar dropdown items + `/tools` card grid + footer link. Adding a tool = one registry entry.
+
+### YouTube Card Generator
+- **What it does:** Turns any YouTube URL into a customizable video reference card — 8 layouts, 4 palettes + custom colors, 9 fonts, full module toggles — exported as PNG/JPEG/WebP up to 3840px, or copied to clipboard.
+- **Entry point:** `src/routes/tools/youtube-card/+page.svelte`
+- **Key functions / components:** `YouTubeCard.svelte` (8-layout renderer, 1280px design width, metrics scaled from YouTube's 360px feed reference), `yt-config.js` (config model, palettes, layout metadata), `ExportBar.svelte` (html2canvas capture, format/size, clipboard), preview scaled via ResizeObserver.
+- **API calls:** `GET /api/youtube/info?url=…` (server-side, rate-limited 20/min/IP, 30-min in-memory cache)
+- **Data flow:** URL → server (`youtube.js`) → YouTube Data API v3 (`videos.list` + `channels.list`) when `YOUTUBE_API_KEY` set, else oEmbed + constructed `i.ytimg.com` thumbnails → normalized JSON → client state → card preview → export
+- **Dependencies:** `YOUTUBE_API_KEY` (optional), Google Fonts (Roboto/Inter/Space Grotesk/Archivo/Anton/Bebas Neue/Playfair Display/JetBrains Mono), html2canvas (bundled)
+
 ## Discovery
 
 ### Discovery Section Index
