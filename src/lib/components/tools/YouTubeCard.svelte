@@ -56,11 +56,13 @@
             thumbIdx = 0;
             return;
         }
+        let alive = true;
         const idx = thumbIdx;
         const img = new Image();
-        img.onload = () => { thumbUrl = candidates[idx]; };
-        img.onerror = () => { if (idx < candidates.length - 1) thumbIdx++; };
+        img.onload = () => { if (alive) thumbUrl = candidates[idx]; };
+        img.onerror = () => { if (alive && idx < candidates.length - 1) thumbIdx++; };
         img.src = candidates[idx];
+        return () => { alive = false; };
     });
 
     const titleSize = $derived(Math.round(layout.titleSize * YT_SCALE * (config.titleScale ?? 1)));
@@ -144,7 +146,9 @@
 
     {:else if config.layout === 'hero'}
         <div class="hr-wrap">
-            <div class="hr-bg" style="background-image:url('{thumbUrl}')"></div>
+            {#if thumbUrl}
+                <div class="hr-bg" style="background-image:url('{thumbUrl}')"></div>
+            {/if}
             {#if config.modules.scrim}
                 <div class="hr-scrim"></div>
             {/if}
