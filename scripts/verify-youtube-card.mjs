@@ -122,6 +122,75 @@ record('no console/page errors', errs.length === 0, errs.join(' || '));
 const bad = badResponses.filter((b) => !b.includes('url=notaurl'));
 record('no 4xx/5xx responses (besides deliberate test)', bad.length === 0, bad.slice(0, 5).join(' | '));
 
+// ── Safe-Zone Checker ──
+await page.goto(`${base}/tools/safe-zone`, { waitUntil: 'networkidle' });
+const szTitle = await page.title();
+record('safe-zone page loads', szTitle.includes('Safe-Zone'), szTitle);
+
+// Generate a synthetic 1280×720 PNG in-page → base64 → write to disk → upload it
+const filePath = '/tmp/opencode/ytc-shots/test-thumb.png';
+const b64 = await page.evaluate(async () => {
+    const c = document.createElement('canvas');
+    c.width = 1280; c.height = 720;
+    const ctx = c.getContext('2d');
+    const g = ctx.createLinearGradient(0, 0, 1280, 720);
+    g.addColorStop(0, '#ff0000');
+    g.addColorStop(1, '#0000ff');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 1280, 720);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 120px Arial';
+    ctx.fillText('TEST', 100, 300);
+    const blob = await new Promise((r) => c.toBlob(r, 'image/png'));
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+});
+const { writeFile } = await import('node:fs/promises');
+await writeFile(filePath, Buffer.from(b64, 'base64'));
+
+await page.locator('input[type=file]').setInputFiles(filePath);
+await page.waitForTimeout(1200);
+const px = await page.evaluate(() => {
+    const canvas = document.querySelector('canvas.main-canvas');
+    const ctx = canvas.getContext('2d');
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let nonBlack = 0;
+    for (let i = 0; i < data.length; i += 40) {
+        if (data[i] || data[i + 1] || data[i + 2]) nonBlack++;
+    }
+    return { nonBlack, w: canvas.width, h: canvas.height };
+});
+record('safe-zone canvas draws content', px.nonBlack > 1000, `${px.nonBlack} sampled non-black px, ${px.w}x${px.h}`);
+
+// Toggle an overlay off → canvas re-renders
+async function canvasChecksum() {
+    return page.evaluate(() => {
+        const canvas = document.querySelector('canvas.main-canvas');
+        const ctx = canvas.getContext('2d');
+        const data = ctx.getImageData(0, 0, 1280, 720).data;
+        let h = 0;
+        for (let i = 0; i < data.length; i += 16) {
+            h = (h * 31 + data[i] * 7 + data[i + 1] * 3 + data[i + 2] + data[i + 3]) >>> 0;
+        }
+        return h;
+    });
+}
+const beforeSum = await canvasChecksum();
+await page.locator('.toggle', { hasText: 'Duration badge' }).locator('input').uncheck();
+await page.waitForTimeout(300);
+const afterSum = await canvasChecksum();
+record('overlay toggle re-renders canvas', beforeSum !== afterSum, `checksum ${beforeSum}->${afterSum}`);
+
+// Export annotated PNG
+const dlAnnotPromise = page.waitForEvent('download');
+await page.locator('.btn-download').click();
+const dlAnnot = await dlAnnotPromise;
+const annotBuf = await readFile(await dlAnnot.path());
+record('safe-zone export is 1280×720 PNG', annotBuf.readUInt32BE(16) === 1280 && annotBuf.readUInt32BE(20) === 720,
+    `${annotBuf.readUInt32BE(16)}x${annotBuf.readUInt32BE(20)}`);
+
 await browser.close();
 console.log('\n---');
 console.log(results.filter((r) => !r.ok).length === 0 ? 'ALL PASS' : `${results.filter((r) => !r.ok).length} FAILURES`);

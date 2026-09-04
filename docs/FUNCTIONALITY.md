@@ -121,6 +121,13 @@
 - **Data flow:** URL → server (`youtube.js`) → YouTube Data API v3 (`videos.list` + `channels.list`) when `YOUTUBE_API_KEY` set, else oEmbed + constructed `i.ytimg.com` thumbnails → normalized JSON → client state → card preview → export
 - **Dependencies:** `YOUTUBE_API_KEY` (optional), Google Fonts (Roboto/Inter/Space Grotesk/Archivo/Anton/Bebas Neue/Playfair Display/JetBrains Mono), html2canvas (bundled)
 
+### Thumbnail Safe-Zone Checker
+- **What it does:** Upload a 1280×720 thumbnail; overlaid on it at real YouTube proportions: duration/live badges, red progress bar, hover icons (top-right), bottom title/channel scrim, and a dashed safe-zone grid with keep-clear labels. Squint test row re-renders everything at search-result (640), feed (336), and sidebar (168) widths. Exports an annotated 1280×720 PNG. Fully client-side — no server, no upload.
+- **Entry point:** `src/routes/tools/safe-zone/+page.svelte`
+- **Key functions / components:** `drawOverlays()` (single canvas pass, metrics defined in 1280×720 reference space, scaled per surface), `drawImageCovered()`, overlay toggle `$state`, `exportAnnotated()` (canvas.toBlob → download)
+- **Data flow:** file input / drag-drop → `Image` decode → `$effect` redraws main + preview canvases on any state change → PNG export
+- **Dependencies:** none (browser canvas APIs only)
+
 ## Discovery
 
 ### Discovery Section Index

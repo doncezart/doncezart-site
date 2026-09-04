@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### Added
+- Thumbnail Safe-Zone Checker (`/tools/safe-zone`): upload a 1280×720 thumbnail and see exactly what YouTube's UI covers — duration/live badges, progress bar, hover icons, title scrim, dashed safe-zone grid — with the squint test at search (640), feed (336), and sidebar (168) sizes; exports an annotated PNG; all processing client-side, no upload
+- Headless regression harness: `scripts/verify-youtube-card.mjs` (Playwright + chromium) — 21 checks covering both tools (rendering, palettes, toggles, real downloads with PNG dimension asserts, error paths, console/network hygiene)
 - Tools hub: `tools` registry (`src/lib/data/tools.js`) drives the navbar Tools dropdown, `/tools` index, and footer link; the old standalone Assets entry is gone
 - YouTube Card Generator (`/tools/youtube-card`): paste any YouTube URL → customizable video reference card
   - 8 layouts (Classic YouTube-native, Wide Split, Stacked, Hero overlay, Vertical, Terminal brutalist, Minimal, Magazine) with aspect, thumbnail/text ratio, and corner-radius controls
@@ -14,6 +16,10 @@
 
 ### Changed
 - Navbar: replaced the Assets button with a Tools dropdown (desktop + mobile collapsible); Footer "Assets" link now points to `/tools`
+- CSP (`svelte.config.js`): `img-src`/`connect-src` now allow `i.ytimg.com` and `yt3.googleusercontent.com` (YouTube thumbnails + channel avatars were fully blocked, breaking the card preview, hero layout, and canvas export)
+- `YouTubeCard` root now consumes `--yt-bg`/`--yt-text` custom properties (card was rendering transparent)
+- Card export mounts the element out of the scaled preview tree during html2canvas capture (ancestor `transform: scale()` was shrinking the capture box to the visual size instead of the true 1280px layout)
+- Dev dependency: `playwright` for the browser regression harness
 
 ### Removed
 - Removed the `/assets` placeholder route and page
