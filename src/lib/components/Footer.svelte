@@ -29,7 +29,7 @@
                 <a href="/my-work" class="footer-link">My Work</a>
                 <a href="/work" class="footer-link">Case Studies</a>
                 <a href="/testimonials" class="footer-link">Testimonials</a>
-                <a href="/assets" class="footer-link">Assets</a>
+                <a href="/tools" class="footer-link">Tools</a>
             </div>
             <div class="footer-col">
                 <span class="footer-col-heading">Discovery</span>

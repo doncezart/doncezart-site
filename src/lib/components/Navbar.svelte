@@ -1,11 +1,13 @@
 <script>
     import NavDropdown from './ui/NavDropdown.svelte';
+    import { tools } from '$lib/data/tools.js';
     import { fade, slide } from 'svelte/transition';
 
     let { discoverySections = [] } = $props();
 
     let mobileOpen = $state(false);
     let discoveryOpen = $state(false);
+    let toolsOpen = $state(false);
 
     $effect(() => {
         const body = document.body;
@@ -24,9 +26,16 @@
         href: `/discovery/${s.slug}`
     })));
 
+    let toolsItems = $derived(tools.map(t => ({
+        label: t.name,
+        description: t.description,
+        href: t.href
+    })));
+
     function closeMobile() {
         mobileOpen = false;
         discoveryOpen = false;
+        toolsOpen = false;
     }
 </script>
 
@@ -34,7 +43,11 @@
     <div class="nav-links-desktop">
         <div class="btn-gap">
             <a href="/my-work" class="btn-navbar" onclick={() => window.umami?.track('nav-click', { link: 'my-work' })}>My Work</a>
-            <a href="/assets" class="btn-navbar" onclick={() => window.umami?.track('nav-click', { link: 'assets' })}>Assets</a>
+            <NavDropdown
+                label="Tools"
+                headerDescription="Free utilities for digital artists — video cards, assets, and more."
+                items={toolsItems}
+            />
             <NavDropdown
                 label="Discovery"
                 headerDescription="A curated library of media — handpicked resources, art, and inspiration."
@@ -73,7 +86,23 @@
         </div>
         <nav class="mobile-nav">
             <a href="/my-work" class="mobile-link" onclick={() => { window.umami?.track('nav-click', { link: 'my-work', source: 'mobile' }); closeMobile(); }}>My Work</a>
-            <a href="/assets" class="mobile-link" onclick={() => { window.umami?.track('nav-click', { link: 'assets', source: 'mobile' }); closeMobile(); }}>Assets</a>
+
+            <!-- Tools collapsible -->
+            <button
+                class="mobile-link mobile-discovery-btn"
+                onclick={() => (toolsOpen = !toolsOpen)}
+                aria-expanded={toolsOpen}
+            >
+                <span>Tools</span>
+                <i class="fa-solid fa-chevron-down mobile-chevron" class:rotated={toolsOpen}></i>
+            </button>
+            {#if toolsOpen}
+                <div class="mobile-sub-group" transition:slide={{ duration: 180 }}>
+                    {#each tools as t}
+                        <a href={t.href} class="mobile-sub-link" onclick={closeMobile}>{t.name}</a>
+                    {/each}
+                </div>
+            {/if}
 
             <!-- Discovery collapsible -->
             <button
