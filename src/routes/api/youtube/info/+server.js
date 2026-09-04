@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { fetchYouTubeVideoInfo, HttpError } from '$lib/server/youtube.js';
+import { fetchYouTubeVideoInfo } from '$lib/server/youtube.js';
+import { HttpError } from '$lib/server/http-error.js';
 import { rateLimit } from '$lib/server/rate-limit.js';
 
 export async function GET({ url, getClientAddress }) {
