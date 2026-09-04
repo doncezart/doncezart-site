@@ -1,6 +1,6 @@
 <script>
     import { formatViews, relativeDate } from '$lib/data/yt-format.js';
-    import { DESIGN_WIDTH, YT_SCALE, LAYOUTS, resolveColors, ASPECTS, naturalAspect } from './yt-config.js';
+    import { LAYOUTS, resolveColors, ASPECTS, naturalAspect, layoutWidth } from './yt-config.js';
 
     let { video, config, cardEl = $bindable() } = $props();
 
@@ -8,36 +8,47 @@
 
     const colors = $derived(resolveColors(config));
 
+    // Per-layout design width + scale (vertical cards are 720 wide, like real Shorts frames).
+    const LW = $derived(layoutWidth(config.layout));
+    const LS = $derived(LW / 360);
+
+    const pad = $derived(config.padding ?? 0);
+    const contentW = $derived(LW - pad * 2);
+
     const aspect = $derived(config.aspect === 'auto' ? naturalAspect(config.layout) : (ASPECTS[config.aspect] ?? 16 / 9));
 
     // Exact card height for cover-fill layouts; min-height for the rest when an aspect is forced.
     const exactHeight = $derived(config.layout === 'hero' || config.layout === 'vertical'
-        ? Math.round(DESIGN_WIDTH / aspect)
+        ? Math.round(LW / aspect)
         : null);
-    const minHeight = $derived(exactHeight ?? (config.aspect !== 'auto' ? Math.round(DESIGN_WIDTH / aspect) : null));
+    const minHeight = $derived(exactHeight ?? (config.aspect !== 'auto' ? Math.round(LW / aspect) : null));
 
     // ── Shared metrics (multiplied from the 360px YouTube reference) ──
-    const m = {
-        gap: Math.round(12 * YT_SCALE), // 43
-        gapT: Math.round(8 * YT_SCALE), // 28
-        name: Math.round(12 * YT_SCALE), // 43
-        avatar: Math.round(24 * YT_SCALE), // 85
-        badgeFont: Math.round(12 * YT_SCALE), // 43
-        badgeRadius: Math.round(4 * YT_SCALE), // 14
-        badgePad: Math.round(4 * YT_SCALE), // 14
-        meta: Math.round(12 * YT_SCALE), // 43
-        desc: Math.round(14 * YT_SCALE) // 50
-    };
+    const m = $derived({
+        gap: Math.round(12 * LS * (config.spacing ?? 1)), // outer block gap
+        gapT: Math.round(8 * LS * (config.spacing ?? 1)), // inner (title→channel→meta) gap
+        name: Math.round(12 * LS), // 43 @1280
+        avatar: Math.round(24 * LS), // 85 @1280
+        badgeFont: Math.round(12 * LS),
+        badgeRadius: Math.round(4 * LS),
+        badgePad: Math.round(4 * LS),
+        meta: Math.round(12 * LS),
+        desc: Math.round(14 * LS) // 50 @1280
+    });
 
     // All tunable CSS values flow through custom properties (Svelte 5 has no style interpolation).
     const cssVars = $derived(
         `--yt-font:'${config.font}',sans-serif;` +
         `--yt-bg:${colors.bg};--yt-text:${colors.text};--yt-secondary:${colors.secondary};` +
-        `--yt-accent:${colors.accent};--yt-radius:${config.radius}px;` +
+        `--yt-accent:${colors.accent};` +
+        `--yt-radius:${config.radius}px;--yt-container-radius:${config.containerRadius ?? 0}px;` +
+        `--yt-pad:${pad}px;` +
         `--yt-gap:${m.gap}px;--yt-gap-t:${m.gapT}px;--yt-name:${m.name}px;--yt-avatar:${m.avatar}px;` +
         `--yt-badge-font:${m.badgeFont}px;--yt-badge-radius:${m.badgeRadius}px;--yt-badge-pad:${m.badgePad}px;` +
         `--yt-meta:${m.meta}px;--yt-desc:${m.desc}px;` +
+        `--yt-scrim-a:${(config.scrimOpacity ?? 85) / 100};` +
         `--yt-clamp:${config.titleLines ?? 2};--yt-clamp-desc:${config.descriptionLines ?? 2};` +
+        `width:${LW}px;--yt-width:${LW}px;` +
         `height:${exactHeight ? exactHeight + 'px' : 'auto'};min-height:${minHeight ? minHeight + 'px' : 'auto'}`
     );
 
@@ -65,7 +76,7 @@
         return () => { alive = false; };
     });
 
-    const titleSize = $derived(Math.round(layout.titleSize * YT_SCALE * (config.titleScale ?? 1)));
+    const titleSize = $derived(Math.round(layout.titleSize * LS * (config.titleScale ?? 1)));
 
     // Rough JS clamp so exported text never overflows its line budget.
     function clampText(text, fontSize, maxLines, width) {
@@ -77,16 +88,16 @@
     }
 
     function titleTextWidth() {
-        if (config.layout === 'split') return Math.round(DESIGN_WIDTH * (1 - (config.ratio ?? 50) / 100)) - 144;
-        if (config.layout === 'magazine') return 560;
-        if (config.layout === 'vertical') return DESIGN_WIDTH - 128;
-        if (config.layout === 'hero') return DESIGN_WIDTH - 144;
-        return DESIGN_WIDTH - 160;
+        const cw = contentW - 48;
+        if (config.layout === 'split') return Math.round(cw * (1 - (config.ratio ?? 50) / 100)) - 24;
+        if (config.layout === 'vertical') return Math.max(200, contentW - 24);
+        if (config.layout === 'minimal') return Math.round(contentW * 0.85);
+        return Math.max(240, cw);
     }
     function descWidth() {
-        if (config.layout === 'stacked') return DESIGN_WIDTH - 160;
-        if (config.layout === 'magazine') return 560;
-        return DESIGN_WIDTH - 160;
+        const cw = contentW - 48;
+        if (config.layout === 'vertical') return Math.max(200, contentW - 24);
+        return Math.max(240, cw);
     }
 
     const title = $derived(config.modules.title
@@ -103,6 +114,8 @@
     })());
 
     const showAvatar = $derived(config.modules.avatar && !!video?.channel?.avatarUrl && config.modules.channel);
+
+    const thumbHeight = $derived(Math.round(LW * 9 / 16));
 </script>
 
 <div
@@ -112,7 +125,7 @@
 >
     {#if config.layout === 'classic'}
         <div class="cl-wrap">
-            {@render thumb(720)}
+            {@render thumb(thumbHeight)}
             <div class="yt-text">
                 {@render titleEl()}
                 {@render channelRow()}
@@ -133,7 +146,7 @@
 
     {:else if config.layout === 'stacked'}
         <div class="st-wrap">
-            {@render thumb(720)}
+            {@render thumb(thumbHeight)}
             <div class="st-text">
                 {@render titleEl()}
                 <div class="st-sub">
@@ -156,7 +169,7 @@
                 <div class="hr-main">
                     {@render titleEl()}
                     {@render channelRow()}
-                    <div style="color:{config.modules.scrim ? 'rgba(255,255,255,0.85)' : colors.secondary};font-size:var(--yt-meta)">
+                    <div style="color:{config.modules.scrim ? 'rgba(255,255,255,0.9)' : colors.secondary};font-size:var(--yt-meta)">
                         {@render metaEl()}
                     </div>
                 </div>
@@ -180,53 +193,17 @@
             </div>
         </div>
 
-    {:else if config.layout === 'terminal'}
-        <div class="tm-wrap" style="--tm-border:3px solid {colors.text}">
-            <div class="tm-thumb">{@render thumb(720)}</div>
-            <div class="tm-rows">
-                {#if config.modules.title}
-                    <div class="tm-row"><span class="tm-label">Title</span><span class="tm-value">{video?.title ?? ''}</span></div>
-                {/if}
-                {#if config.modules.channel}
-                    <div class="tm-row"><span class="tm-label">Channel</span><span class="tm-value">{video?.channel?.name ?? ''}</span></div>
-                {/if}
-                {#if config.modules.duration && video?.duration?.formatted}
-                    <div class="tm-row"><span class="tm-label">Duration</span><span class="tm-value">{video.duration.formatted}</span></div>
-                {/if}
-                {#if config.modules.live}
-                    <div class="tm-row"><span class="tm-label">Status</span><span class="tm-value">LIVE</span></div>
-                {/if}
-                {#if metaLine}
-                    <div class="tm-row"><span class="tm-label">Meta</span><span class="tm-value">{metaLine}</span></div>
-                {/if}
-                {#if desc}
-                    <div class="tm-row tm-desc"><span class="tm-label">Description</span><span class="tm-value tm-desc-value">{desc}</span></div>
-                {/if}
-            </div>
-        </div>
-
     {:else if config.layout === 'minimal'}
         <div class="mn-wrap">
-            <div class="mn-media">{@render thumb(720)}</div>
+            <div class="mn-media">{@render thumb(thumbHeight)}</div>
             <div class="mn-text">
-                {@render titleEl()}
-                <div style="color:var(--yt-secondary)">
+                <div class="mn-title-wrap">
+                    {@render titleEl()}
+                </div>
+                <div style="color:var(--yt-secondary);font-size:var(--yt-meta)">
                     {@render metaEl()}
                 </div>
             </div>
-        </div>
-
-    {:else if config.layout === 'magazine'}
-        <div class="mg-wrap">
-            <div class="mg-left">
-                <div class="mg-rule"></div>
-                {@render titleEl()}
-                <div class="mg-rule"></div>
-                {@render channelRow()}
-                {@render metaEl()}
-                {@render descEl()}
-            </div>
-            <div class="mg-right">{@render thumb(432)}</div>
         </div>
     {/if}
 </div>
@@ -298,13 +275,15 @@
 <style>
     /* ── Root ── */
     .ycard {
-        width: 1280px;
         font-family: var(--yt-font, sans-serif);
         background-color: var(--yt-bg);
         color: var(--yt-text);
         overflow: hidden;
         position: relative;
         line-height: 1.35;
+        padding: var(--yt-pad);
+        border-radius: var(--yt-container-radius);
+        box-sizing: border-box;
     }
 
     /* Thumbnail (background-image so object-fit: cover survives html2canvas) */
@@ -424,20 +403,18 @@
         display: flex;
         flex-direction: column;
         gap: var(--yt-gap);
-        padding-bottom: var(--yt-gap);
     }
     .yt-text {
         display: flex;
         flex-direction: column;
         gap: var(--yt-gap-t);
-        padding: 0 24px;
     }
 
     /* ── Wide Split ── */
     .sp-wrap {
         display: grid;
         align-items: stretch;
-        min-height: 720px;
+        min-height: calc(var(--yt-width) * 0.375);
     }
     .sp-media {
         position: relative;
@@ -453,7 +430,8 @@
         flex-direction: column;
         justify-content: center;
         gap: var(--yt-gap);
-        padding: calc(var(--yt-gap) * 2) calc(var(--yt-gap) * 2) calc(var(--yt-gap) * 2) var(--yt-gap);
+        padding-left: var(--yt-gap);
+        min-width: 0;
     }
 
     /* ── Stacked ── */
@@ -461,7 +439,6 @@
         display: flex;
         flex-direction: column;
         gap: var(--yt-gap);
-        padding: calc(var(--yt-gap) * 2) calc(var(--yt-gap) * 2) calc(var(--yt-gap) * 2.5);
     }
     .st-sub {
         display: flex;
@@ -484,29 +461,33 @@
     .hr-scrim {
         position: absolute;
         inset: 0;
-        background: linear-gradient(180deg, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.85) 100%);
+        background: linear-gradient(180deg, rgba(0, 0, 0, 0) 26%, rgba(0, 0, 0, var(--yt-scrim-a)) 100%);
     }
     .hr-content {
         position: absolute;
         left: 0;
         right: 0;
         bottom: 0;
-        padding: calc(var(--yt-gap) * 2);
+        padding: 56px;
         display: flex;
     }
     .hr-main {
         display: flex;
         flex-direction: column;
-        gap: var(--yt-gap);
-        max-width: 80%;
+        gap: var(--yt-gap-t);
+        max-width: 78%;
     }
     .hr-main .yt-title {
-        text-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
+        color: inherit;
+        text-shadow: 0 2px 16px rgba(0, 0, 0, 0.55);
+    }
+    .hr-main .yt-channel {
+        color: inherit;
     }
     .hr-corner {
         position: absolute;
-        right: var(--yt-gap);
-        bottom: var(--yt-gap);
+        right: 24px;
+        bottom: 24px;
     }
     .hr-corner .yt-duration,
     .hr-corner .yt-live {
@@ -517,7 +498,7 @@
     .vt-wrap {
         display: flex;
         flex-direction: column;
-        width: 1280px;
+        width: 100%;
     }
     .vt-media {
         position: relative;
@@ -533,49 +514,10 @@
         display: flex;
         flex-direction: column;
         gap: var(--yt-gap);
-        padding: calc(var(--yt-gap) * 2);
+        padding: 48px 56px;
         justify-content: center;
         flex: 1;
-    }
-
-    /* ── Terminal ── */
-    .tm-wrap {
-        border: var(--tm-border);
-        font-size: var(--yt-name);
-    }
-    .tm-thumb .yt-thumb {
-        border-radius: 0 !important;
-    }
-    .tm-rows {
-        display: flex;
-        flex-direction: column;
-    }
-    .tm-row {
-        display: grid;
-        grid-template-columns: 300px 1fr;
-        border-top: 2px solid;
-        border-top-color: var(--yt-text);
-    }
-    .tm-label {
-        padding: var(--yt-gap-t) var(--yt-gap);
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-size: calc(var(--yt-name) * 0.8);
-        border-right: 2px solid;
-        border-right-color: var(--yt-text);
-    }
-    .tm-value {
-        padding: var(--yt-gap-t) var(--yt-gap);
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .tm-desc .tm-value {
-        line-height: 1.45;
-    }
-    .tm-thumb .yt-duration,
-    .tm-thumb .yt-live {
-        border-radius: 0 !important;
+        min-width: 0;
     }
 
     /* ── Minimal ── */
@@ -587,37 +529,14 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: var(--yt-gap);
+        gap: var(--yt-gap-t);
         text-align: center;
-        padding: calc(var(--yt-gap) * 2.5) calc(var(--yt-gap) * 3);
+    }
+    .mn-title-wrap {
+        max-width: 34ch;
+        margin: 0 auto;
     }
     .mn-text .yt-title {
-        max-width: 80ch;
-    }
-
-    /* ── Magazine ── */
-    .mg-wrap {
-        display: grid;
-        grid-template-columns: 1.15fr 1fr;
-        gap: calc(var(--yt-gap) * 2);
-        padding: calc(var(--yt-gap) * 2);
-        align-items: start;
-    }
-    .mg-left {
-        display: flex;
-        flex-direction: column;
-        gap: var(--yt-gap);
-        min-width: 0;
-    }
-    .mg-rule {
-        height: 2px;
-        background: var(--yt-text);
-        opacity: 0.85;
-    }
-    .mg-rule:nth-of-type(2) {
-        margin-bottom: var(--yt-gap-t);
-    }
-    .mg-right .yt-thumb {
-        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+        max-width: 34ch;
     }
 </style>

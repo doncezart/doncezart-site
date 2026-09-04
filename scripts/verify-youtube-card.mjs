@@ -54,8 +54,8 @@ record('classic card has height', h0 > 700, `${h0}px`);
 
 await page.screenshot({ path: `${outDir}/1-classic.png` });
 
-// 4. All 8 layouts render without errors
-const layouts = [['split', 'Wide Split'], ['stacked', 'Stacked'], ['hero', 'Hero'], ['vertical', 'Vertical'], ['terminal', 'Terminal'], ['minimal', 'Minimal'], ['magazine', 'Magazine']];
+// 4. All 6 layouts render without errors
+const layouts = [['split', 'Wide Split'], ['stacked', 'Stacked'], ['hero', 'Hero'], ['vertical', 'Vertical'], ['minimal', 'Minimal']];
 for (const [key, label] of layouts) {
     await page.click(`.layout-btn:has(.layout-name:text-is("${label}"))`);
     await page.waitForTimeout(900);
@@ -66,7 +66,79 @@ for (const [key, label] of layouts) {
     await page.screenshot({ path: `${outDir}/2-${key}.png` });
 }
 
-// Back to classic before palette tests
+// Back to classic before further checks
+await page.click('.layout-btn:has(.layout-name:text-is("Classic"))');
+await page.waitForTimeout(500);
+
+// 4a. Preview is smaller: visual card width is capped, pane height capped
+const previewDims = await page.evaluate(() => {
+    const scaled = document.querySelector('.preview-scaled');
+    const pane = document.querySelector('.preview-pane');
+    return { visualW: Math.round(scaled.getBoundingClientRect().width), paneH: pane.clientHeight };
+});
+record('preview much smaller (classic < 560px visual)', previewDims.visualW <= 560, `${previewDims.visualW}px wide`);
+record('preview pane height capped', previewDims.paneH <= 480, `${previewDims.paneH}px`);
+
+// 4b. Vertical: 720px design width and top is NOT clipped in the pane
+await page.click('.layout-btn:has(.layout-name:text-is("Vertical"))');
+await page.waitForTimeout(600);
+const vert = await page.evaluate(() => {
+    const pane = document.querySelector('.preview-pane');
+    pane.scrollTop = 0;
+    pane.scrollLeft = 0;
+    const card = document.querySelector('.ycard');
+    const pr = pane.getBoundingClientRect();
+    const cr = card.getBoundingClientRect();
+    return { cardW: card.offsetWidth, cardH: card.offsetHeight, topDelta: Math.round(cr.top - pr.top) };
+});
+record('vertical renders at 720px width', vert.cardW === 720, `${vert.cardW}px`);
+record('vertical top visible (no clip)', vert.topDelta >= -2, `top delta ${vert.topDelta}px`);
+
+await page.click('.layout-btn:has(.layout-name:text-is("Classic"))');
+await page.waitForTimeout(500);
+
+// 4c. New variables apply
+async function setRange(label, value) {
+    const field = page.locator('.field', { hasText: label });
+    await field.locator('input[type=range]').evaluate((el, v) => {
+        el.value = String(v);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+    }, value);
+}
+
+const spacingBefore = await page.evaluate(() => getComputedStyle(document.querySelector('.cl-wrap')).gap);
+await setRange('Element spacing', 1.5);
+await page.waitForTimeout(300);
+const spacingAfter = await page.evaluate(() => getComputedStyle(document.querySelector('.cl-wrap')).gap);
+record('spacing multiplier applies', spacingBefore !== spacingAfter, `${spacingBefore} -> ${spacingAfter}`);
+
+await setRange('Card radius', 16);
+await page.waitForTimeout(300);
+const cardRadius = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).borderRadius);
+record('card radius applies', cardRadius === '16px', cardRadius);
+
+const padBefore = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).padding);
+await setRange('Card padding', 60);
+await page.waitForTimeout(300);
+const padAfter = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).padding);
+record('card padding applies', padBefore !== padAfter, `${padBefore} -> ${padAfter}`);
+
+// touched padding persists across layout switches
+await page.click('.layout-btn:has(.layout-name:text-is("Stacked"))');
+await page.waitForTimeout(300);
+const padStacked = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).padding);
+record('custom padding persists on layout switch', padStacked.includes('60px'), padStacked);
+
+// hero scrim: default 0.85, configurable
+await page.click('.layout-btn:has(.layout-name:text-is("Hero"))');
+await page.waitForTimeout(400);
+const scrimDefault = await page.evaluate(() => getComputedStyle(document.querySelector('.hr-scrim')).backgroundImage);
+record('hero scrim dark by default', scrimDefault.includes('0.85'), scrimDefault.slice(0, 90));
+await setRange('Scrim darkness', 50);
+await page.waitForTimeout(300);
+const scrimTuned = await page.evaluate(() => getComputedStyle(document.querySelector('.hr-scrim')).backgroundImage);
+record('scrim darkness configurable', scrimDefault !== scrimTuned && scrimTuned.includes('0.5'), scrimTuned.slice(0, 90));
+
 await page.click('.layout-btn:has(.layout-name:text-is("Classic"))');
 await page.waitForTimeout(400);
 

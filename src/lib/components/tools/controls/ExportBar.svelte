@@ -30,7 +30,7 @@
         // the body outside the scaled tree so the capture box is the true 1280px
         // layout size, then restore it to its original slot.
         const holder = document.createElement('div');
-        holder.style.cssText = 'position:fixed;left:-100000px;top:0;width:1280px';
+        holder.style.cssText = `position:fixed;left:-100000px;top:0;width:${cardEl.offsetWidth}px`;
         document.body.appendChild(holder);
         const originalParent = cardEl.parentElement;
         const nextSibling = cardEl.nextSibling;

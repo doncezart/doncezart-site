@@ -114,9 +114,9 @@
 - **Data flow:** Registry array → navbar dropdown items + `/tools` card grid + footer link. Adding a tool = one registry entry.
 
 ### YouTube Card Generator
-- **What it does:** Turns any YouTube URL into a customizable video reference card — 8 layouts, 4 palettes + custom colors, 9 fonts, full module toggles — exported as PNG/JPEG/WebP up to 3840px, or copied to clipboard.
+- **What it does:** Turns any YouTube URL into a customizable video reference card — 6 layouts, 4 palettes + custom colors, 9 fonts, full module toggles — exported as PNG/JPEG/WebP up to 3840px, or copied to clipboard.
 - **Entry point:** `src/routes/tools/youtube-card/+page.svelte`
-- **Key functions / components:** `YouTubeCard.svelte` (8-layout renderer, 1280px design width, metrics scaled from YouTube's 360px feed reference), `yt-config.js` (config model, palettes, layout metadata), `ExportBar.svelte` (html2canvas capture, format/size, clipboard), preview scaled via ResizeObserver.
+- **Key functions / components:** `YouTubeCard.svelte` (6-layout renderer; per-layout design width 1280px landscape / 720px vertical; metrics scaled from YouTube's 360px feed reference; card radius, padding, spacing multiplier, hero scrim opacity all configurable via CSS custom properties), `yt-config.js` (config model, palettes, layout metadata), `ExportBar.svelte` (html2canvas capture with mount-out for true-size export, format/size, clipboard), preview capped to ~42% scale in a compact pane (fit-width + fit-height, margin-auto centering so tall cards never clip their top).
 - **API calls:** `GET /api/youtube/info?url=…` (server-side, rate-limited 20/min/IP, 30-min in-memory cache)
 - **Data flow:** URL → server (`youtube.js`) → YouTube Data API v3 (`videos.list` + `channels.list`) when `YOUTUBE_API_KEY` set, else oEmbed + constructed `i.ytimg.com` thumbnails → normalized JSON → client state → card preview → export
 - **Dependencies:** `YOUTUBE_API_KEY` (optional), Google Fonts (Roboto/Inter/Space Grotesk/Archivo/Anton/Bebas Neue/Playfair Display/JetBrains Mono), html2canvas (bundled)

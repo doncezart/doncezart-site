@@ -105,9 +105,9 @@ Accepts: `youtube.com/watch?v=`, `youtu.be/`, `youtube.com/shorts/`, `youtube.co
 
 ---
 
-## 4. Card layouts (8)
+## 4. Card layouts (6)
 
-All layouts render at a **design width of 1280px** and auto height. Every layout is exportable at 1x/2x/3x (up to 3840px wide).
+All layouts render at a design width of **1280px (720px for Vertical — native Shorts frame)** and auto height (except cover-fill layouts). Every layout is exportable at 1x/2x/3x (up to 3840px or 2160px for vertical).
 
 | # | Layout | Orientation | DNA | Default font |
 |---|---|---|---|---|
@@ -115,14 +115,14 @@ All layouts render at a **design width of 1280px** and auto height. Every layout
 | 2 | **Wide Split** | Side-by-side (thumb left, text right) | "Video page hero" — thumb and text compete 50/50 | Roboto |
 | 3 | **Stacked Editorial** | Full-bleed thumb over solid text block | Landing-page hero for articles/blog posts | Space Grotesk |
 | 4 | **Hero Overlay** | Thumb = full card bg, text on bottom scrim | Poster/end-screen style | Archivo |
-| 5 | **Vertical Reel** | 9:16 card, thumb top, text bottom | Shorts/Reels/TikTok references (post this to a story) | Inter |
-| 6 | **Terminal** | Brutalist, hard borders, mono font | Deliberately anti-YouTube — designers who want edge | JetBrains Mono |
-| 7 | **Minimal** | Thumb + title only, huge whitespace | Clean editorial; nothing but the hook | Inter |
-| 8 | **Magazine** | Serif headline left, floating thumb right, hairline rules | Fancy long-form/print feel | Playfair Display |
+| 5 | **Vertical Reel** | 9:16 card (720×1280), thumb top, text bottom | Shorts/Reels/TikTok references (post this to a story) | Inter |
+| 6 | **Minimal** | Thumb + title only, huge whitespace | Clean editorial; nothing but the hook | Inter |
+
+(Removed 2026-09-05 per product direction: Terminal and Magazine layouts.)
 
 ### 4.1 Layout anatomy
 
-Each layout defines: aspect (its own, or user-overridable), thumb text placement, scrim usage, which modules (see §5.2) are on by default, and its color/font defaults. Layout selection is **non-destructive**: switching layouts keeps the user's color/font/toggle choices and re-applies them; only defaults change.
+Each layout defines: aspect (its own, or user-overridable), design width (`width`), padding default (`defaultPadding`), thumb text placement, scrim usage, which modules (see §5.2) are on by default, and its color/font defaults. Layout selection is **non-destructive**: switching layouts keeps the user's color/font/toggle choices; only the padding default re-applies (until the user tunes padding, then their value sticks).
 
 ---
 
@@ -132,10 +132,14 @@ Each layout defines: aspect (its own, or user-overridable), thumb text placement
 
 | Control | Options |
 |---|---|
-| Layout | 8 layouts (visual selector with mini-preview glyphs) |
+| Layout | 6 layouts (visual selector with mini-preview glyphs) |
 | Card aspect | Auto (per layout), 16:9, 4:3, 1:1, 4:5, 9:16 |
 | Thumb/text ratio | Slider 30–70% (affects split/vertical layouts; disabled when N/A) |
-| Corner radius | 0–24px (default 12px for YouTube-native, 0 for Terminal) |
+| Thumbnail radius | 0–24px |
+| Card radius | 0–32px — rounds the whole card container (hero thumb inherits it) |
+| Card padding | 0–80px — insets all card content; per-layout defaults (Classic/Split 40, Minimal 48, cover layouts 0) stick until the user tunes it |
+| Element spacing | 0.5×–2× multiplier on every layout gap |
+| Scrim darkness | 30–100% (hero) — bottom scrim alpha, default 85% |
 | Background color | Palette + custom picker |
 | Text primary color | Palette + custom picker |
 | Text secondary color | Palette + custom picker |
@@ -169,15 +173,15 @@ The card DOM renders at its true design size (1280px wide) inside a fixed viewpo
 
 ### 6.2 Scaling the YouTube-native metrics
 
-Reference width = 360px (feed thumbnail). At design width W=1280, `scale = W/360 = 3.556`. All §2 metrics multiply by `scale`, so the Classic layout is *proportionally identical* to the real feed card at any export size.
+Reference width = 360px (feed thumbnail). At design width W (1280 for landscape layouts, 720 for Vertical), `scale = W/360` (3.556 or 2.0). All §2 metrics multiply by that layout's scale, so the Classic layout is *proportionally identical* to the real feed card at any export size, and Vertical matches a real Shorts frame.
 
 ### 6.3 Export
 
-`html2canvas` (already a dependency) captures the card element:
+`html2canvas` (already a dependency) captures the card element while it is temporarily mounted outside the scaled preview tree (ancestor `transform: scale()` would otherwise shrink the capture box to the visual size):
 
 | Format | Sizes | Output |
 |---|---|---|
-| PNG | 1x (1280w), 2x (2560w), 3x (3840w) | `.png` download |
+| PNG | 1x (1280w; vertical 720w), 2x, 3x | `.png` download |
 | JPEG | same | `.jpg` download (white bg forced) |
 | WebP | same | `.webp` download |
 | Clipboard | 1280w PNG | `navigator.clipboard.write` — paste straight into Discord/Notion/timeline |

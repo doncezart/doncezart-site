@@ -3,7 +3,7 @@
     import YouTubeCard from '$lib/components/tools/YouTubeCard.svelte';
     import ExportBar from '$lib/components/tools/controls/ExportBar.svelte';
     import {
-        DEFAULT_CONFIG, LAYOUTS, FONTS, PALETTES, PALETTE_NAMES, ASPECTS, DESIGN_WIDTH
+        DEFAULT_CONFIG, LAYOUTS, FONTS, PALETTES, PALETTE_NAMES, ASPECTS, DESIGN_WIDTH, layoutWidth
     } from '$lib/components/tools/yt-config.js';
 
     $effect(() => { window.umami?.track('page-view', { page: 'tools-youtube-card' }); });
@@ -18,13 +18,21 @@
     // ── Preview scaling ──
     let paneEl = $state(null);
     let cardHeight = $state(0);
-    let scale = $state(0.35);
+    let scale = $state(0.3);
+    let paddingTouched = $state(false);
 
     $effect(() => {
         const pane = paneEl;
         if (!pane) return;
         const update = () => {
-            scale = Math.min(1, Math.max(0.08, (pane.clientWidth - 48) / DESIGN_WIDTH));
+            const cardWidth = layoutWidth(config.layout);
+            const paneW = pane.clientWidth - 48;
+            const paneH = pane.clientHeight - 48;
+            scale = Math.min(
+                0.42,
+                Math.max(0.08, paneW / cardWidth),
+                cardHeight > 0 ? paneH / cardHeight : 1
+            );
             if (cardEl) cardHeight = cardEl.offsetHeight;
         };
         update();
@@ -68,6 +76,12 @@
         fetchVideo(sample.url);
     }
 
+    function setLayout(key) {
+        config.layout = key;
+        // Each layout has a padding default; respect it until the user dials their own.
+        if (!paddingTouched) config.padding = LAYOUTS[key].defaultPadding ?? 0;
+    }
+
     const modulesList = [
         { key: 'duration', label: 'Duration badge' },
         { key: 'title', label: 'Title' },
@@ -80,6 +94,8 @@
     ];
 
     const ratioActive = $derived(config.layout === 'split' || config.layout === 'vertical');
+    const scrimActive = $derived(config.layout === 'hero');
+    const designWidth = $derived(layoutWidth(config.layout));
 </script>
 
 <svelte:head>
@@ -127,16 +143,16 @@
 {#if video}
     <div class="workspace">
         <div class="preview-col">
-            <div class="preview-pane" bind:this={paneEl} style="height:{Math.max(320, cardHeight * scale + 48)}px">
-                <div class="preview-stage" style="width:{DESIGN_WIDTH * scale}px;height:{cardHeight * scale}px">
-                    <div class="preview-scaled" style="transform:scale({scale})">
+            <div class="preview-pane" bind:this={paneEl} style="height:{Math.min(480, Math.max(320, cardHeight * scale + 56))}px">
+                <div class="preview-stage" style="width:{designWidth * scale}px;height:{cardHeight * scale}px">
+                    <div class="preview-scaled" style="transform:scale({scale});width:{designWidth}px">
                         <YouTubeCard bind:cardEl {video} {config} />
                     </div>
                 </div>
             </div>
             <ExportBar {cardEl} filename={video.id} />
             <p class="card-note">
-                Card renders at 1280px wide · exports up to 3840px · transparent PNG supported
+                Card renders at {designWidth}px wide · exports up to {designWidth * 3}px · transparent PNG supported
             </p>
         </div>
 
@@ -149,7 +165,7 @@
                         <button
                             class="layout-btn"
                             class:active={config.layout === key}
-                            onclick={() => (config.layout = key)}
+                            onclick={() => setLayout(key)}
                         >
                             <span class="layout-name">{LAYOUTS[key].label}</span>
                             <span class="layout-hint">{LAYOUTS[key].hint}</span>
@@ -177,8 +193,27 @@
                 </label>
 
                 <label class="field">
-                    <span>Corner radius — {config.radius}px</span>
+                    <span>Thumbnail radius — {config.radius}px</span>
                     <input type="range" min="0" max="24" step="1" bind:value={config.radius} />
+                </label>
+
+                <label class="field">
+                    <span>Card radius — {config.containerRadius}px</span>
+                    <input type="range" min="0" max="32" step="1" bind:value={config.containerRadius} />
+                </label>
+
+                <label class="field">
+                    <span>Card padding — {config.padding}px</span>
+                    <input
+                        type="range" min="0" max="80" step="1"
+                        bind:value={config.padding}
+                        oninput={() => (paddingTouched = true)}
+                    />
+                </label>
+
+                <label class="field">
+                    <span>Element spacing — {Math.round((config.spacing ?? 1) * 100)}%</span>
+                    <input type="range" min="0.5" max="2" step="0.05" bind:value={config.spacing} />
                 </label>
             </section>
 
@@ -244,6 +279,15 @@
                 <label class="field">
                     <span>Title size — {Math.round(config.titleScale * 100)}%</span>
                     <input type="range" min="0.8" max="1.6" step="0.05" bind:value={config.titleScale} />
+                </label>
+
+                <label class="field" class:disabled={!scrimActive}>
+                    <span>Scrim darkness — {config.scrimOpacity}%</span>
+                    <input
+                        type="range" min="30" max="100" step="1"
+                        bind:value={config.scrimOpacity}
+                        disabled={!scrimActive}
+                    />
                 </label>
             </section>
 
@@ -374,7 +418,7 @@
     /* ── Workspace ── */
     .workspace {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 360px;
+        grid-template-columns: minmax(0, 1fr) 460px;
         gap: var(--space-xl);
         max-width: var(--container-max);
         margin: 0 auto;
@@ -388,28 +432,27 @@
 
     .preview-pane {
         border: var(--border);
-        position: relative;
         overflow: auto;
         display: flex;
         align-items: flex-start;
-        justify-content: center;
         padding: var(--space-md);
-        max-height: calc(100vh - 220px);
+        max-height: 480px;
+        box-sizing: border-box;
         background:
             repeating-conic-gradient(rgba(255, 255, 255, 0.03) 0% 25%, transparent 0% 50%) 0 0 / 24px 24px,
             #0a0a0a;
         scrollbar-gutter: stable;
     }
 
+    /* margin:auto centers the stage when it fits and never clips the top when it overflows */
     .preview-stage {
         position: relative;
         flex-shrink: 0;
-        align-self: center;
+        margin: auto;
     }
 
     .preview-scaled {
         transform-origin: top left;
-        width: 1280px;
         box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
     }
 
