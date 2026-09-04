@@ -24,9 +24,28 @@
     async function capture() {
         if (!cardEl) throw new Error('Card not ready.');
         await document.fonts.ready;
+
+        // html2canvas measures the element via getBoundingClientRect, which is
+        // shrunk by the preview's ancestor transform: scale(). Mount the card on
+        // the body outside the scaled tree so the capture box is the true 1280px
+        // layout size, then restore it to its original slot.
+        const holder = document.createElement('div');
+        holder.style.cssText = 'position:fixed;left:-100000px;top:0;width:1280px';
+        document.body.appendChild(holder);
+        const originalParent = cardEl.parentElement;
+        const nextSibling = cardEl.nextSibling;
+        holder.appendChild(cardEl);
+
         // JPEG has no alpha channel — render against white instead of transparent black.
         const backgroundColor = format === 'jpeg' ? '#ffffff' : null;
-        return html2canvas(cardEl, { scale: size, backgroundColor, useCORS: true });
+        try {
+            return await html2canvas(cardEl, { scale: size, backgroundColor, useCORS: true });
+        } finally {
+            if (originalParent) {
+                originalParent.insertBefore(cardEl, nextSibling);
+            }
+            holder.remove();
+        }
     }
 
     async function download() {

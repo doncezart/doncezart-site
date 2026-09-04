@@ -300,6 +300,8 @@
     .ycard {
         width: 1280px;
         font-family: var(--yt-font, sans-serif);
+        background-color: var(--yt-bg);
+        color: var(--yt-text);
         overflow: hidden;
         position: relative;
         line-height: 1.35;

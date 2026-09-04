@@ -21,13 +21,17 @@ const config = {
 					'data:',
 					'blob:',
 					'https://doncezart.nyc3.cdn.digitaloceanspaces.com',
-					'https://cdn.doncez.art'
+					'https://cdn.doncez.art',
+					'https://i.ytimg.com',
+					'https://yt3.googleusercontent.com'
 				],
 				'media-src': ["'self'", 'https://cdn.doncez.art'],
 				'connect-src': [
 					"'self'",
 					'https://challenges.cloudflare.com',
-					'https://analytics.ceza.ro'
+					'https://analytics.ceza.ro',
+					'https://i.ytimg.com',
+					'https://yt3.googleusercontent.com'
 				],
 				'frame-src': ['https://challenges.cloudflare.com'],
 				'object-src': ["'none'"],

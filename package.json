@@ -18,6 +18,7 @@
 		"@types/pg": "^8.20.0",
 		"drizzle-kit": "^0.31.10",
 		"mime-types": "^3.0.2",
+		"playwright": "^1.62.1",
 		"svelte": "^5.55.1",
 		"vite": "^8.0.12"
 	},
