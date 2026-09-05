@@ -121,6 +121,42 @@
         { key: 'custom', label: 'Custom', bg: null }
     ];
 
+    // ── Preview background picker (behind the card in the pane) ──
+    let bgMenuOpen = $state(false);
+    let previewBg = $state({ type: 'pattern', value: null });
+    let previewBgColor = $state('#2a2a2a');
+    const bgPaletteColors = $derived(
+        Object.keys(PALETTES).map((k) => ({ key: k, name: PALETTE_NAMES[k], bg: PALETTES[k].bg }))
+    );
+    const paneBgStyle = $derived(
+        previewBg.type === 'color'
+            ? `background:${previewBg.value};`
+            : previewBg.type === 'image'
+                ? `background-image:url('${previewBg.value}');background-size:cover;background-position:center;`
+                : ''
+    );
+    function setPreviewBg(type, value = null) {
+        previewBg = { type, value };
+        bgMenuOpen = false;
+    }
+    function onBgImage(e) {
+        const f = e.currentTarget.files?.[0];
+        if (!f) return;
+        if (previewBg.type === 'image' && previewBg.value) URL.revokeObjectURL(previewBg.value);
+        previewBg = { type: 'image', value: URL.createObjectURL(f) };
+        bgMenuOpen = false;
+    }
+
+    // Smooth-scroll the tool containers into view once a video loads.
+    let bodyEl = $state(null);
+    $effect(() => {
+        if (!video) return;
+        const t = setTimeout(() => {
+            bodyEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 120);
+        return () => clearTimeout(t);
+    });
+
     // ── API fallback disclaimer ──
     const showApiNote = $derived(
         !!video && (video.source === 'oembed' || !video.duration || !video.channel?.avatarUrl || video.views == null)
@@ -190,7 +226,7 @@
 {/if}
 
 {#if video}
-    <div class="page-body">
+    <div class="page-body" id="tools-body" bind:this={bodyEl}>
 
         <!-- ── Row 1: Layout (buttons only) | Style ── -->
         <div class="top-band">
@@ -212,74 +248,77 @@
 
             <section class="top-col">
                 <h2 class="band-title">Style</h2>
-                <div class="style-row">
-                    {#each Object.keys(PALETTES) as key}
-                        <button
-                            class="palette-btn"
-                            class:active={config.palette === key}
-                            onclick={() => (config.palette = key)}
-                            title={PALETTE_NAMES[key]}
-                        >
-                            <span class="plt" style="background:{PALETTES[key].bg};color:{PALETTES[key].text};border-color:{PALETTES[key].text}">
-                                <span class="plt-dot" style="background:{PALETTES[key].accent}"></span>
-                            </span>
-                            <span class="palette-name">{PALETTE_NAMES[key]}</span>
-                        </button>
-                    {/each}
-                    <button
-                        class="palette-btn"
-                        class:active={config.palette === 'custom'}
-                        onclick={() => (config.palette = 'custom')}
-                    >
-                        <span class="plt plt-custom">
-                            <i class="fa-solid fa-palette"></i>
-                        </span>
-                        <span class="palette-name">Custom</span>
-                    </button>
-
-                    {#if config.palette === 'custom'}
-                        <span class="color-inline">
-                            <input type="color" bind:value={config.colors.bg} title="Background" aria-label="Background color" />
-                            <input type="color" bind:value={config.colors.text} title="Text" aria-label="Text color" />
-                            <input type="color" bind:value={config.colors.secondary} title="Secondary" aria-label="Secondary color" />
-                            <input type="color" bind:value={config.colors.accent} title="Accent" aria-label="Accent color" />
-                        </span>
-                    {/if}
-
-                    <label class="inline-field">
-                        <span>Font</span>
-                        <select bind:value={config.font}>
-                            {#each FONTS as f}
-                                <option value={f} style="font-family:'{f}'">{f}</option>
-                            {/each}
-                        </select>
-                    </label>
-
-                    <span class="ver-swatches">
-                        {#each VERIFIED as v}
+                <div class="style-rows">
+                    <div class="style-row">
+                        {#each Object.keys(PALETTES) as key}
                             <button
-                                type="button"
-                                class="ver-swatch"
-                                class:active={config.verifiedColor === v.key}
-                                data-v={v.key}
-                                title={v.label}
-                                aria-label={v.label}
-                                style={v.bg ? `background:${v.bg}` : ''}
-                                onclick={() => (config.verifiedColor = v.key)}
+                                class="palette-btn"
+                                class:active={config.palette === key}
+                                onclick={() => (config.palette = key)}
+                                title={PALETTE_NAMES[key]}
                             >
-                                {#if v.key === 'accent'}
-                                    <span class="ver-dot" style="background:{accentColor}"></span>
-                                {:else if v.key === 'custom'}
-                                    <i class="fa-solid fa-palette"></i>
-                                {:else}
-                                    <i class="fa-solid fa-check"></i>
-                                {/if}
+                                <span class="plt" style="background:{PALETTES[key].bg};color:{PALETTES[key].text};border-color:{PALETTES[key].text}">
+                                    <span class="plt-dot" style="background:{PALETTES[key].accent}"></span>
+                                </span>
+                                <span class="palette-name">{PALETTE_NAMES[key]}</span>
                             </button>
                         {/each}
-                        {#if config.verifiedColor === 'custom'}
-                            <input type="color" bind:value={config.verifiedColorCustom} aria-label="Custom verified color" class="ver-custom-input" />
+                        <button
+                            class="palette-btn"
+                            class:active={config.palette === 'custom'}
+                            onclick={() => (config.palette = 'custom')}
+                        >
+                            <span class="plt plt-custom">
+                                <i class="fa-solid fa-palette"></i>
+                            </span>
+                            <span class="palette-name">Custom</span>
+                        </button>
+
+                        {#if config.palette === 'custom'}
+                            <span class="color-inline">
+                                <input type="color" bind:value={config.colors.bg} title="Background" aria-label="Background color" />
+                                <input type="color" bind:value={config.colors.text} title="Text" aria-label="Text color" />
+                                <input type="color" bind:value={config.colors.secondary} title="Secondary" aria-label="Secondary color" />
+                                <input type="color" bind:value={config.colors.accent} title="Accent" aria-label="Accent color" />
+                            </span>
                         {/if}
-                    </span>
+
+                        <span class="ver-swatches">
+                            {#each VERIFIED as v}
+                                <button
+                                    type="button"
+                                    class="ver-swatch"
+                                    class:active={config.verifiedColor === v.key}
+                                    data-v={v.key}
+                                    title={v.label}
+                                    aria-label={v.label}
+                                    style={v.bg ? `background:${v.bg}` : ''}
+                                    onclick={() => (config.verifiedColor = v.key)}
+                                >
+                                    {#if v.key === 'accent'}
+                                        <span class="ver-dot" style="background:{accentColor}"></span>
+                                    {:else if v.key === 'custom'}
+                                        <i class="fa-solid fa-palette"></i>
+                                    {:else}
+                                        <i class="fa-solid fa-check"></i>
+                                    {/if}
+                                </button>
+                            {/each}
+                            {#if config.verifiedColor === 'custom'}
+                                <input type="color" bind:value={config.verifiedColorCustom} aria-label="Custom verified color" class="ver-custom-input" />
+                            {/if}
+                        </span>
+                    </div>
+                    <div class="style-row">
+                        <label class="inline-field">
+                            <span>Font</span>
+                            <select bind:value={config.font} class="font-select">
+                                {#each FONTS as f}
+                                    <option value={f} style="font-family:'{f}'">{f}</option>
+                                {/each}
+                            </select>
+                        </label>
+                    </div>
                 </div>
             </section>
         </div>
@@ -310,7 +349,67 @@
                     </div>
                 {/if}
 
-                <div class="preview-pane" bind:this={paneEl} style="height:{Math.min(480, Math.max(320, cardHeight * scale + 56))}px">
+                <div class="preview-pane" bind:this={paneEl} style="height:{Math.min(480, Math.max(320, cardHeight * scale + 56))}px;{paneBgStyle}">
+                    <button
+                        type="button"
+                        class="preview-bg-btn"
+                        aria-label="Preview background"
+                        aria-expanded={bgMenuOpen}
+                        title="Preview background"
+                        onclick={() => (bgMenuOpen = !bgMenuOpen)}
+                    >
+                        <i class="fa-solid fa-palette"></i>
+                    </button>
+
+                    {#if bgMenuOpen}
+                        <div class="preview-bg-menu">
+                            <div class="bg-sec">
+                                <span class="bg-sec-label">Pattern</span>
+                                <button
+                                    type="button"
+                                    class="bg-opt"
+                                    class:active={previewBg.type === 'pattern'}
+                                    onclick={() => setPreviewBg('pattern')}
+                                >
+                                    <span class="bg-chip bg-chip-checker"></span>
+                                    Checkerboard
+                                </button>
+                            </div>
+                            <div class="bg-sec">
+                                <span class="bg-sec-label">Palette colors</span>
+                                {#each bgPaletteColors as c}
+                                    <button
+                                        type="button"
+                                        class="bg-opt"
+                                        class:active={previewBg.type === 'color' && previewBg.value === c.bg}
+                                        onclick={() => setPreviewBg('color', c.bg)}
+                                    >
+                                        <span class="bg-chip" style="background:{c.bg}"></span>
+                                        {c.name}
+                                    </button>
+                                {/each}
+                            </div>
+                            <div class="bg-sec">
+                                <span class="bg-sec-label">Custom</span>
+                                <label class="bg-opt">
+                                    <span class="bg-chip" style="background:{previewBgColor}"></span>
+                                    Custom color
+                                    <input
+                                        type="color"
+                                        class="bg-color-input"
+                                        bind:value={previewBgColor}
+                                        oninput={() => setPreviewBg('color', previewBgColor)}
+                                    />
+                                </label>
+                                <label class="bg-opt">
+                                    <span class="bg-chip bg-chip-img"><i class="fa-solid fa-image"></i></span>
+                                    Custom image
+                                    <input type="file" accept="image/*" class="bg-file-input" onchange={onBgImage} />
+                                </label>
+                            </div>
+                        </div>
+                    {/if}
+
                     <div class="preview-stage" style="width:{cardWidth * scale}px;height:{cardHeight * scale}px">
                         <div class="preview-scaled" style="transform:scale({scale});width:{cardWidth || 1280}px">
                             <YouTubeCard bind:cardEl {video} {config} />
@@ -628,10 +727,12 @@
     .page-body {
         max-width: var(--container-max);
         margin: 0 auto;
+        margin-top: var(--space-3xl);
         padding: 0 var(--container-pad) var(--space-4xl);
         display: flex;
         flex-direction: column;
         gap: var(--space-lg);
+        scroll-margin-top: 2rem;
     }
 
     .band-title {
@@ -648,14 +749,12 @@
     .top-band {
         display: grid;
         grid-template-columns: 1.15fr 1fr;
-        border: var(--border);
+        gap: var(--space-lg);
     }
     .top-col {
+        border: var(--border);
         padding: var(--space-lg);
         min-width: 0;
-    }
-    .top-col + .top-col {
-        border-left: var(--border);
     }
 
     .layout-grid {
@@ -680,9 +779,13 @@
         color: var(--color-text-primary);
     }
     .layout-btn.active {
-        border-color: var(--color-text-primary);
-        background: rgba(255, 255, 255, 0.05);
-        color: var(--color-text-primary);
+        background: #fff;
+        border-color: #fff;
+        color: #000;
+    }
+    .layout-btn.active .layout-hint {
+        color: #000;
+        opacity: 0.6;
     }
     .layout-name {
         font-family: var(--font-body);
@@ -695,6 +798,12 @@
         line-height: 1.3;
         color: var(--color-text-secondary);
         opacity: 0.75;
+    }
+
+    .style-rows {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-sm);
     }
 
     .style-row {
@@ -719,7 +828,14 @@
         border-color: var(--color-text-secondary);
     }
     .palette-btn.active {
-        border-color: var(--color-text-primary);
+        background: #fff;
+        border-color: #fff;
+    }
+    .palette-btn.active .palette-name {
+        color: #000;
+    }
+    .palette-btn.active .plt-custom {
+        color: #000;
     }
     .plt {
         width: 1.1rem;
@@ -785,6 +901,9 @@
     .inline-field select option {
         background: #0f0f0f;
         color: var(--color-text-primary);
+    }
+    .font-select {
+        min-width: 16rem;
     }
 
     .ver-swatches {
@@ -915,6 +1034,112 @@
             #0a0a0a;
         scrollbar-gutter: stable;
         flex: 1;
+        position: relative;
+    }
+
+    /* Background picker — small button in the pane's top-right corner */
+    .preview-bg-btn {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        z-index: 15;
+        width: 2rem;
+        height: 2rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(10, 10, 10, 0.75);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
+        cursor: pointer;
+        padding: 0;
+        transition: color var(--transition-fast), border-color var(--transition-fast);
+    }
+    .preview-bg-btn:hover {
+        color: var(--color-text-primary);
+        border-color: var(--color-text-primary);
+    }
+
+    .preview-bg-menu {
+        position: absolute;
+        top: 2.9rem;
+        right: 0.75rem;
+        z-index: 30;
+        width: 234px;
+        background: #0f0f0f;
+        border: var(--border);
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+        padding: var(--space-sm);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-sm);
+        font-family: var(--font-body);
+    }
+    .bg-sec {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    .bg-sec-label {
+        font-size: 0.6rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--color-text-secondary);
+        opacity: 0.7;
+    }
+    .bg-opt {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--color-text-secondary);
+        font-family: var(--font-body);
+        font-size: var(--text-xs);
+        text-align: left;
+        padding: 0.4rem 0.5rem;
+        cursor: pointer;
+        transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+    }
+    .bg-opt:hover {
+        color: var(--color-text-primary);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+    .bg-opt.active {
+        background: #fff;
+        border-color: #fff;
+        color: #000;
+    }
+    .bg-chip {
+        width: 1rem;
+        height: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.5rem;
+    }
+    .bg-chip-checker {
+        background: repeating-conic-gradient(rgba(255, 255, 255, 0.4) 0% 25%, rgba(0, 0, 0, 0.5) 0% 50%) 0 0 / 8px 8px;
+        border: 0;
+    }
+    .bg-chip-img {
+        border: 1px solid var(--color-text-secondary);
+        color: var(--color-text-secondary);
+    }
+    .bg-opt.active .bg-chip-img {
+        border-color: #000;
+        color: #000;
+    }
+    .bg-color-input,
+    .bg-file-input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
     }
 
     /* margin:auto centers the stage when it fits and never clips the top when it overflows */
@@ -953,8 +1178,8 @@
     }
     .rail-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--space-md) var(--space-lg);
+        grid-template-columns: 1fr;
+        gap: var(--space-md);
         align-items: start;
     }
 
@@ -993,7 +1218,7 @@
         display: grid;
         grid-template-columns: minmax(0, 1fr) 380px;
         gap: var(--space-lg);
-        align-items: start;
+        align-items: stretch;
     }
     .bottom-col {
         border: var(--border);
@@ -1027,14 +1252,14 @@
         color: var(--color-text-primary);
     }
     .module-btn.active {
-        border-color: var(--color-text-primary);
-        background: rgba(255, 255, 255, 0.05);
-        color: var(--color-text-primary);
+        background: #fff;
+        border-color: #fff;
+        color: #000;
     }
     .module-check {
         font-size: 0.58rem;
         width: 0.8rem;
-        color: var(--color-text-primary);
+        color: #000;
         opacity: 0;
         transition: opacity var(--transition-fast);
         flex-shrink: 0;
@@ -1072,10 +1297,6 @@
         .top-band {
             grid-template-columns: 1fr;
         }
-        .top-col + .top-col {
-            border-left: 0;
-            border-top: var(--border);
-        }
         .workspace,
         .bottom-band {
             grid-template-columns: 1fr;
@@ -1086,9 +1307,6 @@
     }
 
     @media (max-width: 666px) {
-        .rail-grid {
-            grid-template-columns: 1fr;
-        }
         .preview-pane {
             max-height: 60vh;
         }

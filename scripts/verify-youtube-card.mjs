@@ -52,6 +52,10 @@ await page.waitForFunction(() => document.querySelector('.ycard')?.offsetHeight 
 await page.waitForTimeout(1500);
 record('video fetch + card render', true);
 
+// Scroll-to-results animation
+const scrollY = await page.evaluate(() => window.scrollY);
+record('page scrolls to tool containers', scrollY > 0, `scrollY=${scrollY}`);
+
 const card = page.locator('.ycard');
 const h0 = await card.evaluate((el) => el.offsetHeight);
 record('classic card has height', h0 > 700, `${h0}px`);
@@ -110,6 +114,28 @@ const previewDims = await page.evaluate(() => {
 });
 record('preview much smaller (classic < 560px visual)', previewDims.visualW <= 560, `${previewDims.visualW}px wide`);
 record('preview pane height capped', previewDims.paneH <= 480, `${previewDims.paneH}px`);
+
+// 4a4. Preview background picker: dropdown, palette colors, custom color
+await page.click('.preview-bg-btn');
+await page.waitForSelector('.preview-bg-menu');
+const bgOptCount = await page.locator('.bg-opt').count();
+record('preview bg menu opens', bgOptCount >= 6, `${bgOptCount} options`);
+await page.locator('.bg-opt:has-text("OLED Black")').click();
+await page.waitForTimeout(200);
+const paneBg = await page.evaluate(() => document.querySelector('.preview-pane').style.background);
+record('preview bg palette color applies', paneBg.includes('rgb(0, 0, 0)'), paneBg);
+await page.click('.preview-bg-btn');
+await page.locator('.bg-color-input').evaluate((el) => {
+    el.value = '#123456';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+});
+await page.waitForTimeout(200);
+const paneBg2 = await page.evaluate(() => document.querySelector('.preview-pane').style.background);
+record('preview bg custom color applies', paneBg2.includes('18, 52, 86'), paneBg2);
+// restore default checkerboard for later screenshots
+await page.click('.preview-bg-btn');
+await page.locator('.bg-opt:has-text("Checkerboard")').click();
+await page.waitForTimeout(100);
 
 // 4b. Data API live (YOUTUBE_API_KEY configured): full data, no fallback notice
 const apiData = await page.evaluate(() => {

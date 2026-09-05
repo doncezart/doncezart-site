@@ -165,6 +165,9 @@
     <div class="readout-row">
         <span class="readout-label">{label}</span>
         <span class="readout-input-wrap">
+            {#if unit}
+                <span class="readout-unit">{unit}</span>
+            {/if}
             <input
                 class="readout-input"
                 type="number"
@@ -178,9 +181,6 @@
                 onblur={commitReadout}
                 onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
             />
-            {#if unit}
-                <span class="readout-unit">{unit}</span>
-            {/if}
         </span>
     </div>
 
@@ -219,9 +219,8 @@
     }
 
     .readout-input-wrap {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
+        position: relative;
+        display: inline-block;
     }
     .readout-input {
         width: 4.5rem;
@@ -231,7 +230,7 @@
         font-family: var(--font-body);
         font-size: var(--text-sm);
         text-align: right;
-        padding: 0.2rem 0.4rem;
+        padding: 0.2rem 0.4rem 0.2rem 1.7rem;
         outline: none;
         -moz-appearance: textfield;
         appearance: textfield;
@@ -248,9 +247,14 @@
         opacity: 0.4;
     }
     .readout-unit {
-        font-size: 0.7rem;
-        opacity: 0.6;
+        position: absolute;
+        left: 0.45rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.62rem;
+        opacity: 0.55;
         color: var(--color-text-secondary);
+        pointer-events: none;
     }
 
     /* Invisible hitbox: big grab area, thin visuals. Pointer cursor, not the

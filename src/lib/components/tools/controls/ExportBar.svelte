@@ -125,12 +125,18 @@
         display: flex;
         flex-direction: column;
         gap: var(--space-sm);
+        flex: 1;
     }
 
     .export-row {
         display: flex;
         gap: var(--space-xs);
         flex-wrap: wrap;
+    }
+    .export-row > button {
+        flex: 1 1 0;
+        min-width: 0;
+        white-space: nowrap;
     }
 
     .btn-action {
@@ -162,6 +168,10 @@
         padding: 0.5rem 1.1rem;
         cursor: pointer;
         transition: opacity var(--transition-fast);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
     }
     .btn-download {
         background: var(--color-text-primary);
