@@ -9,7 +9,11 @@ const outDir = '/tmp/opencode/ytc-shots';
 mkdirSync(outDir, { recursive: true });
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+const context = await browser.newContext({
+    viewport: { width: 1600, height: 1000 },
+    permissions: ['clipboard-read', 'clipboard-write']
+});
+const page = await context.newPage();
 
 const consoleErrors = [];
 const pageErrors = [];
@@ -63,11 +67,36 @@ for (const [key, label] of layouts) {
     await page.click(`.layout-btn:has(.layout-name:text-is("${label}"))`);
     await page.waitForTimeout(900);
     const h = await card.evaluate((el) => el.offsetHeight);
-    // hero uses .hr-bg (background-image cover); all others use .yt-thumb
-    const hasMedia = await card.evaluate((el) => !!el.querySelector('.yt-thumb') || !!el.querySelector('.hr-bg'));
+    // hero/underlay use a cover background; all others use .yt-thumb
+    const hasMedia = await card.evaluate((el) => !!el.querySelector('.yt-thumb') || !!el.querySelector('.hr-bg') || !!el.querySelector('.ul-bg'));
     record(`layout ${key} renders`, h > 300 && hasMedia, `${h}px`);
     await page.screenshot({ path: `${outDir}/2-${key}.png` });
 }
+
+// 4a2. Underlay: title below the image; channel + meta stay overlaid on it
+await page.click('.layout-btn:has(.layout-name:text-is("Underlay"))');
+await page.waitForTimeout(600);
+const underlay = await page.evaluate(() => {
+    const card = document.querySelector('.ycard');
+    return {
+        titleBelow: !!card.querySelector('.ul-title-bar .yt-title'),
+        titleOnImg: !!card.querySelector('.ul-overlay .yt-title'),
+        channelOnImg: !!card.querySelector('.ul-overlay .yt-channel'),
+        metaOnImg: !!card.querySelector('.ul-overlay .yt-meta'),
+        scrim: !!card.querySelector('.ul-scrim')
+    };
+});
+record('underlay: title below image (not overlaid)', !!(underlay.titleBelow && !underlay.titleOnImg), JSON.stringify(underlay));
+record('underlay: channel/meta stay on image', !!(underlay.channelOnImg && underlay.metaOnImg), JSON.stringify(underlay));
+
+// 4a3. Compact: channel row and avatar are never rendered
+await page.click('.layout-btn:has(.layout-name:text-is("Compact"))');
+await page.waitForTimeout(600);
+const compact = await page.evaluate(() => {
+    const card = document.querySelector('.ycard');
+    return { channel: !!card.querySelector('.yt-channel'), avatar: !!card.querySelector('.yt-avatar') };
+});
+record('compact: no channel/avatar', !compact.channel && !compact.avatar, JSON.stringify(compact));
 
 // Back to classic before further checks
 await page.click('.layout-btn:has(.layout-name:text-is("Classic"))');
@@ -260,7 +289,6 @@ record('date format: absolute (US)', /\w+ \d{1,2}, \d{4}/.test(absMeta), absMeta
 await page.locator('.palette-btn').filter({ hasText: 'OLED Black' }).click();
 await page.waitForTimeout(400);
 const expectedExportW = await card.evaluate((el) => el.offsetWidth);
-await page.locator('.seg-btn:has-text("1x")').click();
 const downloadPromise = page.waitForEvent('download');
 await page.locator('.btn-download').click();
 const download = await downloadPromise;
@@ -272,14 +300,38 @@ const h = pngBuf.readUInt32BE(20);
 record('download PNG width matches card', w === expectedExportW, `${w}x${h} (card ${expectedExportW})`);
 record('download filename', download.suggestedFilename().startsWith('dQw4w9WgXcQ'), download.suggestedFilename());
 
-// 2x export
-const dl2Promise = page.waitForEvent('download');
-await page.locator('.seg-btn:has-text("2x")').click();
+// JPEG format switch
+function jpegDims(buf) {
+    let i = 2;
+    while (i < buf.length - 9) {
+        if (buf[i] !== 0xff) { i++; continue; }
+        const marker = buf[i + 1];
+        if (marker === 0xd8 || marker === 0xd9 || marker === 0x01) { i += 2; continue; }
+        if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+            return { w: buf.readUInt16BE(i + 7), h: buf.readUInt16BE(i + 5) };
+        }
+        const len = buf.readUInt16BE(i + 2);
+        i += 2 + len;
+    }
+    return null;
+}
+await page.locator('.btn-action:has-text("JPEG")').click();
+await page.waitForTimeout(200);
+const dlJpgPromise = page.waitForEvent('download');
 await page.locator('.btn-download').click();
-const dl2 = await dl2Promise;
-const pngBuf2 = await readFile(await dl2.path());
-record('2x export doubles card width', pngBuf2.readUInt32BE(16) === expectedExportW * 2,
-    `w=${pngBuf2.readUInt32BE(16)} (expected ${expectedExportW * 2})`);
+const dlJpg = await dlJpgPromise;
+const jpgBuf = await readFile(await dlJpg.path());
+const jpgD = jpegDims(jpgBuf);
+record('JPEG export matches card width', jpgD?.w === expectedExportW, `w=${jpgD?.w} (card ${expectedExportW})`);
+record('JPEG filename extension', dlJpg.suggestedFilename().endsWith('.jpg'), dlJpg.suggestedFilename());
+
+// Copy to clipboard
+await page.locator('.btn-action:has-text("PNG")').click();
+await page.waitForTimeout(200);
+await page.locator('.btn-copy').click();
+await page.waitForTimeout(1500);
+const copyLabel = await page.locator('.btn-copy').innerText();
+record('copy to clipboard works', copyLabel.includes('Copied!'), copyLabel);
 
 await page.screenshot({ path: `${outDir}/4-oled.png` });
 

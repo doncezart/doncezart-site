@@ -108,6 +108,10 @@
             // .hr-content has 56px padding; .hr-main caps at 82% of that box
             return Math.round((contentW - 112) * 0.82) - 24;
         }
+        if (config.layout === 'underlay') {
+            // title bar padding 56px each side
+            return contentW - 112;
+        }
         return Math.max(240, cw);
     }
     function descWidth() {
@@ -203,13 +207,26 @@
         </div>
     {:else if config.layout === 'underlay'}
         <div class="ul-wrap">
-            {@render thumb(thumbHeight)}
-            <div class="ul-text">
-                {@render titleEl()}
-                <div class="ul-sub">
+            <div class="ul-media" style="height:{Math.round(LW / aspect)}px">
+                {#if thumbUrl}
+                    <div class="ul-bg" style="background-image:url('{thumbUrl}')"></div>
+                {/if}
+                {#if config.modules.scrim}
+                    <div class="ul-scrim"></div>
+                {/if}
+                <div class="ul-overlay" style="color:{config.modules.scrim ? '#ffffff' : colors.text}">
                     {@render channelRow()}
-                    {@render metaEl()}
+                    <div style="color:{config.modules.scrim ? 'rgba(255,255,255,0.9)' : colors.secondary};font-size:var(--yt-meta)">
+                        {@render metaEl()}
+                    </div>
                 </div>
+                <div class="ul-corner">
+                    {@render durationBadge()}
+                    {@render liveBadge()}
+                </div>
+            </div>
+            <div class="ul-title-bar">
+                {@render titleEl()}
             </div>
         </div>
 
@@ -218,7 +235,6 @@
             {@render thumb(thumbHeight)}
             <div class="cm-text">
                 {@render titleEl()}
-                {@render channelRow()}
                 {@render metaEl()}
             </div>
         </div>
@@ -525,22 +541,49 @@
         position: static;
     }
 
-    /* ── Underlay (hero poster, title below) ── */
+    /* ── Underlay (hero poster, title moved below) ── */
     .ul-wrap {
-        display: flex;
-        flex-direction: column;
-        gap: var(--yt-thumb-gap);
+        position: relative;
     }
-    .ul-text {
+    .ul-media {
+        position: relative;
+        overflow: hidden;
+        background: #000;
+    }
+    .ul-bg {
+        position: absolute;
+        inset: 0;
+        background-size: cover;
+        background-position: center;
+    }
+    .ul-scrim {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(0, 0, 0, 0) 26%, rgba(0, 0, 0, var(--yt-scrim-a)) 100%);
+    }
+    .ul-overlay {
+        position: absolute;
+        left: 56px;
+        bottom: 56px;
         display: flex;
         flex-direction: column;
         gap: var(--yt-text-gap);
+        max-width: 82%;
     }
-    .ul-sub {
-        display: flex;
-        align-items: center;
-        gap: var(--yt-text-gap);
-        flex-wrap: wrap;
+    .ul-overlay .yt-channel {
+        color: inherit;
+    }
+    .ul-corner {
+        position: absolute;
+        right: 24px;
+        bottom: 24px;
+    }
+    .ul-corner .yt-duration,
+    .ul-corner .yt-live {
+        position: static;
+    }
+    .ul-title-bar {
+        padding: 48px 56px 56px;
     }
 
     /* ── Compact (thumb, title, views · date) ── */

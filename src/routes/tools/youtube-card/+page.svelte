@@ -106,9 +106,9 @@
     }
 
     const ratioActive = $derived(config.layout === 'split');
-    const thumbGapActive = $derived(['classic', 'stacked', 'underlay', 'compact'].includes(config.layout));
+    const thumbGapActive = $derived(['classic', 'stacked', 'compact'].includes(config.layout));
     const columnGapActive = $derived(config.layout === 'split');
-    const scrimActive = $derived(config.layout === 'hero');
+    const scrimActive = $derived(config.layout === 'hero' || config.layout === 'underlay');
 
     const accentColor = $derived(
         config.palette === 'custom' ? config.colors.accent : PALETTES[config.palette].accent
@@ -192,220 +192,99 @@
 {#if video}
     <div class="page-body">
 
-        <!-- ── Layout: full-width top band ── -->
-        <section class="band">
-            <h2 class="band-title">Layout</h2>
-            <div class="layout-grid">
-                {#each layoutKeys as key}
-                    <button
-                        class="layout-btn"
-                        class:active={config.layout === key}
-                        onclick={() => setLayout(key)}
-                    >
-                        <span class="layout-name">{LAYOUTS[key].label}</span>
-                        <span class="layout-hint">{LAYOUTS[key].hint}</span>
-                    </button>
-                {/each}
-            </div>
-            <div class="band-fields">
-                <label class="field">
-                    <span>Card aspect</span>
-                    <select bind:value={config.aspect}>
-                        <option value="auto">Auto (per layout)</option>
-                        {#each Object.keys(ASPECTS) as a}
-                            <option value={a}>{a}</option>
-                        {/each}
-                    </select>
-                </label>
-
-                <div class="field" class:disabled={!ratioActive}>
-                    <SnapSlider
-                        label="Thumb / text ratio"
-                        unit="%"
-                        bind:value={config.ratio}
-                        min={30} max={70} step={1}
-                        notches={[30, 40, 50, 60, 70]}
-                        snapDistance={3}
-                        disabled={!ratioActive}
-                    />
+        <!-- ── Row 1: Layout (buttons only) | Style ── -->
+        <div class="top-band">
+            <section class="top-col">
+                <h2 class="band-title">Layout</h2>
+                <div class="layout-grid">
+                    {#each layoutKeys as key}
+                        <button
+                            class="layout-btn"
+                            class:active={config.layout === key}
+                            onclick={() => setLayout(key)}
+                        >
+                            <span class="layout-name">{LAYOUTS[key].label}</span>
+                            <span class="layout-hint">{LAYOUTS[key].hint}</span>
+                        </button>
+                    {/each}
                 </div>
+            </section>
 
-                <div class="field">
-                    <SnapSlider
-                        label="Container size"
-                        unit="px"
-                        bind:value={config.containerSize}
-                        min={720} max={1920} step={10}
-                        notches={[720, 1080, 1280, 1440, 1920]}
-                        snapDistance={60}
-                    />
-                </div>
-
-                <div class="field" class:disabled={!columnGapActive}>
-                    <SnapSlider
-                        label="Split wideness"
-                        unit="×"
-                        bind:value={config.splitWideness}
-                        min={1.2} max={4} step={0.1}
-                        notches={[1.6, 2, 2.4, 3.2, 4]}
-                        snapDistance={0.2}
-                        disabled={!columnGapActive}
-                    />
-                </div>
-
-                <div class="field">
-                    <SnapSlider
-                        label="Thumbnail radius"
-                        unit="px"
-                        bind:value={config.radius}
-                        min={0} max={24} step={1}
-                        notches={[0, 4, 8, 12, 16, 20, 24]}
-                        snapDistance={1.5}
-                    />
-                </div>
-
-                <div class="field">
-                    <SnapSlider
-                        label="Card radius"
-                        unit="px"
-                        bind:value={config.containerRadius}
-                        min={0} max={32} step={1}
-                        notches={[0, 4, 8, 12, 16, 24, 32]}
-                        snapDistance={1.5}
-                    />
-                </div>
-
-                <div class="field">
-                    <SnapSlider
-                        label="Card padding"
-                        unit="px"
-                        bind:value={config.padding}
-                        min={0} max={80} step={1}
-                        notches={[0, 16, 32, 40, 48, 64, 80]}
-                        snapDistance={2}
-                        tune={() => (touched.padding = true)}
-                    />
-                </div>
-            </div>
-        </section>
-
-        <!-- ── Style: full-width top band ── -->
-        <section class="band">
-            <h2 class="band-title">Style</h2>
-            <div class="palette-row">
-                {#each Object.keys(PALETTES) as key}
+            <section class="top-col">
+                <h2 class="band-title">Style</h2>
+                <div class="style-row">
+                    {#each Object.keys(PALETTES) as key}
+                        <button
+                            class="palette-btn"
+                            class:active={config.palette === key}
+                            onclick={() => (config.palette = key)}
+                            title={PALETTE_NAMES[key]}
+                        >
+                            <span class="plt" style="background:{PALETTES[key].bg};color:{PALETTES[key].text};border-color:{PALETTES[key].text}">
+                                <span class="plt-dot" style="background:{PALETTES[key].accent}"></span>
+                            </span>
+                            <span class="palette-name">{PALETTE_NAMES[key]}</span>
+                        </button>
+                    {/each}
                     <button
                         class="palette-btn"
-                        class:active={config.palette === key}
-                        onclick={() => (config.palette = key)}
-                        title={PALETTE_NAMES[key]}
+                        class:active={config.palette === 'custom'}
+                        onclick={() => (config.palette = 'custom')}
                     >
-                        <span class="plt" style="background:{PALETTES[key].bg};color:{PALETTES[key].text};border-color:{PALETTES[key].text}">
-                            <span class="plt-dot" style="background:{PALETTES[key].accent}"></span>
+                        <span class="plt plt-custom">
+                            <i class="fa-solid fa-palette"></i>
                         </span>
-                        <span class="palette-name">{PALETTE_NAMES[key]}</span>
+                        <span class="palette-name">Custom</span>
                     </button>
-                {/each}
-                <button
-                    class="palette-btn"
-                    class:active={config.palette === 'custom'}
-                    onclick={() => (config.palette = 'custom')}
-                >
-                    <span class="plt plt-custom">
-                        <i class="fa-solid fa-palette"></i>
-                    </span>
-                    <span class="palette-name">Custom</span>
-                </button>
-            </div>
 
-            <div class="band-fields">
-                {#if config.palette === 'custom'}
-                    <div class="color-grid">
-                        <label class="color-field">
-                            <span>Background</span>
-                            <input type="color" bind:value={config.colors.bg} />
-                        </label>
-                        <label class="color-field">
-                            <span>Text</span>
-                            <input type="color" bind:value={config.colors.text} />
-                        </label>
-                        <label class="color-field">
-                            <span>Secondary</span>
-                            <input type="color" bind:value={config.colors.secondary} />
-                        </label>
-                        <label class="color-field">
-                            <span>Accent</span>
-                            <input type="color" bind:value={config.colors.accent} />
-                        </label>
-                    </div>
-                {/if}
-
-                <label class="field">
-                    <span>Font family</span>
-                    <select bind:value={config.font}>
-                        {#each FONTS as f}
-                            <option value={f} style="font-family:'{f}'">{f}</option>
-                        {/each}
-                    </select>
-                </label>
-
-                <div class="field">
-                    <SnapSlider
-                        label="Title size"
-                        unit="×"
-                        bind:value={config.titleScale}
-                        min={0.8} max={1.6} step={0.05}
-                        notches={[1]}
-                        snapDistance={0.05}
-                    />
-                </div>
-
-                <div class="field" class:disabled={!scrimActive}>
-                    <SnapSlider
-                        label="Scrim darkness"
-                        unit="%"
-                        bind:value={config.scrimOpacity}
-                        min={30} max={100} step={1}
-                        notches={[50, 70, 85, 100]}
-                        snapDistance={5}
-                        disabled={!scrimActive}
-                    />
-                </div>
-
-                <div class="field">
-                    <span class="ver-row">
-                        <span>Verified color</span>
-                        <span class="ver-swatches">
-                            {#each VERIFIED as v}
-                                <button
-                                    type="button"
-                                    class="ver-swatch"
-                                    class:active={config.verifiedColor === v.key}
-                                    data-v={v.key}
-                                    title={v.label}
-                                    aria-label={v.label}
-                                    style={v.bg ? `background:${v.bg}` : ''}
-                                    onclick={() => (config.verifiedColor = v.key)}
-                                >
-                                    {#if v.key === 'accent'}
-                                        <span class="ver-dot" style="background:{accentColor}"></span>
-                                    {:else if v.key === 'custom'}
-                                        <i class="fa-solid fa-palette"></i>
-                                    {:else}
-                                        <i class="fa-solid fa-check"></i>
-                                    {/if}
-                                </button>
-                            {/each}
-                            {#if config.verifiedColor === 'custom'}
-                                <input type="color" bind:value={config.verifiedColorCustom} aria-label="Custom verified color" />
-                            {/if}
+                    {#if config.palette === 'custom'}
+                        <span class="color-inline">
+                            <input type="color" bind:value={config.colors.bg} title="Background" aria-label="Background color" />
+                            <input type="color" bind:value={config.colors.text} title="Text" aria-label="Text color" />
+                            <input type="color" bind:value={config.colors.secondary} title="Secondary" aria-label="Secondary color" />
+                            <input type="color" bind:value={config.colors.accent} title="Accent" aria-label="Accent color" />
                         </span>
+                    {/if}
+
+                    <label class="inline-field">
+                        <span>Font</span>
+                        <select bind:value={config.font}>
+                            {#each FONTS as f}
+                                <option value={f} style="font-family:'{f}'">{f}</option>
+                            {/each}
+                        </select>
+                    </label>
+
+                    <span class="ver-swatches">
+                        {#each VERIFIED as v}
+                            <button
+                                type="button"
+                                class="ver-swatch"
+                                class:active={config.verifiedColor === v.key}
+                                data-v={v.key}
+                                title={v.label}
+                                aria-label={v.label}
+                                style={v.bg ? `background:${v.bg}` : ''}
+                                onclick={() => (config.verifiedColor = v.key)}
+                            >
+                                {#if v.key === 'accent'}
+                                    <span class="ver-dot" style="background:{accentColor}"></span>
+                                {:else if v.key === 'custom'}
+                                    <i class="fa-solid fa-palette"></i>
+                                {:else}
+                                    <i class="fa-solid fa-check"></i>
+                                {/if}
+                            </button>
+                        {/each}
+                        {#if config.verifiedColor === 'custom'}
+                            <input type="color" bind:value={config.verifiedColorCustom} aria-label="Custom verified color" class="ver-custom-input" />
+                        {/if}
                     </span>
                 </div>
-            </div>
-        </section>
+            </section>
+        </div>
 
-        <!-- ── Workspace: preview + right rail (spacing, export) ── -->
+        <!-- ── Row 2: Preview | all sliders (same height as preview) ── -->
         <div class="workspace">
             <div class="preview-col">
                 {#if showApiNote && !apiNoteDismissed}
@@ -441,9 +320,87 @@
             </div>
 
             <aside class="rail">
-                <!-- Spacing -->
-                <section class="rail-group">
-                    <h3>Spacing</h3>
+                <h3>Controls</h3>
+                <div class="rail-grid">
+                    <label class="field">
+                        <span>Card aspect</span>
+                        <select bind:value={config.aspect}>
+                            <option value="auto">Auto (per layout)</option>
+                            {#each Object.keys(ASPECTS) as a}
+                                <option value={a}>{a}</option>
+                            {/each}
+                        </select>
+                    </label>
+
+                    <div class="field" class:disabled={!ratioActive}>
+                        <SnapSlider
+                            label="Thumb / text ratio"
+                            unit="%"
+                            bind:value={config.ratio}
+                            min={30} max={70} step={1}
+                            notches={[30, 40, 50, 60, 70]}
+                            snapDistance={3}
+                            disabled={!ratioActive}
+                        />
+                    </div>
+
+                    <div class="field">
+                        <SnapSlider
+                            label="Container size"
+                            unit="px"
+                            bind:value={config.containerSize}
+                            min={720} max={1920} step={10}
+                            notches={[720, 1080, 1280, 1440, 1920]}
+                            snapDistance={60}
+                        />
+                    </div>
+
+                    <div class="field" class:disabled={!columnGapActive}>
+                        <SnapSlider
+                            label="Split wideness"
+                            unit="×"
+                            bind:value={config.splitWideness}
+                            min={1.2} max={4} step={0.1}
+                            notches={[1.6, 2, 2.4, 3.2, 4]}
+                            snapDistance={0.2}
+                            disabled={!columnGapActive}
+                        />
+                    </div>
+
+                    <div class="field">
+                        <SnapSlider
+                            label="Thumbnail radius"
+                            unit="px"
+                            bind:value={config.radius}
+                            min={0} max={24} step={1}
+                            notches={[0, 4, 8, 12, 16, 20, 24]}
+                            snapDistance={1.5}
+                        />
+                    </div>
+
+                    <div class="field">
+                        <SnapSlider
+                            label="Card radius"
+                            unit="px"
+                            bind:value={config.containerRadius}
+                            min={0} max={32} step={1}
+                            notches={[0, 4, 8, 12, 16, 24, 32]}
+                            snapDistance={1.5}
+                        />
+                    </div>
+
+                    <div class="field">
+                        <SnapSlider
+                            label="Card padding"
+                            unit="px"
+                            bind:value={config.padding}
+                            min={0} max={80} step={1}
+                            notches={[0, 16, 32, 40, 48, 64, 80]}
+                            snapDistance={2}
+                            tune={() => (touched.padding = true)}
+                        />
+                    </div>
+
                     <div class="field" class:disabled={!thumbGapActive}>
                         <SnapSlider
                             label="Thumbnail spacing"
@@ -456,6 +413,7 @@
                             tune={() => (touched.thumbGap = true)}
                         />
                     </div>
+
                     <div class="field" class:disabled={!columnGapActive}>
                         <SnapSlider
                             label="Column spacing"
@@ -468,6 +426,7 @@
                             tune={() => (touched.columnGap = true)}
                         />
                     </div>
+
                     <div class="field">
                         <SnapSlider
                             label="Text spacing"
@@ -479,79 +438,103 @@
                             tune={() => (touched.textGap = true)}
                         />
                     </div>
-                </section>
 
-                <!-- Export -->
-                <section class="rail-group">
-                    <h3>Export</h3>
-                    <ExportBar {cardEl} filename={video.id} />
-                    <p class="card-note">
-                        Content {config.containerSize}px · frame {config.padding}px · exports up to {exportWidth * 3}px wide · transparent PNG supported
-                    </p>
-                </section>
+                    <div class="field">
+                        <SnapSlider
+                            label="Title size"
+                            unit="×"
+                            bind:value={config.titleScale}
+                            min={0.8} max={1.6} step={0.05}
+                            notches={[1]}
+                            snapDistance={0.05}
+                        />
+                    </div>
+
+                    <div class="field" class:disabled={!scrimActive}>
+                        <SnapSlider
+                            label="Scrim darkness"
+                            unit="%"
+                            bind:value={config.scrimOpacity}
+                            min={30} max={100} step={1}
+                            notches={[50, 70, 85, 100]}
+                            snapDistance={5}
+                            disabled={!scrimActive}
+                        />
+                    </div>
+                </div>
             </aside>
         </div>
 
-        <!-- ── Content: bottom band ── -->
-        <section class="band">
-            <h2 class="band-title">Content</h2>
-            <div class="module-grid">
-                {#each modulesList as mod}
-                    <button
-                        type="button"
-                        class="module-btn"
-                        class:active={config.modules[mod.key]}
-                        role="checkbox"
-                        aria-checked={config.modules[mod.key]}
-                        onclick={() => toggleModule(mod.key)}
-                        onkeydown={(e) => (e.key === ' ' || e.key === 'Enter') && (e.preventDefault(), toggleModule(mod.key))}
-                    >
-                        <i class="fa-solid fa-check module-check" aria-hidden="true"></i>
-                        <span class="module-label">{mod.label}</span>
-                    </button>
-                {/each}
-                {#if config.layout === 'hero'}
-                    <button
-                        type="button"
-                        class="module-btn"
-                        class:active={config.modules.scrim}
-                        role="checkbox"
-                        aria-checked={config.modules.scrim}
-                        onclick={() => toggleModule('scrim')}
-                        onkeydown={(e) => (e.key === ' ' || e.key === 'Enter') && (e.preventDefault(), toggleModule('scrim'))}
-                    >
-                        <i class="fa-solid fa-check module-check" aria-hidden="true"></i>
-                        <span class="module-label">Bottom scrim</span>
-                    </button>
-                {/if}
-            </div>
+        <!-- ── Row 3: Content (preview width) | Export ── -->
+        <div class="bottom-band">
+            <section class="bottom-col content-col">
+                <h2 class="band-title">Content</h2>
+                <div class="module-grid">
+                    {#each modulesList as mod}
+                        <button
+                            type="button"
+                            class="module-btn"
+                            class:active={config.modules[mod.key]}
+                            role="checkbox"
+                            aria-checked={config.modules[mod.key]}
+                            onclick={() => toggleModule(mod.key)}
+                            onkeydown={(e) => (e.key === ' ' || e.key === 'Enter') && (e.preventDefault(), toggleModule(mod.key))}
+                        >
+                            <i class="fa-solid fa-check module-check" aria-hidden="true"></i>
+                            <span class="module-label">{mod.label}</span>
+                        </button>
+                    {/each}
+                    {#if config.layout === 'hero' || config.layout === 'underlay'}
+                        <button
+                            type="button"
+                            class="module-btn"
+                            class:active={config.modules.scrim}
+                            role="checkbox"
+                            aria-checked={config.modules.scrim}
+                            onclick={() => toggleModule('scrim')}
+                            onkeydown={(e) => (e.key === ' ' || e.key === 'Enter') && (e.preventDefault(), toggleModule('scrim'))}
+                        >
+                            <i class="fa-solid fa-check module-check" aria-hidden="true"></i>
+                            <span class="module-label">Bottom scrim</span>
+                        </button>
+                    {/if}
+                </div>
 
-            <div class="band-fields">
-                <label class="field">
-                    <span>Title lines</span>
-                    <select bind:value={config.titleLines}>
-                        {#each [1, 2, 3] as n}
-                            <option value={n}>{n}</option>
-                        {/each}
-                    </select>
-                </label>
-                <label class="field">
-                    <span>Description lines</span>
-                    <select bind:value={config.descriptionLines}>
-                        {#each [1, 2, 3] as n}
-                            <option value={n}>{n}</option>
-                        {/each}
-                    </select>
-                </label>
-                <label class="field">
-                    <span>Date format</span>
-                    <select bind:value={config.dateFormat}>
-                        <option value="absolute">July 5, 2025</option>
-                        <option value="relative">5 months ago</option>
-                    </select>
-                </label>
-            </div>
-        </section>
+                <div class="content-fields">
+                    <label class="field">
+                        <span>Title lines</span>
+                        <select bind:value={config.titleLines}>
+                            {#each [1, 2, 3] as n}
+                                <option value={n}>{n}</option>
+                            {/each}
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>Description lines</span>
+                        <select bind:value={config.descriptionLines}>
+                            {#each [1, 2, 3] as n}
+                                <option value={n}>{n}</option>
+                            {/each}
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>Date format</span>
+                        <select bind:value={config.dateFormat}>
+                            <option value="absolute">July 5, 2025</option>
+                            <option value="relative">5 months ago</option>
+                        </select>
+                    </label>
+                </div>
+            </section>
+
+            <aside class="bottom-col export-col">
+                <h2 class="band-title">Export</h2>
+                <ExportBar {cardEl} filename={video.id} />
+                <p class="card-note">
+                    Card exports at full size ({exportWidth}px wide, up to {exportWidth * 3}px with the container slider) · transparent PNG supported
+                </p>
+            </aside>
+        </div>
 
     </div>
 {/if}
@@ -648,17 +631,9 @@
         padding: 0 var(--container-pad) var(--space-4xl);
         display: flex;
         flex-direction: column;
-        gap: var(--space-xl);
-    }
-
-    /* ── Bands (full-width sections) ── */
-    .band {
-        border: var(--border);
-        padding: var(--space-lg);
-        display: flex;
-        flex-direction: column;
         gap: var(--space-lg);
     }
+
     .band-title {
         font-family: var(--font-display);
         font-size: var(--text-sm);
@@ -666,18 +641,28 @@
         letter-spacing: 0.12em;
         text-transform: uppercase;
         color: var(--color-text-primary);
+        margin: 0 0 var(--space-md);
     }
-    .band-fields {
+
+    /* ── Row 1: Layout | Style (short, single-row content) ── */
+    .top-band {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-        gap: var(--space-lg) var(--space-xl);
-        align-items: end;
+        grid-template-columns: 1.15fr 1fr;
+        border: var(--border);
+    }
+    .top-col {
+        padding: var(--space-lg);
+        min-width: 0;
+    }
+    .top-col + .top-col {
+        border-left: var(--border);
     }
 
     .layout-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
         gap: var(--space-xs);
+        align-items: stretch;
     }
     .layout-btn {
         background: transparent;
@@ -705,55 +690,27 @@
         font-weight: 600;
     }
     .layout-hint {
-        font-size: 0.68rem;
+        font-size: 0.62rem;
         font-family: var(--font-body);
-        line-height: 1.35;
+        line-height: 1.3;
         color: var(--color-text-secondary);
         opacity: 0.75;
     }
 
-    .field {
+    .style-row {
         display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-        color: var(--color-text-secondary);
-        min-width: 0;
-    }
-    .field > span {
-        display: block;
-    }
-    .field.disabled {
-        opacity: 0.4;
-        pointer-events: none;
-    }
-    .field select {
-        background: transparent;
-        border: var(--border);
-        color: var(--color-text-primary);
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-        padding: 0.4rem 0.5rem;
-        outline: none;
-    }
-    .field select option {
-        background: #0f0f0f;
-        color: var(--color-text-primary);
-    }
-
-    .palette-row {
-        display: flex;
-        flex-wrap: wrap;
+        align-items: center;
         gap: var(--space-xs);
+        flex-wrap: wrap;
+        min-height: 2rem;
     }
     .palette-btn {
         background: transparent;
         border: var(--border);
-        padding: var(--space-xs);
+        padding: 0.3rem 0.5rem;
         display: flex;
         align-items: center;
-        gap: var(--space-sm);
+        gap: 0.4rem;
         cursor: pointer;
         transition: border-color var(--transition-fast);
         min-width: 0;
@@ -765,8 +722,8 @@
         border-color: var(--color-text-primary);
     }
     .plt {
-        width: 1.5rem;
-        height: 1.5rem;
+        width: 1.1rem;
+        height: 1.1rem;
         border-radius: 50%;
         border: 1px solid rgba(255, 255, 255, 0.25);
         display: inline-flex;
@@ -775,69 +732,76 @@
         flex-shrink: 0;
     }
     .plt-dot {
-        width: 0.4rem;
-        height: 0.4rem;
+        width: 0.35rem;
+        height: 0.35rem;
         border-radius: 50%;
     }
     .plt-custom {
         background: rgba(255, 255, 255, 0.06);
         color: var(--color-text-secondary);
-        font-size: 0.7rem;
+        font-size: 0.6rem;
     }
     .palette-name {
         font-family: var(--font-body);
-        font-size: 0.72rem;
+        font-size: 0.66rem;
         color: var(--color-text-secondary);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    .color-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: var(--space-sm);
-        grid-column: 1 / -1;
+    .color-inline {
+        display: inline-flex;
+        gap: 0.25rem;
+        align-items: center;
     }
-    .color-field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.3rem;
-        font-size: 0.7rem;
-        color: var(--color-text-secondary);
-        font-family: var(--font-body);
-    }
-    .color-field input[type='color'] {
-        width: 100%;
-        height: 1.8rem;
+    .color-inline input[type='color'] {
+        width: 1.4rem;
+        height: 1.4rem;
         background: transparent;
         border: var(--border);
-        padding: 0.15rem;
+        padding: 0.1rem;
         cursor: pointer;
     }
 
-    .ver-row {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        font-size: var(--text-sm);
+    .inline-field {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-family: var(--font-body);
+        font-size: var(--text-xs);
         color: var(--color-text-secondary);
     }
+    .inline-field select {
+        background: transparent;
+        border: var(--border);
+        color: var(--color-text-primary);
+        font-family: var(--font-body);
+        font-size: var(--text-xs);
+        padding: 0.3rem 0.4rem;
+        outline: none;
+        max-width: 9rem;
+    }
+    .inline-field select option {
+        background: #0f0f0f;
+        color: var(--color-text-primary);
+    }
+
     .ver-swatches {
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: var(--space-xs);
+        gap: 0.25rem;
         flex-wrap: wrap;
     }
     .ver-swatch {
-        width: 1.6rem;
-        height: 1.6rem;
+        width: 1.4rem;
+        height: 1.4rem;
         border: var(--border);
         display: inline-flex;
         align-items: center;
         justify-content: center;
         color: #0f0f0f;
-        font-size: 0.65rem;
+        font-size: 0.55rem;
         cursor: pointer;
         padding: 0;
         transition: border-color var(--transition-fast);
@@ -851,25 +815,25 @@
         outline-offset: 2px;
     }
     .ver-dot {
-        width: 0.8rem;
-        height: 0.8rem;
+        width: 0.7rem;
+        height: 0.7rem;
         border-radius: 50%;
     }
-    .ver-swatches input[type='color'] {
-        width: 2.8rem;
-        height: 1.6rem;
+    .ver-custom-input {
+        width: 2.4rem;
+        height: 1.4rem;
         background: transparent;
         border: var(--border);
         padding: 0.1rem;
         cursor: pointer;
     }
 
-    /* ── Workspace ── */
+    /* ── Row 2: Preview | Controls rail (same height) ── */
     .workspace {
         display: grid;
         grid-template-columns: minmax(0, 1fr) 380px;
-        gap: var(--space-xl);
-        align-items: start;
+        gap: var(--space-lg);
+        align-items: stretch;
     }
 
     .preview-col {
@@ -950,6 +914,7 @@
             repeating-conic-gradient(rgba(255, 255, 255, 0.03) 0% 25%, transparent 0% 50%) 0 0 / 24px 24px,
             #0a0a0a;
         scrollbar-gutter: stable;
+        flex: 1;
     }
 
     /* margin:auto centers the stage when it fits and never clips the top when it overflows */
@@ -964,39 +929,84 @@
         box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
     }
 
-    /* ── Right rail ── */
+    /* Controls rail — hosts every slider, mirrors the preview height */
     .rail {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-lg);
-        min-width: 0;
-    }
-    .rail-group {
         border: var(--border);
         padding: var(--space-lg);
         display: flex;
         flex-direction: column;
-        gap: var(--space-lg);
+        gap: var(--space-md);
+        min-width: 0;
+        max-height: 480px;
+        box-sizing: border-box;
+        overflow-y: auto;
+        scrollbar-gutter: stable;
     }
-    .rail-group h3 {
+    .rail h3 {
         font-family: var(--font-display);
         font-size: var(--text-sm);
         font-weight: 600;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         color: var(--color-text-primary);
+        margin: 0;
     }
-    .card-note {
-        font-size: var(--text-xs);
-        color: var(--color-text-secondary);
-        opacity: 0.7;
-        line-height: 1.5;
+    .rail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-md) var(--space-lg);
+        align-items: start;
     }
 
-    /* ── Content modules ── */
+    .field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        font-family: var(--font-body);
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+        min-width: 0;
+    }
+    .field > span {
+        display: block;
+    }
+    .field.disabled {
+        opacity: 0.4;
+        pointer-events: none;
+    }
+    .field select {
+        background: transparent;
+        border: var(--border);
+        color: var(--color-text-primary);
+        font-family: var(--font-body);
+        font-size: var(--text-sm);
+        padding: 0.4rem 0.5rem;
+        outline: none;
+    }
+    .field select option {
+        background: #0f0f0f;
+        color: var(--color-text-primary);
+    }
+
+    /* ── Row 3: Content | Export ── */
+    .bottom-band {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 380px;
+        gap: var(--space-lg);
+        align-items: start;
+    }
+    .bottom-col {
+        border: var(--border);
+        padding: var(--space-lg);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-md);
+        min-width: 0;
+    }
+
     .module-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
         gap: var(--space-xs);
     }
     .module-btn {
@@ -1039,9 +1049,35 @@
         white-space: nowrap;
     }
 
+    .content-fields {
+        display: flex;
+        gap: var(--space-lg);
+        flex-wrap: wrap;
+    }
+    .content-fields .field {
+        min-width: 140px;
+        flex: 0 1 auto;
+    }
+
+    .card-note {
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+        opacity: 0.75;
+        line-height: 1.5;
+        margin: 0;
+    }
+
     /* ── Responsive ── */
     @media (max-width: 1100px) {
-        .workspace {
+        .top-band {
+            grid-template-columns: 1fr;
+        }
+        .top-col + .top-col {
+            border-left: 0;
+            border-top: var(--border);
+        }
+        .workspace,
+        .bottom-band {
             grid-template-columns: 1fr;
         }
         .input-row {
@@ -1050,6 +1086,9 @@
     }
 
     @media (max-width: 666px) {
+        .rail-grid {
+            grid-template-columns: 1fr;
+        }
         .preview-pane {
             max-height: 60vh;
         }
