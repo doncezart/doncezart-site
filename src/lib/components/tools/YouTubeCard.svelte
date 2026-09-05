@@ -1,5 +1,5 @@
 <script>
-    import { formatViews, relativeDate } from '$lib/data/yt-format.js';
+    import { formatViews, formatDate, relativeDate } from '$lib/data/yt-format.js';
     import { LAYOUTS, resolveColors, ASPECTS, naturalAspect } from './yt-config.js';
 
     let { video, config, cardEl = $bindable() } = $props();
@@ -35,11 +35,21 @@
         desc: Math.round(14 * LS)
     });
 
+    // Verified-badge fill + icon contrast: YouTube gray, white, palette accent, or custom.
+    const verifiedBg = $derived(
+        config.verifiedColor === 'white' ? '#ffffff'
+        : config.verifiedColor === 'accent' ? colors.accent
+        : config.verifiedColor === 'custom' ? (config.verifiedColorCustom ?? '#a3a3a3')
+        : '#a3a3a3'
+    );
+    const verifiedFg = $derived(verifiedBg === '#ffffff' ? '#0f0f0f' : '#ffffff');
+
     // All tunable CSS values flow through custom properties (Svelte 5 has no style interpolation).
     const cssVars = $derived(
         `--yt-font:'${config.font}',sans-serif;` +
         `--yt-bg:${colors.bg};--yt-text:${colors.text};--yt-secondary:${colors.secondary};` +
         `--yt-accent:${colors.accent};` +
+        `--yt-verified-bg:${verifiedBg};--yt-verified-fg:${verifiedFg};` +
         `--yt-radius:${config.radius}px;--yt-container-radius:${config.containerRadius ?? 0}px;` +
         `--yt-pad:${pad}px;` +
         `--yt-thumb-gap:${config.thumbGap ?? 48}px;--yt-column-gap:${config.columnGap ?? 48}px;--yt-text-gap:${config.textGap ?? 28}px;` +
@@ -116,7 +126,9 @@
     const metaLine = $derived((() => {
         if (!config.modules.meta) return '';
         const views = video?.views != null ? `${formatViews(video.views)} views` : null;
-        const date = video?.publishedAt ? relativeDate(video.publishedAt) : null;
+        const date = video?.publishedAt
+            ? (config.dateFormat === 'relative' ? relativeDate(video.publishedAt) : formatDate(video.publishedAt))
+            : null;
         return [views, date].filter(Boolean).join(' · ');
     })());
 
@@ -141,7 +153,10 @@
         </div>
 
     {:else if config.layout === 'split'}
-        <div class="sp-wrap" style="grid-template-columns:{config.ratio ?? 50}% 1fr">
+        <div
+            class="sp-wrap"
+            style="grid-template-columns:{config.ratio ?? 50}% 1fr;min-height:{Math.max(280, Math.round(LW / (config.splitWideness ?? 2.2)))}px"
+        >
             <div class="sp-media">{@render thumb('fill')}</div>
             <div class="sp-text">
                 {@render titleEl()}
@@ -186,6 +201,27 @@
                 {@render liveBadge()}
             </div>
         </div>
+    {:else if config.layout === 'underlay'}
+        <div class="ul-wrap">
+            {@render thumb(thumbHeight)}
+            <div class="ul-text">
+                {@render titleEl()}
+                <div class="ul-sub">
+                    {@render channelRow()}
+                    {@render metaEl()}
+                </div>
+            </div>
+        </div>
+
+    {:else if config.layout === 'compact'}
+        <div class="cm-wrap">
+            {@render thumb(thumbHeight)}
+            <div class="cm-text">
+                {@render titleEl()}
+                {@render channelRow()}
+                {@render metaEl()}
+            </div>
+        </div>
     {/if}
 </div>
 
@@ -217,7 +253,15 @@
     {#if config.modules.channel && video?.channel?.name}
         <div class="yt-channel">
             {#if showAvatar && video.channel.avatarUrl}
-                <img class="yt-avatar" src={video.channel.avatarUrl} alt="" crossorigin="anonymous" referrerpolicy="no-referrer" />
+                <img
+                    class="yt-avatar"
+                    src={video.channel.avatarUrl}
+                    alt=""
+                    crossorigin="anonymous"
+                    referrerpolicy="no-referrer"
+                    loading="eager"
+                    onerror={(e) => (e.currentTarget.style.display = 'none')}
+                />
             {/if}
             <span class="yt-channel-name">{video.channel.name}</span>
             {#if config.modules.verified}
@@ -351,8 +395,8 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: var(--yt-secondary);
-        color: #ffffff;
+        background: var(--yt-verified-bg);
+        color: var(--yt-verified-fg);
         flex-shrink: 0;
     }
     .yt-verified i {
@@ -398,7 +442,6 @@
         grid-template-columns: 50% 1fr;
         align-items: stretch;
         gap: var(--yt-column-gap);
-        min-height: calc(var(--yt-width) * 0.375);
     }
     .sp-media {
         position: relative;
@@ -480,5 +523,35 @@
     .hr-corner .yt-duration,
     .hr-corner .yt-live {
         position: static;
+    }
+
+    /* ── Underlay (hero poster, title below) ── */
+    .ul-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: var(--yt-thumb-gap);
+    }
+    .ul-text {
+        display: flex;
+        flex-direction: column;
+        gap: var(--yt-text-gap);
+    }
+    .ul-sub {
+        display: flex;
+        align-items: center;
+        gap: var(--yt-text-gap);
+        flex-wrap: wrap;
+    }
+
+    /* ── Compact (thumb, title, views · date) ── */
+    .cm-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: var(--yt-thumb-gap);
+    }
+    .cm-text {
+        display: flex;
+        flex-direction: column;
+        gap: var(--yt-text-gap);
     }
 </style>

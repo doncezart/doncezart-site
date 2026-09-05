@@ -60,6 +60,18 @@ export const LAYOUTS = {
 		titleSize: 24, titleWeight: 700, font: 'Archivo', descriptionOn: false,
 		defaultPadding: 0,
 		defaults: { thumb: 48, column: 48, text: 28 }
+	},
+	underlay: {
+		label: 'Underlay', hint: 'Hero poster, title below',
+		titleSize: 24, titleWeight: 700, font: 'Archivo', descriptionOn: false,
+		defaultPadding: 0,
+		defaults: { thumb: 48, column: 48, text: 28 }
+	},
+	compact: {
+		label: 'Compact', hint: 'Thumb, title, views · date',
+		titleSize: 14, titleWeight: 500, font: 'Roboto', descriptionOn: false,
+		defaultPadding: 24,
+		defaults: { thumb: 28, column: 48, text: 20 }
 	}
 };
 
@@ -67,14 +79,18 @@ export const DEFAULT_CONFIG = {
 	layout: 'classic', // key into LAYOUTS
 	aspect: 'auto', // auto | 16:9 | 4:3 | 1:1 | 4:5 | 9:16
 	ratio: 50, // thumb share % (split)
+	splitWideness: 2.2, // split card aspect (1.2–4) — higher = wider/flatter
 	containerSize: 1280, // design width 720–1920 px
-	thumbGap: 48, // space between thumbnail and text block (classic, stacked)
+	thumbGap: 48, // space between thumbnail and text block (classic, stacked, underlay, compact)
 	columnGap: 48, // space between columns (split)
 	textGap: 28, // space between title / channel / meta / description
 	radius: 12, // thumbnail corner radius 0–24 px
 	containerRadius: 0, // whole card corner radius 0–32 px
 	padding: 40, // outer frame around the static design width 0–80 px
 	scrimOpacity: 85, // hero bottom-scrim strength 30–100
+	verifiedColor: 'gray', // gray | white | accent | custom
+	verifiedColorCustom: '#a3a3a3',
+	dateFormat: 'absolute', // absolute ("July 5, 2025") | relative ("5 months ago")
 	palette: 'dark', // light | dark | oled | custom
 	colors: { bg: '#0f0f0f', text: '#f1f1f1', secondary: '#aaaaaa', accent: '#ff0000' },
 	font: 'Roboto',

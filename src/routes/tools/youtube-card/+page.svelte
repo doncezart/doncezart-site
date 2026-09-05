@@ -34,7 +34,7 @@
             const paneW = pane.clientWidth - 48;
             const paneH = pane.clientHeight - 48;
             scale = Math.min(
-                0.42,
+                0.4,
                 Math.max(0.08, paneW / (cardWidth || 1280)),
                 cardHeight > 0 ? paneH / cardHeight : 1
             );
@@ -106,9 +106,20 @@
     }
 
     const ratioActive = $derived(config.layout === 'split');
-    const thumbGapActive = $derived(config.layout === 'classic' || config.layout === 'stacked');
+    const thumbGapActive = $derived(['classic', 'stacked', 'underlay', 'compact'].includes(config.layout));
     const columnGapActive = $derived(config.layout === 'split');
     const scrimActive = $derived(config.layout === 'hero');
+
+    const accentColor = $derived(
+        config.palette === 'custom' ? config.colors.accent : PALETTES[config.palette].accent
+    );
+
+    const VERIFIED = [
+        { key: 'gray', label: 'YouTube gray', bg: '#a3a3a3' },
+        { key: 'white', label: 'White', bg: '#ffffff' },
+        { key: 'accent', label: 'Accent', bg: null }, // resolved live
+        { key: 'custom', label: 'Custom', bg: null }
+    ];
 
     // ── API fallback disclaimer ──
     const showApiNote = $derived(
@@ -179,62 +190,25 @@
 {/if}
 
 {#if video}
-    <div class="workspace">
-        <div class="preview-col">
-            {#if showApiNote && !apiNoteDismissed}
-                <div class="api-note" role="status">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                    <div class="api-note-body">
-                        <strong>Some video data couldn't be fetched</strong>
-                        <p>Duration, views, description and creator details come from the YouTube API — it appears to be down, throttled, or unreachable right now. The card generator still works fully: layouts, colors, fonts and export all function, and the thumbnail and title are loaded directly.</p>
-                        {#if video.dataError}
-                            <p class="api-note-err">
-                                API · {video.dataError.status || 'network'} — {video.dataError.message}
-                            </p>
-                        {/if}
-                        <p class="api-note-links">
-                            <a href="/contact">Report the issue</a>
-                            <span class="api-sep">·</span>
-                            <a href="https://discord.gg/aJUAyFVyqM" target="_blank" rel="noopener noreferrer">Ask on Discord</a>
-                        </p>
-                    </div>
-                    <button class="api-dismiss" onclick={dismissApiNote} aria-label="Dismiss notice">
-                        <i class="fa-solid fa-xmark"></i>
+    <div class="page-body">
+
+        <!-- ── Layout: full-width top band ── -->
+        <section class="band">
+            <h2 class="band-title">Layout</h2>
+            <div class="layout-grid">
+                {#each layoutKeys as key}
+                    <button
+                        class="layout-btn"
+                        class:active={config.layout === key}
+                        onclick={() => setLayout(key)}
+                    >
+                        <span class="layout-name">{LAYOUTS[key].label}</span>
+                        <span class="layout-hint">{LAYOUTS[key].hint}</span>
                     </button>
-                </div>
-            {/if}
-
-            <div class="preview-pane" bind:this={paneEl} style="height:{Math.min(480, Math.max(320, cardHeight * scale + 56))}px">
-                <div class="preview-stage" style="width:{cardWidth * scale}px;height:{cardHeight * scale}px">
-                    <div class="preview-scaled" style="transform:scale({scale});width:{cardWidth || 1280}px">
-                        <YouTubeCard bind:cardEl {video} {config} />
-                    </div>
-                </div>
+                {/each}
             </div>
-            <ExportBar {cardEl} filename={video.id} />
-            <p class="card-note">
-                Content {config.containerSize}px · frame {config.padding}px · exports up to {exportWidth * 3}px wide · transparent PNG supported
-            </p>
-        </div>
-
-        <aside class="controls">
-            <!-- ── Layout ── -->
-            <section class="ctrl-group">
-                <h3>Layout</h3>
-                <div class="layout-grid">
-                    {#each layoutKeys as key}
-                        <button
-                            class="layout-btn"
-                            class:active={config.layout === key}
-                            onclick={() => setLayout(key)}
-                        >
-                            <span class="layout-name">{LAYOUTS[key].label}</span>
-                            <span class="layout-hint">{LAYOUTS[key].hint}</span>
-                        </button>
-                    {/each}
-                </div>
-
-                <div class="field">
+            <div class="band-fields">
+                <label class="field">
                     <span>Card aspect</span>
                     <select bind:value={config.aspect}>
                         <option value="auto">Auto (per layout)</option>
@@ -242,7 +216,7 @@
                             <option value={a}>{a}</option>
                         {/each}
                     </select>
-                </div>
+                </label>
 
                 <div class="field" class:disabled={!ratioActive}>
                     <SnapSlider
@@ -267,41 +241,15 @@
                     />
                 </div>
 
-                <div class="field" class:disabled={!thumbGapActive}>
-                    <SnapSlider
-                        label="Thumbnail spacing"
-                        unit="px"
-                        bind:value={config.thumbGap}
-                        min={0} max={80} step={1}
-                        notches={GAP_NOTCHES}
-                        snapDistance={3}
-                        disabled={!thumbGapActive}
-                        tune={() => (touched.thumbGap = true)}
-                    />
-                </div>
-
                 <div class="field" class:disabled={!columnGapActive}>
                     <SnapSlider
-                        label="Column spacing"
-                        unit="px"
-                        bind:value={config.columnGap}
-                        min={0} max={80} step={1}
-                        notches={GAP_NOTCHES}
-                        snapDistance={3}
+                        label="Split wideness"
+                        unit="×"
+                        bind:value={config.splitWideness}
+                        min={1.2} max={4} step={0.1}
+                        notches={[1.6, 2, 2.4, 3.2, 4]}
+                        snapDistance={0.2}
                         disabled={!columnGapActive}
-                        tune={() => (touched.columnGap = true)}
-                    />
-                </div>
-
-                <div class="field">
-                    <SnapSlider
-                        label="Text spacing"
-                        unit="px"
-                        bind:value={config.textGap}
-                        min={0} max={80} step={1}
-                        notches={[0, 8, 16, 24, 32, 48]}
-                        snapDistance={2}
-                        tune={() => (touched.textGap = true)}
                     />
                 </div>
 
@@ -338,37 +286,39 @@
                         tune={() => (touched.padding = true)}
                     />
                 </div>
-            </section>
+            </div>
+        </section>
 
-            <!-- ── Style ── -->
-            <section class="ctrl-group">
-                <h3>Style</h3>
-                <div class="palette-row">
-                    {#each Object.keys(PALETTES) as key}
-                        <button
-                            class="palette-btn"
-                            class:active={config.palette === key}
-                            onclick={() => (config.palette = key)}
-                            title={PALETTE_NAMES[key]}
-                        >
-                            <span class="plt" style="background:{PALETTES[key].bg};color:{PALETTES[key].text};border-color:{PALETTES[key].text}">
-                                <span class="plt-dot" style="background:{PALETTES[key].accent}"></span>
-                            </span>
-                            <span class="palette-name">{PALETTE_NAMES[key]}</span>
-                        </button>
-                    {/each}
+        <!-- ── Style: full-width top band ── -->
+        <section class="band">
+            <h2 class="band-title">Style</h2>
+            <div class="palette-row">
+                {#each Object.keys(PALETTES) as key}
                     <button
                         class="palette-btn"
-                        class:active={config.palette === 'custom'}
-                        onclick={() => (config.palette = 'custom')}
+                        class:active={config.palette === key}
+                        onclick={() => (config.palette = key)}
+                        title={PALETTE_NAMES[key]}
                     >
-                        <span class="plt plt-custom">
-                            <i class="fa-solid fa-palette"></i>
+                        <span class="plt" style="background:{PALETTES[key].bg};color:{PALETTES[key].text};border-color:{PALETTES[key].text}">
+                            <span class="plt-dot" style="background:{PALETTES[key].accent}"></span>
                         </span>
-                        <span class="palette-name">Custom</span>
+                        <span class="palette-name">{PALETTE_NAMES[key]}</span>
                     </button>
-                </div>
+                {/each}
+                <button
+                    class="palette-btn"
+                    class:active={config.palette === 'custom'}
+                    onclick={() => (config.palette = 'custom')}
+                >
+                    <span class="plt plt-custom">
+                        <i class="fa-solid fa-palette"></i>
+                    </span>
+                    <span class="palette-name">Custom</span>
+                </button>
+            </div>
 
+            <div class="band-fields">
                 {#if config.palette === 'custom'}
                     <div class="color-grid">
                         <label class="color-field">
@@ -390,14 +340,14 @@
                     </div>
                 {/if}
 
-                <div class="field">
+                <label class="field">
                     <span>Font family</span>
                     <select bind:value={config.font}>
                         {#each FONTS as f}
                             <option value={f} style="font-family:'{f}'">{f}</option>
                         {/each}
                     </select>
-                </div>
+                </label>
 
                 <div class="field">
                     <SnapSlider
@@ -421,62 +371,188 @@
                         disabled={!scrimActive}
                     />
                 </div>
-            </section>
 
-            <!-- ── Content ── -->
-            <section class="ctrl-group">
-                <h3>Content</h3>
-                <div class="module-grid">
-                    {#each modulesList as mod}
-                        <button
-                            type="button"
-                            class="module-btn"
-                            class:active={config.modules[mod.key]}
-                            role="checkbox"
-                            aria-checked={config.modules[mod.key]}
-                            onclick={() => toggleModule(mod.key)}
-                            onkeydown={(e) => (e.key === ' ' || e.key === 'Enter') && (e.preventDefault(), toggleModule(mod.key))}
-                        >
-                            <i class="fa-solid fa-check module-check" aria-hidden="true"></i>
-                            <span class="module-label">{mod.label}</span>
-                        </button>
-                    {/each}
-                    {#if config.layout === 'hero'}
-                        <button
-                            type="button"
-                            class="module-btn"
-                            class:active={config.modules.scrim}
-                            role="checkbox"
-                            aria-checked={config.modules.scrim}
-                            onclick={() => toggleModule('scrim')}
-                            onkeydown={(e) => (e.key === ' ' || e.key === 'Enter') && (e.preventDefault(), toggleModule('scrim'))}
-                        >
-                            <i class="fa-solid fa-check module-check" aria-hidden="true"></i>
-                            <span class="module-label">Bottom scrim</span>
-                        </button>
-                    {/if}
+                <div class="field">
+                    <span class="ver-row">
+                        <span>Verified color</span>
+                        <span class="ver-swatches">
+                            {#each VERIFIED as v}
+                                <button
+                                    type="button"
+                                    class="ver-swatch"
+                                    class:active={config.verifiedColor === v.key}
+                                    data-v={v.key}
+                                    title={v.label}
+                                    aria-label={v.label}
+                                    style={v.bg ? `background:${v.bg}` : ''}
+                                    onclick={() => (config.verifiedColor = v.key)}
+                                >
+                                    {#if v.key === 'accent'}
+                                        <span class="ver-dot" style="background:{accentColor}"></span>
+                                    {:else if v.key === 'custom'}
+                                        <i class="fa-solid fa-palette"></i>
+                                    {:else}
+                                        <i class="fa-solid fa-check"></i>
+                                    {/if}
+                                </button>
+                            {/each}
+                            {#if config.verifiedColor === 'custom'}
+                                <input type="color" bind:value={config.verifiedColorCustom} aria-label="Custom verified color" />
+                            {/if}
+                        </span>
+                    </span>
                 </div>
+            </div>
+        </section>
 
-                <div class="lines-row">
-                    <label class="lines-field">
-                        <span>Title lines</span>
-                        <select bind:value={config.titleLines}>
-                            {#each [1, 2, 3] as n}
-                                <option value={n}>{n}</option>
-                            {/each}
-                        </select>
-                    </label>
-                    <label class="lines-field">
-                        <span>Desc. lines</span>
-                        <select bind:value={config.descriptionLines}>
-                            {#each [1, 2, 3] as n}
-                                <option value={n}>{n}</option>
-                            {/each}
-                        </select>
-                    </label>
+        <!-- ── Workspace: preview + right rail (spacing, export) ── -->
+        <div class="workspace">
+            <div class="preview-col">
+                {#if showApiNote && !apiNoteDismissed}
+                    <div class="api-note" role="status">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <div class="api-note-body">
+                            <strong>Some video data couldn't be fetched</strong>
+                            <p>Duration, views, description and creator details come from the YouTube API — it appears to be down, throttled, or unreachable right now. The card generator still works fully: layouts, colors, fonts and export all function, and the thumbnail and title are loaded directly.</p>
+                            {#if video.dataError}
+                                <p class="api-note-err">
+                                    API · {video.dataError.status || 'network'} — {video.dataError.message}
+                                </p>
+                            {/if}
+                            <p class="api-note-links">
+                                <a href="/contact">Report the issue</a>
+                                <span class="api-sep">·</span>
+                                <a href="https://discord.gg/aJUAyFVyqM" target="_blank" rel="noopener noreferrer">Ask on Discord</a>
+                            </p>
+                        </div>
+                        <button class="api-dismiss" onclick={dismissApiNote} aria-label="Dismiss notice">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                {/if}
+
+                <div class="preview-pane" bind:this={paneEl} style="height:{Math.min(480, Math.max(320, cardHeight * scale + 56))}px">
+                    <div class="preview-stage" style="width:{cardWidth * scale}px;height:{cardHeight * scale}px">
+                        <div class="preview-scaled" style="transform:scale({scale});width:{cardWidth || 1280}px">
+                            <YouTubeCard bind:cardEl {video} {config} />
+                        </div>
+                    </div>
                 </div>
-            </section>
-        </aside>
+            </div>
+
+            <aside class="rail">
+                <!-- Spacing -->
+                <section class="rail-group">
+                    <h3>Spacing</h3>
+                    <div class="field" class:disabled={!thumbGapActive}>
+                        <SnapSlider
+                            label="Thumbnail spacing"
+                            unit="px"
+                            bind:value={config.thumbGap}
+                            min={0} max={80} step={1}
+                            notches={GAP_NOTCHES}
+                            snapDistance={3}
+                            disabled={!thumbGapActive}
+                            tune={() => (touched.thumbGap = true)}
+                        />
+                    </div>
+                    <div class="field" class:disabled={!columnGapActive}>
+                        <SnapSlider
+                            label="Column spacing"
+                            unit="px"
+                            bind:value={config.columnGap}
+                            min={0} max={80} step={1}
+                            notches={GAP_NOTCHES}
+                            snapDistance={3}
+                            disabled={!columnGapActive}
+                            tune={() => (touched.columnGap = true)}
+                        />
+                    </div>
+                    <div class="field">
+                        <SnapSlider
+                            label="Text spacing"
+                            unit="px"
+                            bind:value={config.textGap}
+                            min={0} max={80} step={1}
+                            notches={[0, 8, 16, 24, 32, 48]}
+                            snapDistance={2}
+                            tune={() => (touched.textGap = true)}
+                        />
+                    </div>
+                </section>
+
+                <!-- Export -->
+                <section class="rail-group">
+                    <h3>Export</h3>
+                    <ExportBar {cardEl} filename={video.id} />
+                    <p class="card-note">
+                        Content {config.containerSize}px · frame {config.padding}px · exports up to {exportWidth * 3}px wide · transparent PNG supported
+                    </p>
+                </section>
+            </aside>
+        </div>
+
+        <!-- ── Content: bottom band ── -->
+        <section class="band">
+            <h2 class="band-title">Content</h2>
+            <div class="module-grid">
+                {#each modulesList as mod}
+                    <button
+                        type="button"
+                        class="module-btn"
+                        class:active={config.modules[mod.key]}
+                        role="checkbox"
+                        aria-checked={config.modules[mod.key]}
+                        onclick={() => toggleModule(mod.key)}
+                        onkeydown={(e) => (e.key === ' ' || e.key === 'Enter') && (e.preventDefault(), toggleModule(mod.key))}
+                    >
+                        <i class="fa-solid fa-check module-check" aria-hidden="true"></i>
+                        <span class="module-label">{mod.label}</span>
+                    </button>
+                {/each}
+                {#if config.layout === 'hero'}
+                    <button
+                        type="button"
+                        class="module-btn"
+                        class:active={config.modules.scrim}
+                        role="checkbox"
+                        aria-checked={config.modules.scrim}
+                        onclick={() => toggleModule('scrim')}
+                        onkeydown={(e) => (e.key === ' ' || e.key === 'Enter') && (e.preventDefault(), toggleModule('scrim'))}
+                    >
+                        <i class="fa-solid fa-check module-check" aria-hidden="true"></i>
+                        <span class="module-label">Bottom scrim</span>
+                    </button>
+                {/if}
+            </div>
+
+            <div class="band-fields">
+                <label class="field">
+                    <span>Title lines</span>
+                    <select bind:value={config.titleLines}>
+                        {#each [1, 2, 3] as n}
+                            <option value={n}>{n}</option>
+                        {/each}
+                    </select>
+                </label>
+                <label class="field">
+                    <span>Description lines</span>
+                    <select bind:value={config.descriptionLines}>
+                        {#each [1, 2, 3] as n}
+                            <option value={n}>{n}</option>
+                        {/each}
+                    </select>
+                </label>
+                <label class="field">
+                    <span>Date format</span>
+                    <select bind:value={config.dateFormat}>
+                        <option value="absolute">July 5, 2025</option>
+                        <option value="relative">5 months ago</option>
+                    </select>
+                </label>
+            </div>
+        </section>
+
     </div>
 {/if}
 
@@ -565,14 +641,234 @@
         padding: var(--space-sm) var(--container-pad) 0;
     }
 
-    /* ── Workspace ── */
-    .workspace {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 460px;
-        gap: var(--space-xl);
+    /* ── Page body ── */
+    .page-body {
         max-width: var(--container-max);
         margin: 0 auto;
         padding: 0 var(--container-pad) var(--space-4xl);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-xl);
+    }
+
+    /* ── Bands (full-width sections) ── */
+    .band {
+        border: var(--border);
+        padding: var(--space-lg);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-lg);
+    }
+    .band-title {
+        font-family: var(--font-display);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--color-text-primary);
+    }
+    .band-fields {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: var(--space-lg) var(--space-xl);
+        align-items: end;
+    }
+
+    .layout-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: var(--space-xs);
+    }
+    .layout-btn {
+        background: transparent;
+        border: var(--border);
+        color: var(--color-text-secondary);
+        padding: var(--space-sm);
+        cursor: pointer;
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+    }
+    .layout-btn:hover {
+        color: var(--color-text-primary);
+    }
+    .layout-btn.active {
+        border-color: var(--color-text-primary);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--color-text-primary);
+    }
+    .layout-name {
+        font-family: var(--font-body);
+        font-size: var(--text-sm);
+        font-weight: 600;
+    }
+    .layout-hint {
+        font-size: 0.68rem;
+        font-family: var(--font-body);
+        line-height: 1.35;
+        color: var(--color-text-secondary);
+        opacity: 0.75;
+    }
+
+    .field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        font-family: var(--font-body);
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+        min-width: 0;
+    }
+    .field > span {
+        display: block;
+    }
+    .field.disabled {
+        opacity: 0.4;
+        pointer-events: none;
+    }
+    .field select {
+        background: transparent;
+        border: var(--border);
+        color: var(--color-text-primary);
+        font-family: var(--font-body);
+        font-size: var(--text-sm);
+        padding: 0.4rem 0.5rem;
+        outline: none;
+    }
+    .field select option {
+        background: #0f0f0f;
+        color: var(--color-text-primary);
+    }
+
+    .palette-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-xs);
+    }
+    .palette-btn {
+        background: transparent;
+        border: var(--border);
+        padding: var(--space-xs);
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        cursor: pointer;
+        transition: border-color var(--transition-fast);
+        min-width: 0;
+    }
+    .palette-btn:hover {
+        border-color: var(--color-text-secondary);
+    }
+    .palette-btn.active {
+        border-color: var(--color-text-primary);
+    }
+    .plt {
+        width: 1.5rem;
+        height: 1.5rem;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .plt-dot {
+        width: 0.4rem;
+        height: 0.4rem;
+        border-radius: 50%;
+    }
+    .plt-custom {
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--color-text-secondary);
+        font-size: 0.7rem;
+    }
+    .palette-name {
+        font-family: var(--font-body);
+        font-size: 0.72rem;
+        color: var(--color-text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .color-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-sm);
+        grid-column: 1 / -1;
+    }
+    .color-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        font-size: 0.7rem;
+        color: var(--color-text-secondary);
+        font-family: var(--font-body);
+    }
+    .color-field input[type='color'] {
+        width: 100%;
+        height: 1.8rem;
+        background: transparent;
+        border: var(--border);
+        padding: 0.15rem;
+        cursor: pointer;
+    }
+
+    .ver-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+    }
+    .ver-swatches {
+        display: flex;
+        align-items: center;
+        gap: var(--space-xs);
+        flex-wrap: wrap;
+    }
+    .ver-swatch {
+        width: 1.6rem;
+        height: 1.6rem;
+        border: var(--border);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #0f0f0f;
+        font-size: 0.65rem;
+        cursor: pointer;
+        padding: 0;
+        transition: border-color var(--transition-fast);
+    }
+    .ver-swatch:hover {
+        border-color: var(--color-text-secondary);
+    }
+    .ver-swatch.active {
+        border-color: var(--color-text-primary);
+        outline: 1px solid var(--color-text-primary);
+        outline-offset: 2px;
+    }
+    .ver-dot {
+        width: 0.8rem;
+        height: 0.8rem;
+        border-radius: 50%;
+    }
+    .ver-swatches input[type='color'] {
+        width: 2.8rem;
+        height: 1.6rem;
+        background: transparent;
+        border: var(--border);
+        padding: 0.1rem;
+        cursor: pointer;
+    }
+
+    /* ── Workspace ── */
+    .workspace {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 380px;
+        gap: var(--space-xl);
         align-items: start;
     }
 
@@ -668,33 +964,21 @@
         box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
     }
 
-    .card-note {
-        font-size: var(--text-xs);
-        color: var(--color-text-secondary);
-        opacity: 0.7;
-    }
-
-    /* ── Controls ── */
-    .controls {
-        position: sticky;
-        top: calc(var(--nav-height) + 1rem);
+    /* ── Right rail ── */
+    .rail {
         display: flex;
         flex-direction: column;
         gap: var(--space-lg);
-        max-height: calc(100vh - var(--nav-height) - 2rem);
-        overflow-y: auto;
-        padding-right: var(--space-sm);
+        min-width: 0;
     }
-
-    .ctrl-group {
+    .rail-group {
         border: var(--border);
         padding: var(--space-lg);
         display: flex;
         flex-direction: column;
-        gap: var(--space-md);
+        gap: var(--space-lg);
     }
-
-    .ctrl-group h3 {
+    .rail-group h3 {
         font-family: var(--font-display);
         font-size: var(--text-sm);
         font-weight: 600;
@@ -702,150 +986,17 @@
         text-transform: uppercase;
         color: var(--color-text-primary);
     }
-
-    .layout-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--space-xs);
-    }
-    .layout-btn {
-        background: transparent;
-        border: var(--border);
+    .card-note {
+        font-size: var(--text-xs);
         color: var(--color-text-secondary);
-        padding: var(--space-sm);
-        cursor: pointer;
-        text-align: left;
-        display: flex;
-        flex-direction: column;
-        gap: 0.15rem;
-        transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
-    }
-    .layout-btn:hover {
-        color: var(--color-text-primary);
-    }
-    .layout-btn.active {
-        border-color: var(--color-text-primary);
-        background: rgba(255, 255, 255, 0.05);
-        color: var(--color-text-primary);
-    }
-    .layout-name {
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-        font-weight: 600;
-    }
-    .layout-hint {
-        font-size: 0.68rem;
-        font-family: var(--font-body);
-        line-height: 1.35;
-        color: var(--color-text-secondary);
-        opacity: 0.75;
+        opacity: 0.7;
+        line-height: 1.5;
     }
 
-    .field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-        color: var(--color-text-secondary);
-    }
-    .field > span {
-        display: block;
-    }
-    .field.disabled {
-        opacity: 0.4;
-        pointer-events: none;
-    }
-    .field select {
-        background: transparent;
-        border: var(--border);
-        color: var(--color-text-primary);
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-        padding: 0.4rem 0.5rem;
-        outline: none;
-    }
-    .field select option {
-        background: #0f0f0f;
-        color: var(--color-text-primary);
-    }
-
-    .palette-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--space-xs);
-    }
-    .palette-btn {
-        background: transparent;
-        border: var(--border);
-        padding: var(--space-xs);
-        display: flex;
-        align-items: center;
-        gap: var(--space-sm);
-        cursor: pointer;
-        transition: border-color var(--transition-fast);
-    }
-    .palette-btn:hover {
-        border-color: var(--color-text-secondary);
-    }
-    .palette-btn.active {
-        border-color: var(--color-text-primary);
-    }
-    .plt {
-        width: 1.5rem;
-        height: 1.5rem;
-        border-radius: 50%;
-        border: 1px solid rgba(255, 255, 255, 0.25);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-    .plt-dot {
-        width: 0.4rem;
-        height: 0.4rem;
-        border-radius: 50%;
-    }
-    .plt-custom {
-        background: rgba(255, 255, 255, 0.06);
-        color: var(--color-text-secondary);
-        font-size: 0.7rem;
-    }
-    .palette-name {
-        font-family: var(--font-body);
-        font-size: 0.72rem;
-        color: var(--color-text-secondary);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .color-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--space-sm);
-    }
-    .color-field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.3rem;
-        font-size: 0.7rem;
-        color: var(--color-text-secondary);
-        font-family: var(--font-body);
-    }
-    .color-field input[type='color'] {
-        width: 100%;
-        height: 1.8rem;
-        background: transparent;
-        border: var(--border);
-        padding: 0.15rem;
-        cursor: pointer;
-    }
-
-    /* Content modules: box grid with active/off styling, like the layout picker */
+    /* ── Content modules ── */
     .module-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: var(--space-xs);
     }
     .module-btn {
@@ -888,41 +1039,10 @@
         white-space: nowrap;
     }
 
-    .lines-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--space-sm);
-    }
-    .lines-field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.4rem;
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-        color: var(--color-text-secondary);
-    }
-    .lines-field select {
-        background: transparent;
-        border: var(--border);
-        color: var(--color-text-primary);
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-        padding: 0.4rem 0.5rem;
-        outline: none;
-    }
-    .lines-field select option {
-        background: #0f0f0f;
-        color: var(--color-text-primary);
-    }
-
     /* ── Responsive ── */
-    @media (max-width: 1200px) {
+    @media (max-width: 1100px) {
         .workspace {
             grid-template-columns: 1fr;
-        }
-        .controls {
-            position: static;
-            max-height: none;
         }
         .input-row {
             flex-direction: column;

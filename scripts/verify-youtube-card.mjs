@@ -54,8 +54,11 @@ record('classic card has height', h0 > 700, `${h0}px`);
 
 await page.screenshot({ path: `${outDir}/1-classic.png` });
 
-// 4. All 4 layouts render without errors
-const layouts = [['split', 'Wide Split'], ['stacked', 'Stacked'], ['hero', 'Hero']];
+// 4. All 6 layouts render without errors
+const layouts = [
+    ['split', 'Wide Split'], ['stacked', 'Stacked'], ['hero', 'Hero'],
+    ['underlay', 'Underlay'], ['compact', 'Compact']
+];
 for (const [key, label] of layouts) {
     await page.click(`.layout-btn:has(.layout-name:text-is("${label}"))`);
     await page.waitForTimeout(900);
@@ -93,6 +96,13 @@ record('data API provides duration', apiData.duration === '3:34', apiData.durati
 record('data API provides channel avatar', apiData.avatar, '');
 record('data API provides views/date meta', (apiData.meta ?? '').includes('views'), apiData.meta ?? 'missing');
 record('no fallback notice when API works', apiData.noteCount === 0, `${apiData.noteCount} notice(s)`);
+
+// 4b2. Avatar actually loads (not just an element with a src)
+const avatarLoaded = await page.evaluate(() => {
+    const img = document.querySelector('.yt-avatar');
+    return img ? img.complete && img.naturalWidth > 0 : false;
+});
+record('avatar image actually loads', avatarLoaded, '');
 
 // 4c. Variables via SnapSlider pointer drags
 async function dragSlider(label, targetValue) {
@@ -133,6 +143,16 @@ record('thumb spacing applies (classic)', thumbGapBefore !== thumbGapAfter && th
 await dragSlider('Card radius', 16); // notch
 const cardRadius = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).borderRadius);
 record('card radius applies', cardRadius === '16px', cardRadius);
+
+// Split wideness: flattens the split card (min-height = width / aspect)
+await page.click('.layout-btn:has(.layout-name:text-is("Wide Split"))');
+await page.waitForTimeout(500);
+const spMinBefore = await page.evaluate(() => getComputedStyle(document.querySelector('.sp-wrap')).minHeight);
+await dragSlider('Split wideness', 2.8); // free value between notches 2.4/3.2
+const spMinAfter = await page.evaluate(() => getComputedStyle(document.querySelector('.sp-wrap')).minHeight);
+record('split wideness adjusts card height', spMinBefore !== spMinAfter && spMinAfter === '457px', `${spMinBefore} -> ${spMinAfter}`);
+await page.click('.layout-btn:has(.layout-name:text-is("Classic"))');
+await page.waitForTimeout(400);
 
 // Container size (free value 1600 between 1440/1920)
 await dragSlider('Container size', 1600);
@@ -210,6 +230,31 @@ await page.waitForTimeout(300);
 const after = await card.evaluate((el) => el.innerText.length);
 record('module toggle removes content', after < before && (await chk.getAttribute('aria-checked')) === 'false', `${before}→${after}`);
 await chk.click();
+
+// 6b. Verified check colors
+await page.locator('.module-btn', { hasText: 'Verified check' }).click();
+await page.waitForTimeout(250);
+await page.locator('.ver-swatch[data-v="accent"]').click();
+await page.waitForTimeout(250);
+const vBgAccent = await card.evaluate((el) => getComputedStyle(el.querySelector('.yt-verified')).backgroundColor);
+record('verified color: accent', vBgAccent === 'rgb(255, 0, 0)', vBgAccent);
+await page.locator('.ver-swatch[data-v="white"]').click();
+await page.waitForTimeout(250);
+const vBgWhite = await card.evaluate((el) => getComputedStyle(el.querySelector('.yt-verified')).backgroundColor);
+record('verified color: white', vBgWhite === 'rgb(255, 255, 255)', vBgWhite);
+await page.locator('.ver-swatch[data-v="gray"]').click();
+await page.waitForTimeout(250);
+
+// 6c. Date formats
+const dateSelect = page.locator('.field', { hasText: 'Date format' }).locator('select');
+await dateSelect.selectOption('relative');
+await page.waitForTimeout(250);
+const relMeta = await card.evaluate((el) => el.querySelector('.yt-meta')?.innerText ?? '');
+record('date format: relative', relMeta.includes('ago'), relMeta);
+await dateSelect.selectOption('absolute');
+await page.waitForTimeout(250);
+const absMeta = await card.evaluate((el) => el.querySelector('.yt-meta')?.innerText ?? '');
+record('date format: absolute (US)', /\w+ \d{1,2}, \d{4}/.test(absMeta), absMeta);
 
 // 7. Export: real Download button → capture playback download, verify PNG dimensions
 await page.locator('.palette-btn').filter({ hasText: 'OLED Black' }).click();

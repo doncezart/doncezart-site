@@ -6,6 +6,13 @@ export function formatViews(n) {
 	return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
 }
 
+/** ISO date → US long form, e.g. "July 5, 2025" */
+export function formatDate(iso) {
+	const d = new Date(iso);
+	if (Number.isNaN(d.getTime())) return null;
+	return new Intl.DateTimeFormat('en-US', { dateStyle: 'long' }).format(d);
+}
+
 /** ISO date → "2 weeks ago" */
 export function relativeDate(iso) {
 	const then = new Date(iso).getTime();
