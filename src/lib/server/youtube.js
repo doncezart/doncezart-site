@@ -2,13 +2,17 @@
 // Primary: YouTube Data API v3 (needs YOUTUBE_API_KEY, 2 quota units per lookup).
 // Fallback: oEmbed + direct i.ytimg.com thumbnail URLs (no key required).
 // Results are cached in memory (TTL 30 min) to protect free API quota.
+// When the Data API fails, the fallback result carries a `dataError` field
+// ({ status, message }) so the client can explain what happened.
 
 import { HttpError } from './http-error.js';
 import { formatViews, relativeDate } from '../data/yt-format.js';
+import { env } from '$env/dynamic/private';
 
 const YT_ID_RE = /^[A-Za-z0-9_-]{11}$/;
 const CACHE_TTL = 30 * 60 * 1000;
 const CACHE_MAX = 500;
+const FETCH_TIMEOUT = 10_000;
 
 const cache = new Map(); // videoId → { data, expires }
 
@@ -54,7 +58,8 @@ export function parseIsoDuration(iso) {
 	};
 }
 
-/** Direct i.ytimg.com thumbnail chain — no API key needed.
+/**
+ * Direct i.ytimg.com thumbnail chain — no API key needed.
  * maxres 404s only on very old videos; the client falls back sd → hq.
  */
 export function ytThumbnails(id) {
@@ -76,17 +81,24 @@ export async function fetchYouTubeVideoInfo(url) {
 	const cached = cache.get(id);
 	if (cached && cached.expires > Date.now()) return cached.data;
 
-	const apiKey = process.env.YOUTUBE_API_KEY;
+	const apiKey = env.YOUTUBE_API_KEY;
 	let data = null;
+	let dataError = null;
 	if (apiKey) {
 		try {
 			data = await fetchDataApi(id, apiKey);
 		} catch (e) {
-			if (e instanceof HttpError && e.status >= 400 && e.status < 500) throw e;
-			// 5xx / network — fall through to oEmbed
+			if (e instanceof HttpError && e.status === 404) throw e;
+			dataError = e instanceof HttpError
+				? { status: e.status, message: e.message?.slice(0, 160) ?? 'Unknown error' }
+				: { status: 0, message: 'Network error' };
+			console.error(`[youtube] Data API failed for ${id}: ${dataError.status} — ${dataError.message}`);
 		}
 	}
-	if (!data) data = await fetchOembed(url, id);
+	if (!data) {
+		data = await fetchOembed(url, id);
+		data = { ...data, dataError };
+	}
 
 	if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
 	cache.set(id, { data, expires: Date.now() + CACHE_TTL });
@@ -95,13 +107,32 @@ export async function fetchYouTubeVideoInfo(url) {
 
 // ── Providers ───────────────────────────────────────────────────────────────
 
-async function fetchOembed(url, id) {
-	const r = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`);
-	if (!r.ok) {
-		if (r.status === 404) throw new HttpError(404, 'Video not found.');
-		throw new HttpError(502, 'YouTube oEmbed request failed.');
+/** fetch with an abort timeout; throws HttpError on non-OK responses. */
+async function fetchJson(url) {
+	const ctrl = new AbortController();
+	const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT);
+	try {
+		const r = await fetch(url, { signal: ctrl.signal });
+		if (!r.ok) {
+			let msg = `HTTP ${r.status}`;
+			try {
+				const j = await r.json();
+				msg = j?.error?.message ?? msg;
+			} catch { /* non-JSON error body */ }
+			throw new HttpError(r.status, msg);
+		}
+		return await r.json();
+	} catch (e) {
+		if (e instanceof HttpError) throw e;
+		if (e?.name === 'AbortError') throw new HttpError(504, 'YouTube request timed out');
+		throw new HttpError(502, 'YouTube request failed');
+	} finally {
+		clearTimeout(timer);
 	}
-	const j = await r.json();
+}
+
+async function fetchOembed(url, id) {
+	const j = await fetchJson(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`);
 	return {
 		id,
 		source: 'oembed',
@@ -117,9 +148,7 @@ async function fetchOembed(url, id) {
 
 async function fetchDataApi(id, apiKey) {
 	const videoUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${id}&key=${apiKey}`;
-	const vr = await fetch(videoUrl);
-	if (!vr.ok) throw new HttpError(502, 'YouTube Data API request failed.');
-	const vj = await vr.json();
+	const vj = await fetchJson(videoUrl);
 	const item = vj.items?.[0];
 	if (!item) throw new HttpError(404, 'Video not found.');
 
@@ -131,14 +160,11 @@ async function fetchDataApi(id, apiKey) {
 	let channel = { id: channelId, name: s.channelTitle ?? null, avatarUrl: null };
 	if (channelId) {
 		try {
-			const cr = await fetch(
+			const cj = await fetchJson(
 				`https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${channelId}&key=${apiKey}`
 			);
-			if (cr.ok) {
-				const cj = await cr.json();
-				const av = cj.items?.[0]?.snippet?.thumbnails;
-				channel.avatarUrl = av?.high?.url ?? av?.medium?.url ?? av?.default?.url ?? null;
-			}
+			const av = cj.items?.[0]?.snippet?.thumbnails;
+			channel.avatarUrl = av?.high?.url ?? av?.medium?.url ?? av?.default?.url ?? null;
 		} catch {
 			// avatar is optional — fail silently
 		}

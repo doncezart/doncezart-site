@@ -1,42 +1,74 @@
 <script>
     /**
-     * Range slider with sticky notches.
+     * Range slider with sticky notches + numeric readout.
+     * - Reads a number input above the track (label left, input right).
      * - Dragging is continuous: any value between min and max is reachable.
-     * - Passing a notch (within `snapDistance`) snaps to it and plays a tick.
-     * - Square knob + thin track, consistent with the site's no-radius aesthetic.
+     * - Passing a notch (within `snapDistance`) snaps to it and plays a
+     *   mechanical-keyboard clack.
+     * - Typed values are clamped to min/max on blur/Enter and are NOT re-snapped.
+     * - The visual track stays thin; an invisible hitbox around it makes
+     *   grabbing easy and uses a pointer cursor.
      */
     let {
         value = $bindable(),
         label = '',
+        unit = '',
         min = 0,
         max = 100,
         step = 1,
         notches = [],
         snapDistance = null,
         disabled = false,
-        sound = true,
         tune = () => {}
     } = $props();
 
     let trackEl = $state(null);
     let audioCtx = null;
 
+    // Readout draft: what the user is typing; synced from the slider position.
+    let draft = $state(value);
+
+    $effect(() => { draft = value; });
+
     const pct = (v) => Math.min(100, Math.max(0, ((v - min) / (max - min)) * 100));
 
-    function tick() {
-        if (!sound) return;
+    /** Mechanical keyboard clack: low triangle "thock" + short noise "click". */
+    function clack() {
         try {
             audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
+            const t0 = audioCtx.currentTime;
+            const duck = audioCtx.createGain();
+            duck.gain.value = 0.9;
+            duck.connect(audioCtx.destination);
+
+            // body of the keypress — low triangle thump
             const o = audioCtx.createOscillator();
             const g = audioCtx.createGain();
-            o.type = 'square';
-            o.frequency.value = 1200;
-            g.gain.setValueAtTime(0.035, audioCtx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.045);
-            o.connect(g).connect(audioCtx.destination);
-            o.start();
-            o.stop(audioCtx.currentTime + 0.045);
+            o.type = 'triangle';
+            o.frequency.value = 130 + Math.random() * 40;
+            g.gain.setValueAtTime(0.22, t0);
+            g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05);
+            o.connect(g).connect(duck);
+            o.start(t0);
+            o.stop(t0 + 0.06);
+
+            // tactile click — tiny noise burst through a bandpass
+            const len = Math.floor(audioCtx.sampleRate * 0.014);
+            const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+            const ch = buf.getChannelData(0);
+            for (let i = 0; i < len; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / len);
+            const src = audioCtx.createBufferSource();
+            src.buffer = buf;
+            const ng = audioCtx.createGain();
+            ng.gain.setValueAtTime(0.08, t0);
+            ng.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.014);
+            const filt = audioCtx.createBiquadFilter();
+            filt.type = 'bandpass';
+            filt.frequency.value = 3000 + Math.random() * 800;
+            filt.Q.value = 1.2;
+            src.connect(filt).connect(ng).connect(duck);
+            src.start(t0);
         } catch {
             // audio unavailable (headless, blocked) — dragging still works
         }
@@ -66,7 +98,7 @@
         const target = snapTarget(v);
         if (target != null) {
             if (target !== lastSnapped) {
-                tick();
+                clack();
                 lastSnapped = target;
                 value = target;
                 tune();
@@ -116,47 +148,130 @@
             value = max;
         }
     }
+
+    /** Commit typed input: clamp to [min, max]; typed values are final (no re-snap). */
+    function commitReadout() {
+        const parsed = Number(draft);
+        const clamped = Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : min;
+        if (clamped !== value) {
+            value = +clamped.toFixed(4);
+            tune();
+        }
+        draft = value;
+    }
 </script>
 
 <div class="snap" class:disabled>
+    <div class="readout-row">
+        <span class="readout-label">{label}</span>
+        <span class="readout-input-wrap">
+            <input
+                class="readout-input"
+                type="number"
+                min={min}
+                max={max}
+                step={step}
+                bind:value={draft}
+                disabled={disabled}
+                placeholder={String(min)}
+                aria-label={label}
+                onblur={commitReadout}
+                onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+            />
+            {#if unit}
+                <span class="readout-unit">{unit}</span>
+            {/if}
+        </span>
+    </div>
+
     <div
-        class="track"
-        bind:this={trackEl}
+        class="hitbox"
         role="slider"
         tabindex={disabled ? -1 : 0}
         aria-label={label}
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={value}
-        aria-valuetext={`${value}`}
+        aria-valuetext={`${value}${unit}`}
         aria-disabled={disabled}
         onpointerdown={onDown}
         onkeydown={onKey}
     >
-        <div class="fill" style="width:{pct(value)}%"></div>
-        <div class="knob" style="left:{pct(value)}%"></div>
-        {#each notches as n}
-            <div class="tick" style="left:{pct(n)}%"></div>
-        {/each}
+        <div class="track" bind:this={trackEl}>
+            <div class="fill" style="width:{pct(value)}%"></div>
+            <div class="knob" style="left:{pct(value)}%"></div>
+            {#each notches as n}
+                <div class="tick" style="left:{pct(n)}%"></div>
+            {/each}
+        </div>
     </div>
 </div>
 
 <style>
+    .readout-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-sm);
+        font-family: var(--font-body);
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+    }
+
+    .readout-input-wrap {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+    .readout-input {
+        width: 4.5rem;
+        background: transparent;
+        border: var(--border);
+        color: var(--color-text-primary);
+        font-family: var(--font-body);
+        font-size: var(--text-sm);
+        text-align: right;
+        padding: 0.2rem 0.4rem;
+        outline: none;
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+    .readout-input::-webkit-outer-spin-button,
+    .readout-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    .readout-input:focus {
+        border-color: var(--color-text-primary);
+    }
+    .readout-input:disabled {
+        opacity: 0.4;
+    }
+    .readout-unit {
+        font-size: 0.7rem;
+        opacity: 0.6;
+        color: var(--color-text-secondary);
+    }
+
+    /* Invisible hitbox: big grab area, thin visuals. Pointer cursor, not the
+       resize one — the knob reads as the handle but the whole row works. */
+    .hitbox {
+        position: relative;
+        padding: 18px 12px;
+        margin: -18px -12px;
+        cursor: pointer;
+        touch-action: none;
+        outline: none;
+    }
+    .hitbox:focus-visible .track {
+        outline: 1px solid var(--color-text-primary);
+        outline-offset: 6px;
+    }
+
     .track {
         position: relative;
         height: 4px;
         background: rgba(255, 255, 255, 0.15);
-        cursor: ew-resize;
-        touch-action: none;
-        outline: none;
-    }
-    .track:focus-visible {
-        outline: 1px solid var(--color-text-primary);
-        outline-offset: 4px;
-    }
-    .snap.disabled {
-        opacity: 0.4;
-        pointer-events: none;
     }
 
     .fill {
@@ -184,6 +299,11 @@
         height: 10px;
         background: rgba(255, 255, 255, 0.5);
         transform: translateX(-50%);
+        pointer-events: none;
+    }
+
+    .snap.disabled {
+        opacity: 0.4;
         pointer-events: none;
     }
 </style>

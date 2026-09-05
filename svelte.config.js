@@ -23,7 +23,8 @@ const config = {
 					'https://doncezart.nyc3.cdn.digitaloceanspaces.com',
 					'https://cdn.doncez.art',
 					'https://i.ytimg.com',
-					'https://yt3.googleusercontent.com'
+					'https://yt3.googleusercontent.com',
+					'https://yt3.ggpht.com'
 				],
 				'media-src': ["'self'", 'https://cdn.doncez.art'],
 				'connect-src': [
@@ -31,7 +32,8 @@ const config = {
 					'https://challenges.cloudflare.com',
 					'https://analytics.ceza.ro',
 					'https://i.ytimg.com',
-					'https://yt3.googleusercontent.com'
+					'https://yt3.googleusercontent.com',
+					'https://yt3.ggpht.com'
 				],
 				'frame-src': ['https://challenges.cloudflare.com'],
 				'object-src': ["'none'"],

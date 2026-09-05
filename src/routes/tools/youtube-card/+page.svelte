@@ -15,7 +15,6 @@
     let video = $state(null);
     let config = $state(structuredClone(DEFAULT_CONFIG));
     let cardEl = $state(null);
-    let soundsOn = $state(true);
 
     // Per-layout defaults are applied on layout switch until the user tunes a value.
     const touched = $state({ padding: false, thumbGap: false, columnGap: false, textGap: false });
@@ -102,6 +101,10 @@
         { key: 'live', label: 'LIVE badge' }
     ];
 
+    function toggleModule(key) {
+        config.modules[key] = !config.modules[key];
+    }
+
     const ratioActive = $derived(config.layout === 'split');
     const thumbGapActive = $derived(config.layout === 'classic' || config.layout === 'stacked');
     const columnGapActive = $derived(config.layout === 'split');
@@ -184,6 +187,11 @@
                     <div class="api-note-body">
                         <strong>Some video data couldn't be fetched</strong>
                         <p>Duration, views, description and creator details come from the YouTube API — it appears to be down, throttled, or unreachable right now. The card generator still works fully: layouts, colors, fonts and export all function, and the thumbnail and title are loaded directly.</p>
+                        {#if video.dataError}
+                            <p class="api-note-err">
+                                API · {video.dataError.status || 'network'} — {video.dataError.message}
+                            </p>
+                        {/if}
                         <p class="api-note-links">
                             <a href="/contact">Report the issue</a>
                             <span class="api-sep">·</span>
@@ -226,7 +234,7 @@
                     {/each}
                 </div>
 
-                <label class="field">
+                <div class="field">
                     <span>Card aspect</span>
                     <select bind:value={config.aspect}>
                         <option value="auto">Auto (per layout)</option>
@@ -234,110 +242,102 @@
                             <option value={a}>{a}</option>
                         {/each}
                     </select>
-                </label>
+                </div>
 
-                <label class="field" class:disabled={!ratioActive}>
-                    <span>Thumbnail / text ratio — {config.ratio}%</span>
+                <div class="field" class:disabled={!ratioActive}>
                     <SnapSlider
+                        label="Thumb / text ratio"
+                        unit="%"
                         bind:value={config.ratio}
-                        label="Thumbnail / text ratio"
                         min={30} max={70} step={1}
                         notches={[30, 40, 50, 60, 70]}
                         snapDistance={3}
                         disabled={!ratioActive}
-                        sound={soundsOn}
                     />
-                </label>
+                </div>
 
-                <label class="field">
-                    <span>Container size — {config.containerSize}px</span>
+                <div class="field">
                     <SnapSlider
-                        bind:value={config.containerSize}
                         label="Container size"
+                        unit="px"
+                        bind:value={config.containerSize}
                         min={720} max={1920} step={10}
                         notches={[720, 1080, 1280, 1440, 1920]}
                         snapDistance={60}
-                        sound={soundsOn}
                     />
-                </label>
+                </div>
 
-                <label class="field" class:disabled={!thumbGapActive}>
-                    <span>Thumbnail spacing — {config.thumbGap}px</span>
+                <div class="field" class:disabled={!thumbGapActive}>
                     <SnapSlider
-                        bind:value={config.thumbGap}
                         label="Thumbnail spacing"
+                        unit="px"
+                        bind:value={config.thumbGap}
                         min={0} max={80} step={1}
                         notches={GAP_NOTCHES}
                         snapDistance={3}
                         disabled={!thumbGapActive}
-                        sound={soundsOn}
                         tune={() => (touched.thumbGap = true)}
                     />
-                </label>
+                </div>
 
-                <label class="field" class:disabled={!columnGapActive}>
-                    <span>Column spacing — {config.columnGap}px</span>
+                <div class="field" class:disabled={!columnGapActive}>
                     <SnapSlider
-                        bind:value={config.columnGap}
                         label="Column spacing"
+                        unit="px"
+                        bind:value={config.columnGap}
                         min={0} max={80} step={1}
                         notches={GAP_NOTCHES}
                         snapDistance={3}
                         disabled={!columnGapActive}
-                        sound={soundsOn}
                         tune={() => (touched.columnGap = true)}
                     />
-                </label>
+                </div>
 
-                <label class="field">
-                    <span>Text spacing — {config.textGap}px</span>
+                <div class="field">
                     <SnapSlider
-                        bind:value={config.textGap}
                         label="Text spacing"
+                        unit="px"
+                        bind:value={config.textGap}
                         min={0} max={80} step={1}
                         notches={[0, 8, 16, 24, 32, 48]}
                         snapDistance={2}
-                        sound={soundsOn}
                         tune={() => (touched.textGap = true)}
                     />
-                </label>
+                </div>
 
-                <label class="field">
-                    <span>Thumbnail radius — {config.radius}px</span>
+                <div class="field">
                     <SnapSlider
-                        bind:value={config.radius}
                         label="Thumbnail radius"
+                        unit="px"
+                        bind:value={config.radius}
                         min={0} max={24} step={1}
                         notches={[0, 4, 8, 12, 16, 20, 24]}
                         snapDistance={1.5}
-                        sound={soundsOn}
                     />
-                </label>
+                </div>
 
-                <label class="field">
-                    <span>Card radius — {config.containerRadius}px</span>
+                <div class="field">
                     <SnapSlider
-                        bind:value={config.containerRadius}
                         label="Card radius"
+                        unit="px"
+                        bind:value={config.containerRadius}
                         min={0} max={32} step={1}
                         notches={[0, 4, 8, 12, 16, 24, 32]}
                         snapDistance={1.5}
-                        sound={soundsOn}
                     />
-                </label>
+                </div>
 
-                <label class="field">
-                    <span>Card padding — {config.padding}px</span>
+                <div class="field">
                     <SnapSlider
-                        bind:value={config.padding}
                         label="Card padding"
+                        unit="px"
+                        bind:value={config.padding}
                         min={0} max={80} step={1}
                         notches={[0, 16, 32, 40, 48, 64, 80]}
                         snapDistance={2}
-                        sound={soundsOn}
                         tune={() => (touched.padding = true)}
                     />
-                </label>
+                </div>
             </section>
 
             <!-- ── Style ── -->
@@ -390,80 +390,91 @@
                     </div>
                 {/if}
 
-                <label class="field">
+                <div class="field">
                     <span>Font family</span>
                     <select bind:value={config.font}>
                         {#each FONTS as f}
                             <option value={f} style="font-family:'{f}'">{f}</option>
                         {/each}
                     </select>
-                </label>
+                </div>
 
-                <label class="field">
-                    <span>Title size — {Math.round(config.titleScale * 100)}%</span>
+                <div class="field">
                     <SnapSlider
-                        bind:value={config.titleScale}
                         label="Title size"
+                        unit="×"
+                        bind:value={config.titleScale}
                         min={0.8} max={1.6} step={0.05}
                         notches={[1]}
                         snapDistance={0.05}
-                        sound={soundsOn}
                     />
-                </label>
+                </div>
 
-                <label class="field" class:disabled={!scrimActive}>
-                    <span>Scrim darkness — {config.scrimOpacity}%</span>
+                <div class="field" class:disabled={!scrimActive}>
                     <SnapSlider
-                        bind:value={config.scrimOpacity}
                         label="Scrim darkness"
+                        unit="%"
+                        bind:value={config.scrimOpacity}
                         min={30} max={100} step={1}
                         notches={[50, 70, 85, 100]}
                         snapDistance={5}
                         disabled={!scrimActive}
-                        sound={soundsOn}
                     />
-                </label>
-
-                <label class="toggle">
-                    <input type="checkbox" bind:checked={soundsOn} />
-                    <span>Snap sounds</span>
-                </label>
+                </div>
             </section>
 
             <!-- ── Content ── -->
             <section class="ctrl-group">
                 <h3>Content</h3>
-                <div class="toggle-list">
+                <div class="module-grid">
                     {#each modulesList as mod}
-                        <label class="toggle">
-                            <input type="checkbox" bind:checked={config.modules[mod.key]} />
-                            <span>{mod.label}</span>
-                        </label>
+                        <button
+                            type="button"
+                            class="module-btn"
+                            class:active={config.modules[mod.key]}
+                            role="checkbox"
+                            aria-checked={config.modules[mod.key]}
+                            onclick={() => toggleModule(mod.key)}
+                            onkeydown={(e) => (e.key === ' ' || e.key === 'Enter') && (e.preventDefault(), toggleModule(mod.key))}
+                        >
+                            <i class="fa-solid fa-check module-check" aria-hidden="true"></i>
+                            <span class="module-label">{mod.label}</span>
+                        </button>
                     {/each}
                     {#if config.layout === 'hero'}
-                        <label class="toggle">
-                            <input type="checkbox" bind:checked={config.modules.scrim} />
-                            <span>Bottom scrim (hero overlay)</span>
-                        </label>
+                        <button
+                            type="button"
+                            class="module-btn"
+                            class:active={config.modules.scrim}
+                            role="checkbox"
+                            aria-checked={config.modules.scrim}
+                            onclick={() => toggleModule('scrim')}
+                            onkeydown={(e) => (e.key === ' ' || e.key === 'Enter') && (e.preventDefault(), toggleModule('scrim'))}
+                        >
+                            <i class="fa-solid fa-check module-check" aria-hidden="true"></i>
+                            <span class="module-label">Bottom scrim</span>
+                        </button>
                     {/if}
                 </div>
 
-                <label class="field">
-                    <span>Title lines</span>
-                    <select bind:value={config.titleLines}>
-                        {#each [1, 2, 3] as n}
-                            <option value={n}>{n}</option>
-                        {/each}
-                    </select>
-                </label>
-                <label class="field">
-                    <span>Description lines</span>
-                    <select bind:value={config.descriptionLines}>
-                        {#each [1, 2, 3] as n}
-                            <option value={n}>{n}</option>
-                        {/each}
-                    </select>
-                </label>
+                <div class="lines-row">
+                    <label class="lines-field">
+                        <span>Title lines</span>
+                        <select bind:value={config.titleLines}>
+                            {#each [1, 2, 3] as n}
+                                <option value={n}>{n}</option>
+                            {/each}
+                        </select>
+                    </label>
+                    <label class="lines-field">
+                        <span>Desc. lines</span>
+                        <select bind:value={config.descriptionLines}>
+                            {#each [1, 2, 3] as n}
+                                <option value={n}>{n}</option>
+                            {/each}
+                        </select>
+                    </label>
+                </div>
             </section>
         </aside>
     </div>
@@ -603,6 +614,11 @@
         color: var(--color-text-secondary);
         margin-top: 0.35rem;
     }
+    .api-note-err {
+        color: #ff6b6b !important;
+        font-family: var(--font-body);
+        word-break: break-word;
+    }
     .api-note-links a {
         color: var(--color-text-primary);
         font-weight: 600;
@@ -733,6 +749,9 @@
         font-size: var(--text-sm);
         color: var(--color-text-secondary);
     }
+    .field > span {
+        display: block;
+    }
     .field.disabled {
         opacity: 0.4;
         pointer-events: none;
@@ -823,27 +842,76 @@
         cursor: pointer;
     }
 
-    .toggle-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.3rem;
+    /* Content modules: box grid with active/off styling, like the layout picker */
+    .module-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-xs);
     }
-    .toggle {
+    .module-btn {
         display: flex;
         align-items: center;
+        gap: 0.5rem;
+        background: transparent;
+        border: var(--border);
+        color: var(--color-text-secondary);
+        font-family: var(--font-body);
+        font-size: 0.72rem;
+        padding: 0.5rem 0.6rem;
+        cursor: pointer;
+        text-align: left;
+        transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+    }
+    .module-btn:hover {
+        color: var(--color-text-primary);
+    }
+    .module-btn.active {
+        border-color: var(--color-text-primary);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--color-text-primary);
+    }
+    .module-check {
+        font-size: 0.58rem;
+        width: 0.8rem;
+        color: var(--color-text-primary);
+        opacity: 0;
+        transition: opacity var(--transition-fast);
+        flex-shrink: 0;
+    }
+    .module-btn.active .module-check {
+        opacity: 1;
+    }
+    .module-label {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .lines-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         gap: var(--space-sm);
+    }
+    .lines-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
         font-family: var(--font-body);
         font-size: var(--text-sm);
         color: var(--color-text-secondary);
-        cursor: pointer;
     }
-    .toggle input {
-        accent-color: var(--color-text-primary);
-        width: 1rem;
-        height: 1rem;
-        cursor: pointer;
+    .lines-field select {
+        background: transparent;
+        border: var(--border);
+        color: var(--color-text-primary);
+        font-family: var(--font-body);
+        font-size: var(--text-sm);
+        padding: 0.4rem 0.5rem;
+        outline: none;
     }
-    .toggle:hover {
+    .lines-field select option {
+        background: #0f0f0f;
         color: var(--color-text-primary);
     }
 

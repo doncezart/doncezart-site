@@ -79,28 +79,42 @@ const previewDims = await page.evaluate(() => {
 record('preview much smaller (classic < 560px visual)', previewDims.visualW <= 560, `${previewDims.visualW}px wide`);
 record('preview pane height capped', previewDims.paneH <= 480, `${previewDims.paneH}px`);
 
-// 4b. API fallback notice (oEmbed mode → no API key) shows and dismisses
-const noteText = await page.locator('.api-note').innerText().catch(() => '');
-record('api fallback notice shown', noteText.includes('couldn\'t be fetched'), noteText.slice(0, 60));
-await page.click('.api-dismiss');
-record('notice dismissible', (await page.locator('.api-note').count()) === 0, '');
+// 4b. Data API live (YOUTUBE_API_KEY configured): full data, no fallback notice
+const apiData = await page.evaluate(() => {
+    const card = document.querySelector('.ycard');
+    return {
+        duration: card.querySelector('.yt-duration')?.innerText ?? null,
+        avatar: !!card.querySelector('.yt-avatar'),
+        meta: card.querySelector('.yt-meta')?.innerText ?? null,
+        noteCount: document.querySelectorAll('.api-note').length
+    };
+});
+record('data API provides duration', apiData.duration === '3:34', apiData.duration ?? 'missing');
+record('data API provides channel avatar', apiData.avatar, '');
+record('data API provides views/date meta', (apiData.meta ?? '').includes('views'), apiData.meta ?? 'missing');
+record('no fallback notice when API works', apiData.noteCount === 0, `${apiData.noteCount} notice(s)`);
 
 // 4c. Variables via SnapSlider pointer drags
 async function dragSlider(label, targetValue) {
     const field = page.locator('.field', { hasText: label });
     const track = field.locator('.snap .track');
-    await track.scrollIntoViewIfNeeded();
-    const box = await track.boundingBox();
-    const bounds = await track.evaluate((el) => ({
-        min: +el.getAttribute('aria-valuemin'),
-        max: +el.getAttribute('aria-valuemax')
-    }));
-    const t = (targetValue - bounds.min) / (bounds.max - bounds.min);
-    const x = box.x + box.width * t;
-    const y = box.y + box.height / 2;
-    await page.mouse.move(x, y);
-    await page.mouse.down();
-    await page.mouse.up();
+    const bounds = await track.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const hit = el.closest('.hitbox');
+        return {
+            min: +hit.getAttribute('aria-valuemin'),
+            max: +hit.getAttribute('aria-valuemax'),
+            left: r.left,
+            width: r.width
+        };
+    });
+    const x = bounds.left + bounds.width * ((targetValue - bounds.min) / (bounds.max - bounds.min));
+    await track.evaluate((el, cx) => {
+        const hitbox = el.closest('.hitbox');
+        hitbox.dispatchEvent(new PointerEvent('pointerdown', { clientX: cx, bubbles: true }));
+        window.dispatchEvent(new PointerEvent('pointermove', { clientX: cx + 0.1, bubbles: true }));
+        window.dispatchEvent(new PointerEvent('pointerup', { clientX: cx + 0.1, bubbles: true }));
+    }, x);
     await page.waitForTimeout(350);
 }
 
@@ -161,6 +175,23 @@ record('scrim darkness configurable', scrimDefault !== scrimTuned && scrimTuned.
 await page.click('.layout-btn:has(.layout-name:text-is("Classic"))');
 await page.waitForTimeout(400);
 
+// 4d. Numeric readouts: sync with slider, clamp out-of-range, accept manual values
+const readout = page.locator('.field', { hasText: 'Card padding' }).locator('input[type=number]');
+await dragSlider('Card padding', 53);
+record('readout syncs with slider', (await readout.inputValue()) === '53', await readout.inputValue());
+await readout.fill('999');
+await readout.press('Enter');
+await page.waitForTimeout(200);
+record('readout clamps to max', (await readout.inputValue()) === '80', await readout.inputValue());
+await readout.fill('17');
+await readout.blur();
+await page.waitForTimeout(200);
+record('readout accepts manual value', (await readout.inputValue()) === '17', await readout.inputValue());
+
+// 4e. Slider hitbox: expanded + pointer cursor
+const hitCursor = await page.evaluate(() => getComputedStyle(document.querySelector('.hitbox')).cursor);
+record('slider hitbox has pointer cursor', hitCursor === 'pointer', hitCursor);
+
 // 5. Palettes apply
 await page.locator('.palette-btn').filter({ hasText: 'YouTube Light' }).click();
 await page.waitForTimeout(400);
@@ -170,16 +201,15 @@ await page.screenshot({ path: `${outDir}/3-light.png` });
 await page.locator('.palette-btn').filter({ hasText: 'OLED Black' }).click();
 await page.waitForTimeout(400);
 
-// 6. Module toggles hide content
+// 6. Module toggles hide content (box grid)
 const before = await card.evaluate((el) => el.innerText.length);
-await page.click('.toggle:has-text("Channel name") input, .toggle >> text=Channel name >> .. >> input').catch(() => {});
-// click via label text reliably:
-const chk = page.locator('.toggle', { hasText: 'Channel name' }).locator('input');
-await chk.uncheck();
+const chk = page.locator('.module-btn', { hasText: 'Channel name' });
+record('module box 2-state', (await chk.getAttribute('aria-checked')) === 'true', 'aria-checked');
+await chk.click();
 await page.waitForTimeout(300);
 const after = await card.evaluate((el) => el.innerText.length);
-record('channel toggle removes content', after < before, `${before}→${after}`);
-await chk.check();
+record('module toggle removes content', after < before && (await chk.getAttribute('aria-checked')) === 'false', `${before}→${after}`);
+await chk.click();
 
 // 7. Export: real Download button → capture playback download, verify PNG dimensions
 await page.locator('.palette-btn').filter({ hasText: 'OLED Black' }).click();

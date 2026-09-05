@@ -128,7 +128,7 @@ Each layout defines: aspect (its own, or user-overridable), padding default (`de
 
 ### 5.1 Global style controls
 
-All sliders are **notch sliders** (`SnapSlider.svelte`): they snap to marked ticks with a short WebAudio tick (mutable via "Snap sounds"), while any value between notches remains reachable — snap distance is always smaller than half the notch interval so free values always exist.
+All sliders are **notch sliders** (`SnapSlider.svelte`): they snap to marked ticks with a mechanical-keyboard clack sound (WebAudio, always on), while any value between notches remains reachable — snap distance is always smaller than half the notch interval so free values always exist. Every slider has a numeric readout above the track (label left, input right): it follows the slider position and accepts typed values clamped to min/max on blur/Enter (typed values are final, never re-snapped).
 
 | Control | Options |
 |---|---|
@@ -149,7 +149,7 @@ All sliders are **notch sliders** (`SnapSlider.svelte`): they snap to marked tic
 
 ### 5.2 API fallback notice
 
-When the server falls back to oEmbed (no `YOUTUBE_API_KEY`, quota exhausted, or the Data API is down), several fields are unavailable (duration, views, description, channel avatar, publish date). The editor shows a dismissible notice above the preview: it states that basic functionality still works, names what's missing, and links to the contact page and Discord. Re-shown per session until dismissed.
+When the server falls back to oEmbed (no `YOUTUBE_API_KEY`, quota exhausted, or the Data API is down), several fields are unavailable (duration, views, description, channel avatar, publish date). The editor shows a dismissible notice above the preview: it states that basic functionality still works, names what's missing, prints the exact API error (`dataError.status/message` from the server) when one exists, and links to the contact page and Discord. Re-shown per session until dismissed.
 
 **Color palettes:** YouTube Light (`#fff` / `#0f0f0f` / `#606060` / `#ff0000`), YouTube Dark (`#0f0f0f` / `#f1f1f1` / `#aaa` / `#ff0000`), OLED Black (`#000` / `#fff` / `#8b989c` / `#ff0000`), and **Custom** (unlocks the four pickers).
 
