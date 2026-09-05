@@ -1,6 +1,6 @@
 <script>
     import { formatViews, relativeDate } from '$lib/data/yt-format.js';
-    import { LAYOUTS, resolveColors, ASPECTS, naturalAspect, layoutWidth } from './yt-config.js';
+    import { LAYOUTS, resolveColors, ASPECTS, naturalAspect } from './yt-config.js';
 
     let { video, config, cardEl = $bindable() } = $props();
 
@@ -8,32 +8,31 @@
 
     const colors = $derived(resolveColors(config));
 
-    // Per-layout design width + scale (vertical cards are 720 wide, like real Shorts frames).
-    const LW = $derived(layoutWidth(config.layout));
+    // Container design width (user-controlled) + per-layout scale.
+    const LW = $derived(config.containerSize ?? 1280);
     const LS = $derived(LW / 360);
 
     const pad = $derived(config.padding ?? 0);
-    const contentW = $derived(LW - pad * 2);
+    // Content area stays static when padding changes (padding is an outer frame).
+    const contentW = $derived(LW);
 
     const aspect = $derived(config.aspect === 'auto' ? naturalAspect(config.layout) : (ASPECTS[config.aspect] ?? 16 / 9));
 
     // Exact card height for cover-fill layouts; min-height for the rest when an aspect is forced.
-    const exactHeight = $derived(config.layout === 'hero' || config.layout === 'vertical'
+    const exactHeight = $derived(config.layout === 'hero'
         ? Math.round(LW / aspect)
         : null);
     const minHeight = $derived(exactHeight ?? (config.aspect !== 'auto' ? Math.round(LW / aspect) : null));
 
     // ── Shared metrics (multiplied from the 360px YouTube reference) ──
     const m = $derived({
-        gap: Math.round(12 * LS * (config.spacing ?? 1)), // outer block gap
-        gapT: Math.round(8 * LS * (config.spacing ?? 1)), // inner (title→channel→meta) gap
-        name: Math.round(12 * LS), // 43 @1280
-        avatar: Math.round(24 * LS), // 85 @1280
+        name: Math.round(12 * LS),
+        avatar: Math.round(24 * LS),
         badgeFont: Math.round(12 * LS),
         badgeRadius: Math.round(4 * LS),
         badgePad: Math.round(4 * LS),
         meta: Math.round(12 * LS),
-        desc: Math.round(14 * LS) // 50 @1280
+        desc: Math.round(14 * LS)
     });
 
     // All tunable CSS values flow through custom properties (Svelte 5 has no style interpolation).
@@ -43,7 +42,8 @@
         `--yt-accent:${colors.accent};` +
         `--yt-radius:${config.radius}px;--yt-container-radius:${config.containerRadius ?? 0}px;` +
         `--yt-pad:${pad}px;` +
-        `--yt-gap:${m.gap}px;--yt-gap-t:${m.gapT}px;--yt-name:${m.name}px;--yt-avatar:${m.avatar}px;` +
+        `--yt-thumb-gap:${config.thumbGap ?? 48}px;--yt-column-gap:${config.columnGap ?? 48}px;--yt-text-gap:${config.textGap ?? 28}px;` +
+        `--yt-name:${m.name}px;--yt-avatar:${m.avatar}px;` +
         `--yt-badge-font:${m.badgeFont}px;--yt-badge-radius:${m.badgeRadius}px;--yt-badge-pad:${m.badgePad}px;` +
         `--yt-meta:${m.meta}px;--yt-desc:${m.desc}px;` +
         `--yt-scrim-a:${(config.scrimOpacity ?? 85) / 100};` +
@@ -79,6 +79,7 @@
     const titleSize = $derived(Math.round(layout.titleSize * LS * (config.titleScale ?? 1)));
 
     // Rough JS clamp so exported text never overflows its line budget.
+    // Widths mirror the actual CSS boxes of each layout (incl. hero's 82% cap).
     function clampText(text, fontSize, maxLines, width) {
         if (!text) return '';
         const charsPerLine = Math.max(8, Math.floor(width / (fontSize * 0.55)));
@@ -89,15 +90,21 @@
 
     function titleTextWidth() {
         const cw = contentW - 48;
-        if (config.layout === 'split') return Math.round(cw * (1 - (config.ratio ?? 50) / 100)) - 24;
-        if (config.layout === 'vertical') return Math.max(200, contentW - 24);
-        if (config.layout === 'minimal') return Math.round(contentW * 0.85);
+        if (config.layout === 'split') {
+            // text column = width − thumb share − column gap
+            return Math.round(contentW - (contentW * (config.ratio ?? 50) / 100) - (config.columnGap ?? 48)) - 24;
+        }
+        if (config.layout === 'hero') {
+            // .hr-content has 56px padding; .hr-main caps at 82% of that box
+            return Math.round((contentW - 112) * 0.82) - 24;
+        }
         return Math.max(240, cw);
     }
     function descWidth() {
-        const cw = contentW - 48;
-        if (config.layout === 'vertical') return Math.max(200, contentW - 24);
-        return Math.max(240, cw);
+        if (config.layout === 'split') {
+            return Math.round(contentW - (contentW * (config.ratio ?? 50) / 100) - (config.columnGap ?? 48)) - 24;
+        }
+        return Math.max(240, contentW - 48);
     }
 
     const title = $derived(config.modules.title
@@ -179,32 +186,6 @@
                 {@render liveBadge()}
             </div>
         </div>
-
-    {:else if config.layout === 'vertical'}
-        <div class="vt-wrap" style="height:{exactHeight}px">
-            <div class="vt-media" style="height:{config.ratio ?? 50}%">
-                {@render thumb('fill')}
-            </div>
-            <div class="vt-text">
-                {@render titleEl()}
-                {@render channelRow()}
-                {@render metaEl()}
-                {@render descEl()}
-            </div>
-        </div>
-
-    {:else if config.layout === 'minimal'}
-        <div class="mn-wrap">
-            <div class="mn-media">{@render thumb(thumbHeight)}</div>
-            <div class="mn-text">
-                <div class="mn-title-wrap">
-                    {@render titleEl()}
-                </div>
-                <div style="color:var(--yt-secondary);font-size:var(--yt-meta)">
-                    {@render metaEl()}
-                </div>
-            </div>
-        </div>
     {/if}
 </div>
 
@@ -273,7 +254,9 @@
 {/snippet}
 
 <style>
-    /* ── Root ── */
+    /* ── Root ──
+       content-box semantics: the design width (--yt-width) belongs to the content;
+       padding is an OUTER frame — content and canvas never change size with it. */
     .ycard {
         font-family: var(--yt-font, sans-serif);
         background-color: var(--yt-bg);
@@ -283,7 +266,6 @@
         line-height: 1.35;
         padding: var(--yt-pad);
         border-radius: var(--yt-container-radius);
-        box-sizing: border-box;
     }
 
     /* Thumbnail (background-image so object-fit: cover survives html2canvas) */
@@ -343,7 +325,7 @@
     .yt-channel {
         display: flex;
         align-items: center;
-        gap: var(--yt-gap-t);
+        gap: var(--yt-text-gap);
         font-size: var(--yt-name);
         font-weight: 400;
         color: var(--yt-secondary);
@@ -402,18 +384,20 @@
     .cl-wrap {
         display: flex;
         flex-direction: column;
-        gap: var(--yt-gap);
+        gap: var(--yt-thumb-gap);
     }
     .yt-text {
         display: flex;
         flex-direction: column;
-        gap: var(--yt-gap-t);
+        gap: var(--yt-text-gap);
     }
 
     /* ── Wide Split ── */
     .sp-wrap {
         display: grid;
+        grid-template-columns: 50% 1fr;
         align-items: stretch;
+        gap: var(--yt-column-gap);
         min-height: calc(var(--yt-width) * 0.375);
     }
     .sp-media {
@@ -429,21 +413,25 @@
         display: flex;
         flex-direction: column;
         justify-content: center;
-        gap: var(--yt-gap);
-        padding-left: var(--yt-gap);
+        gap: var(--yt-text-gap);
         min-width: 0;
     }
 
     /* ── Stacked ── */
+    .st-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: var(--yt-thumb-gap);
+    }
     .st-text {
         display: flex;
         flex-direction: column;
-        gap: var(--yt-gap);
+        gap: var(--yt-text-gap);
     }
     .st-sub {
         display: flex;
         align-items: center;
-        gap: var(--yt-gap);
+        gap: var(--yt-text-gap);
         flex-wrap: wrap;
     }
 
@@ -474,8 +462,8 @@
     .hr-main {
         display: flex;
         flex-direction: column;
-        gap: var(--yt-gap-t);
-        max-width: 78%;
+        gap: var(--yt-text-gap);
+        max-width: 82%;
     }
     .hr-main .yt-title {
         color: inherit;
@@ -492,51 +480,5 @@
     .hr-corner .yt-duration,
     .hr-corner .yt-live {
         position: static;
-    }
-
-    /* ── Vertical ── */
-    .vt-wrap {
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-    }
-    .vt-media {
-        position: relative;
-        flex-shrink: 0;
-    }
-    .vt-media .yt-thumb {
-        position: absolute;
-        inset: 0;
-        height: 100% !important;
-        border-radius: 0 !important;
-    }
-    .vt-text {
-        display: flex;
-        flex-direction: column;
-        gap: var(--yt-gap);
-        padding: 48px 56px;
-        justify-content: center;
-        flex: 1;
-        min-width: 0;
-    }
-
-    /* ── Minimal ── */
-    .mn-wrap {
-        display: flex;
-        flex-direction: column;
-    }
-    .mn-text {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: var(--yt-gap-t);
-        text-align: center;
-    }
-    .mn-title-wrap {
-        max-width: 34ch;
-        margin: 0 auto;
-    }
-    .mn-text .yt-title {
-        max-width: 34ch;
     }
 </style>

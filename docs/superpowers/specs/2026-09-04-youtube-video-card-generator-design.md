@@ -105,9 +105,9 @@ Accepts: `youtube.com/watch?v=`, `youtu.be/`, `youtube.com/shorts/`, `youtube.co
 
 ---
 
-## 4. Card layouts (6)
+## 4. Card layouts (4)
 
-All layouts render at a design width of **1280px (720px for Vertical — native Shorts frame)** and auto height (except cover-fill layouts). Every layout is exportable at 1x/2x/3x (up to 3840px or 2160px for vertical).
+All layouts render at a user-controlled **container size** (default 1280px design width, 720–1920 slider) and auto height (except the cover-fill Hero). Every layout is exportable at 1x/2x/3x.
 
 | # | Layout | Orientation | DNA | Default font |
 |---|---|---|---|---|
@@ -115,14 +115,12 @@ All layouts render at a design width of **1280px (720px for Vertical — native 
 | 2 | **Wide Split** | Side-by-side (thumb left, text right) | "Video page hero" — thumb and text compete 50/50 | Roboto |
 | 3 | **Stacked Editorial** | Full-bleed thumb over solid text block | Landing-page hero for articles/blog posts | Space Grotesk |
 | 4 | **Hero Overlay** | Thumb = full card bg, text on bottom scrim | Poster/end-screen style | Archivo |
-| 5 | **Vertical Reel** | 9:16 card (720×1280), thumb top, text bottom | Shorts/Reels/TikTok references (post this to a story) | Inter |
-| 6 | **Minimal** | Thumb + title only, huge whitespace | Clean editorial; nothing but the hook | Inter |
 
-(Removed 2026-09-05 per product direction: Terminal and Magazine layouts.)
+(Removed by product direction: Terminal, Magazine, Vertical, Minimal.)
 
 ### 4.1 Layout anatomy
 
-Each layout defines: aspect (its own, or user-overridable), design width (`width`), padding default (`defaultPadding`), thumb text placement, scrim usage, which modules (see §5.2) are on by default, and its color/font defaults. Layout selection is **non-destructive**: switching layouts keeps the user's color/font/toggle choices; only the padding default re-applies (until the user tunes padding, then their value sticks).
+Each layout defines: aspect (its own, or user-overridable), padding default (`defaultPadding`), which modules (see §5.2) are on by default, and its color/font defaults. Layout selection is **non-destructive**: switching layouts keeps the user's color/font/toggle choices; only the values the user hasn't manually tuned (padding and per-row gaps) re-apply per layout's defaults.
 
 ---
 
@@ -130,22 +128,28 @@ Each layout defines: aspect (its own, or user-overridable), design width (`width
 
 ### 5.1 Global style controls
 
+All sliders are **notch sliders** (`SnapSlider.svelte`): they snap to marked ticks with a short WebAudio tick (mutable via "Snap sounds"), while any value between notches remains reachable — snap distance is always smaller than half the notch interval so free values always exist.
+
 | Control | Options |
 |---|---|
-| Layout | 6 layouts (visual selector with mini-preview glyphs) |
+| Layout | 4 layouts (visual selector) |
 | Card aspect | Auto (per layout), 16:9, 4:3, 1:1, 4:5, 9:16 |
-| Thumb/text ratio | Slider 30–70% (affects split/vertical layouts; disabled when N/A) |
-| Thumbnail radius | 0–24px |
-| Card radius | 0–32px — rounds the whole card container (hero thumb inherits it) |
-| Card padding | 0–80px — insets all card content; per-layout defaults (Classic/Split 40, Minimal 48, cover layouts 0) stick until the user tunes it |
-| Element spacing | 0.5×–2× multiplier on every layout gap |
+| Thumb/text ratio | Slider 30–70% (split) — notches at 30/40/50/60/70 |
+| Container size | 720–1920px design width — notches at 720/1080/1280/1440/1920 |
+| Thumbnail spacing | 0–80px, thumb↔text block gap (classic, stacked) — notches every 16px |
+| Column spacing | 0–80px, split column gap — notches every 16px |
+| Text spacing | 0–80px, title↔channel↔meta↔desc gap — notches at 0/8/16/24/32/48 |
+| Thumbnail radius | 0–24px, notches every 4px |
+| Card radius | 0–32px — rounds the whole container (hero thumb inherits it) |
+| Card padding | 0–80px — **outer frame only** (content-box): the design width and content never change; the card canvas grows around them. Notches at 0/16/32/40/48/64/80 |
 | Scrim darkness | 30–100% (hero) — bottom scrim alpha, default 85% |
-| Background color | Palette + custom picker |
-| Text primary color | Palette + custom picker |
-| Text secondary color | Palette + custom picker |
-| Accent color | Palette + custom picker (used for live badge, highlights) |
+| Background / text / secondary / accent | Palette + custom pickers |
 | Font family | Roboto, Inter, Space Grotesk, Archivo, Anton, Bebas Neue, Playfair Display, JetBrains Mono, Satoshi |
-| Title scale | 0.8×–1.6× multiplier on the layout's default title size |
+| Title scale | 0.8×–1.6× multiplier with a 100% notch |
+
+### 5.2 API fallback notice
+
+When the server falls back to oEmbed (no `YOUTUBE_API_KEY`, quota exhausted, or the Data API is down), several fields are unavailable (duration, views, description, channel avatar, publish date). The editor shows a dismissible notice above the preview: it states that basic functionality still works, names what's missing, and links to the contact page and Discord. Re-shown per session until dismissed.
 
 **Color palettes:** YouTube Light (`#fff` / `#0f0f0f` / `#606060` / `#ff0000`), YouTube Dark (`#0f0f0f` / `#f1f1f1` / `#aaa` / `#ff0000`), OLED Black (`#000` / `#fff` / `#8b989c` / `#ff0000`), and **Custom** (unlocks the four pickers).
 
@@ -173,7 +177,7 @@ The card DOM renders at its true design size (1280px wide) inside a fixed viewpo
 
 ### 6.2 Scaling the YouTube-native metrics
 
-Reference width = 360px (feed thumbnail). At design width W (1280 for landscape layouts, 720 for Vertical), `scale = W/360` (3.556 or 2.0). All §2 metrics multiply by that layout's scale, so the Classic layout is *proportionally identical* to the real feed card at any export size, and Vertical matches a real Shorts frame.
+Reference width = 360px (feed thumbnail). At the user's container width W (default 1280), `scale = W/360`. All §2 metrics multiply by that scale, so the Classic layout is *proportionally identical* to the real feed card at any container size.
 
 ### 6.3 Export
 
@@ -181,7 +185,7 @@ Reference width = 360px (feed thumbnail). At design width W (1280 for landscape 
 
 | Format | Sizes | Output |
 |---|---|---|
-| PNG | 1x (1280w; vertical 720w), 2x, 3x | `.png` download |
+| PNG | 1x (= container + 2×frame), 2x, 3x | `.png` download |
 | JPEG | same | `.jpg` download (white bg forced) |
 | WebP | same | `.webp` download |
 | Clipboard | 1280w PNG | `navigator.clipboard.write` — paste straight into Discord/Notion/timeline |

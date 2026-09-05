@@ -1,9 +1,10 @@
 <script>
     import PageHeader from '$lib/components/ui/PageHeader.svelte';
+    import SnapSlider from '$lib/components/ui/SnapSlider.svelte';
     import YouTubeCard from '$lib/components/tools/YouTubeCard.svelte';
     import ExportBar from '$lib/components/tools/controls/ExportBar.svelte';
     import {
-        DEFAULT_CONFIG, LAYOUTS, FONTS, PALETTES, PALETTE_NAMES, ASPECTS, DESIGN_WIDTH, layoutWidth
+        DEFAULT_CONFIG, LAYOUTS, FONTS, PALETTES, PALETTE_NAMES, ASPECTS
     } from '$lib/components/tools/yt-config.js';
 
     $effect(() => { window.umami?.track('page-view', { page: 'tools-youtube-card' }); });
@@ -14,23 +15,28 @@
     let video = $state(null);
     let config = $state(structuredClone(DEFAULT_CONFIG));
     let cardEl = $state(null);
+    let soundsOn = $state(true);
+
+    // Per-layout defaults are applied on layout switch until the user tunes a value.
+    const touched = $state({ padding: false, thumbGap: false, columnGap: false, textGap: false });
 
     // ── Preview scaling ──
     let paneEl = $state(null);
     let cardHeight = $state(0);
+    let cardWidth = $state(0);
     let scale = $state(0.3);
-    let paddingTouched = $state(false);
 
     $effect(() => {
         const pane = paneEl;
         if (!pane) return;
         const update = () => {
-            const cardWidth = layoutWidth(config.layout);
+            const cw = cardEl?.offsetWidth ?? 0;
+            if (cw) cardWidth = cw;
             const paneW = pane.clientWidth - 48;
             const paneH = pane.clientHeight - 48;
             scale = Math.min(
                 0.42,
-                Math.max(0.08, paneW / cardWidth),
+                Math.max(0.08, paneW / (cardWidth || 1280)),
                 cardHeight > 0 ? paneH / cardHeight : 1
             );
             if (cardEl) cardHeight = cardEl.offsetHeight;
@@ -78,8 +84,11 @@
 
     function setLayout(key) {
         config.layout = key;
-        // Each layout has a padding default; respect it until the user dials their own.
-        if (!paddingTouched) config.padding = LAYOUTS[key].defaultPadding ?? 0;
+        const d = LAYOUTS[key].defaults;
+        if (!touched.padding) config.padding = LAYOUTS[key].defaultPadding ?? 0;
+        if (!touched.thumbGap) config.thumbGap = d.thumb;
+        if (!touched.columnGap) config.columnGap = d.column;
+        if (!touched.textGap) config.textGap = d.text;
     }
 
     const modulesList = [
@@ -93,9 +102,35 @@
         { key: 'live', label: 'LIVE badge' }
     ];
 
-    const ratioActive = $derived(config.layout === 'split' || config.layout === 'vertical');
+    const ratioActive = $derived(config.layout === 'split');
+    const thumbGapActive = $derived(config.layout === 'classic' || config.layout === 'stacked');
+    const columnGapActive = $derived(config.layout === 'split');
     const scrimActive = $derived(config.layout === 'hero');
-    const designWidth = $derived(layoutWidth(config.layout));
+
+    // ── API fallback disclaimer ──
+    const showApiNote = $derived(
+        !!video && (video.source === 'oembed' || !video.duration || !video.channel?.avatarUrl || video.views == null)
+    );
+    let apiNoteDismissed = $state(false);
+    $effect(() => {
+        if (showApiNote && !apiNoteDismissed) {
+            window.umami?.track('tool-api-fallback', { tool: 'youtube-card' });
+        }
+    });
+    function dismissApiNote() {
+        apiNoteDismissed = true;
+        try { sessionStorage.setItem('ytc-api-note-dismissed', '1'); } catch { /* private mode */ }
+    }
+    $effect(() => {
+        try {
+            if (sessionStorage.getItem('ytc-api-note-dismissed')) apiNoteDismissed = true;
+        } catch { /* private mode */ }
+    });
+
+    const exportWidth = $derived((config.containerSize ?? 1280) + 2 * (config.padding ?? 0));
+
+    // Notch patterns for the sliders (snap points; free values still reachable).
+    const GAP_NOTCHES = [0, 16, 32, 48, 64, 80];
 </script>
 
 <svelte:head>
@@ -143,16 +178,34 @@
 {#if video}
     <div class="workspace">
         <div class="preview-col">
+            {#if showApiNote && !apiNoteDismissed}
+                <div class="api-note" role="status">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <div class="api-note-body">
+                        <strong>Some video data couldn't be fetched</strong>
+                        <p>Duration, views, description and creator details come from the YouTube API — it appears to be down, throttled, or unreachable right now. The card generator still works fully: layouts, colors, fonts and export all function, and the thumbnail and title are loaded directly.</p>
+                        <p class="api-note-links">
+                            <a href="/contact">Report the issue</a>
+                            <span class="api-sep">·</span>
+                            <a href="https://discord.gg/aJUAyFVyqM" target="_blank" rel="noopener noreferrer">Ask on Discord</a>
+                        </p>
+                    </div>
+                    <button class="api-dismiss" onclick={dismissApiNote} aria-label="Dismiss notice">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            {/if}
+
             <div class="preview-pane" bind:this={paneEl} style="height:{Math.min(480, Math.max(320, cardHeight * scale + 56))}px">
-                <div class="preview-stage" style="width:{designWidth * scale}px;height:{cardHeight * scale}px">
-                    <div class="preview-scaled" style="transform:scale({scale});width:{designWidth}px">
+                <div class="preview-stage" style="width:{cardWidth * scale}px;height:{cardHeight * scale}px">
+                    <div class="preview-scaled" style="transform:scale({scale});width:{cardWidth || 1280}px">
                         <YouTubeCard bind:cardEl {video} {config} />
                     </div>
                 </div>
             </div>
             <ExportBar {cardEl} filename={video.id} />
             <p class="card-note">
-                Card renders at {designWidth}px wide · exports up to {designWidth * 3}px · transparent PNG supported
+                Content {config.containerSize}px · frame {config.padding}px · exports up to {exportWidth * 3}px wide · transparent PNG supported
             </p>
         </div>
 
@@ -185,35 +238,105 @@
 
                 <label class="field" class:disabled={!ratioActive}>
                     <span>Thumbnail / text ratio — {config.ratio}%</span>
-                    <input
-                        type="range" min="30" max="70" step="1"
+                    <SnapSlider
                         bind:value={config.ratio}
+                        label="Thumbnail / text ratio"
+                        min={30} max={70} step={1}
+                        notches={[30, 40, 50, 60, 70]}
+                        snapDistance={3}
                         disabled={!ratioActive}
+                        sound={soundsOn}
+                    />
+                </label>
+
+                <label class="field">
+                    <span>Container size — {config.containerSize}px</span>
+                    <SnapSlider
+                        bind:value={config.containerSize}
+                        label="Container size"
+                        min={720} max={1920} step={10}
+                        notches={[720, 1080, 1280, 1440, 1920]}
+                        snapDistance={60}
+                        sound={soundsOn}
+                    />
+                </label>
+
+                <label class="field" class:disabled={!thumbGapActive}>
+                    <span>Thumbnail spacing — {config.thumbGap}px</span>
+                    <SnapSlider
+                        bind:value={config.thumbGap}
+                        label="Thumbnail spacing"
+                        min={0} max={80} step={1}
+                        notches={GAP_NOTCHES}
+                        snapDistance={3}
+                        disabled={!thumbGapActive}
+                        sound={soundsOn}
+                        tune={() => (touched.thumbGap = true)}
+                    />
+                </label>
+
+                <label class="field" class:disabled={!columnGapActive}>
+                    <span>Column spacing — {config.columnGap}px</span>
+                    <SnapSlider
+                        bind:value={config.columnGap}
+                        label="Column spacing"
+                        min={0} max={80} step={1}
+                        notches={GAP_NOTCHES}
+                        snapDistance={3}
+                        disabled={!columnGapActive}
+                        sound={soundsOn}
+                        tune={() => (touched.columnGap = true)}
+                    />
+                </label>
+
+                <label class="field">
+                    <span>Text spacing — {config.textGap}px</span>
+                    <SnapSlider
+                        bind:value={config.textGap}
+                        label="Text spacing"
+                        min={0} max={80} step={1}
+                        notches={[0, 8, 16, 24, 32, 48]}
+                        snapDistance={2}
+                        sound={soundsOn}
+                        tune={() => (touched.textGap = true)}
                     />
                 </label>
 
                 <label class="field">
                     <span>Thumbnail radius — {config.radius}px</span>
-                    <input type="range" min="0" max="24" step="1" bind:value={config.radius} />
-                </label>
-
-                <label class="field">
-                    <span>Card radius — {config.containerRadius}px</span>
-                    <input type="range" min="0" max="32" step="1" bind:value={config.containerRadius} />
-                </label>
-
-                <label class="field">
-                    <span>Card padding — {config.padding}px</span>
-                    <input
-                        type="range" min="0" max="80" step="1"
-                        bind:value={config.padding}
-                        oninput={() => (paddingTouched = true)}
+                    <SnapSlider
+                        bind:value={config.radius}
+                        label="Thumbnail radius"
+                        min={0} max={24} step={1}
+                        notches={[0, 4, 8, 12, 16, 20, 24]}
+                        snapDistance={1.5}
+                        sound={soundsOn}
                     />
                 </label>
 
                 <label class="field">
-                    <span>Element spacing — {Math.round((config.spacing ?? 1) * 100)}%</span>
-                    <input type="range" min="0.5" max="2" step="0.05" bind:value={config.spacing} />
+                    <span>Card radius — {config.containerRadius}px</span>
+                    <SnapSlider
+                        bind:value={config.containerRadius}
+                        label="Card radius"
+                        min={0} max={32} step={1}
+                        notches={[0, 4, 8, 12, 16, 24, 32]}
+                        snapDistance={1.5}
+                        sound={soundsOn}
+                    />
+                </label>
+
+                <label class="field">
+                    <span>Card padding — {config.padding}px</span>
+                    <SnapSlider
+                        bind:value={config.padding}
+                        label="Card padding"
+                        min={0} max={80} step={1}
+                        notches={[0, 16, 32, 40, 48, 64, 80]}
+                        snapDistance={2}
+                        sound={soundsOn}
+                        tune={() => (touched.padding = true)}
+                    />
                 </label>
             </section>
 
@@ -278,16 +401,32 @@
 
                 <label class="field">
                     <span>Title size — {Math.round(config.titleScale * 100)}%</span>
-                    <input type="range" min="0.8" max="1.6" step="0.05" bind:value={config.titleScale} />
+                    <SnapSlider
+                        bind:value={config.titleScale}
+                        label="Title size"
+                        min={0.8} max={1.6} step={0.05}
+                        notches={[1]}
+                        snapDistance={0.05}
+                        sound={soundsOn}
+                    />
                 </label>
 
                 <label class="field" class:disabled={!scrimActive}>
                     <span>Scrim darkness — {config.scrimOpacity}%</span>
-                    <input
-                        type="range" min="30" max="100" step="1"
+                    <SnapSlider
                         bind:value={config.scrimOpacity}
+                        label="Scrim darkness"
+                        min={30} max={100} step={1}
+                        notches={[50, 70, 85, 100]}
+                        snapDistance={5}
                         disabled={!scrimActive}
+                        sound={soundsOn}
                     />
+                </label>
+
+                <label class="toggle">
+                    <input type="checkbox" bind:checked={soundsOn} />
+                    <span>Snap sounds</span>
                 </label>
             </section>
 
@@ -428,6 +567,63 @@
 
     .preview-col {
         min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-sm);
+    }
+
+    /* API fallback notice */
+    .api-note {
+        display: flex;
+        gap: var(--space-md);
+        align-items: flex-start;
+        border: var(--border);
+        border-left: 3px solid var(--color-accent);
+        background: rgba(255, 0, 0, 0.04);
+        padding: var(--space-md) var(--space-lg);
+        font-family: var(--font-body);
+    }
+    .api-note > i {
+        color: var(--color-accent);
+        font-size: var(--text-lg);
+        margin-top: 0.15rem;
+    }
+    .api-note-body {
+        flex: 1;
+        min-width: 0;
+    }
+    .api-note-body strong {
+        color: var(--color-text-primary);
+        font-weight: 600;
+        font-size: var(--text-sm);
+    }
+    .api-note-body p {
+        font-size: var(--text-xs);
+        line-height: 1.55;
+        color: var(--color-text-secondary);
+        margin-top: 0.35rem;
+    }
+    .api-note-links a {
+        color: var(--color-text-primary);
+        font-weight: 600;
+        text-decoration: none;
+        border-bottom: 1px solid var(--color-text-primary);
+    }
+    .api-sep {
+        opacity: 0.5;
+        margin: 0 0.4rem;
+    }
+    .api-dismiss {
+        background: transparent;
+        border: 0;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        font-size: var(--text-base);
+        padding: 0.15rem 0.25rem;
+        transition: color var(--transition-fast);
+    }
+    .api-dismiss:hover {
+        color: var(--color-text-primary);
     }
 
     .preview-pane {
@@ -460,7 +656,6 @@
         font-size: var(--text-xs);
         color: var(--color-text-secondary);
         opacity: 0.7;
-        margin-top: var(--space-sm);
     }
 
     /* ── Controls ── */
@@ -533,7 +728,7 @@
     .field {
         display: flex;
         flex-direction: column;
-        gap: 0.4rem;
+        gap: 0.5rem;
         font-family: var(--font-body);
         font-size: var(--text-sm);
         color: var(--color-text-secondary);
@@ -554,10 +749,6 @@
     .field select option {
         background: #0f0f0f;
         color: var(--color-text-primary);
-    }
-    .field input[type='range'] {
-        accent-color: var(--color-text-primary);
-        width: 100%;
     }
 
     .palette-row {

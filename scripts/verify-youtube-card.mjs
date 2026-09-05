@@ -54,8 +54,8 @@ record('classic card has height', h0 > 700, `${h0}px`);
 
 await page.screenshot({ path: `${outDir}/1-classic.png` });
 
-// 4. All 6 layouts render without errors
-const layouts = [['split', 'Wide Split'], ['stacked', 'Stacked'], ['hero', 'Hero'], ['vertical', 'Vertical'], ['minimal', 'Minimal']];
+// 4. All 4 layouts render without errors
+const layouts = [['split', 'Wide Split'], ['stacked', 'Stacked'], ['hero', 'Hero']];
 for (const [key, label] of layouts) {
     await page.click(`.layout-btn:has(.layout-name:text-is("${label}"))`);
     await page.waitForTimeout(900);
@@ -79,63 +79,82 @@ const previewDims = await page.evaluate(() => {
 record('preview much smaller (classic < 560px visual)', previewDims.visualW <= 560, `${previewDims.visualW}px wide`);
 record('preview pane height capped', previewDims.paneH <= 480, `${previewDims.paneH}px`);
 
-// 4b. Vertical: 720px design width and top is NOT clipped in the pane
-await page.click('.layout-btn:has(.layout-name:text-is("Vertical"))');
-await page.waitForTimeout(600);
-const vert = await page.evaluate(() => {
-    const pane = document.querySelector('.preview-pane');
-    pane.scrollTop = 0;
-    pane.scrollLeft = 0;
-    const card = document.querySelector('.ycard');
-    const pr = pane.getBoundingClientRect();
-    const cr = card.getBoundingClientRect();
-    return { cardW: card.offsetWidth, cardH: card.offsetHeight, topDelta: Math.round(cr.top - pr.top) };
-});
-record('vertical renders at 720px width', vert.cardW === 720, `${vert.cardW}px`);
-record('vertical top visible (no clip)', vert.topDelta >= -2, `top delta ${vert.topDelta}px`);
+// 4b. API fallback notice (oEmbed mode → no API key) shows and dismisses
+const noteText = await page.locator('.api-note').innerText().catch(() => '');
+record('api fallback notice shown', noteText.includes('couldn\'t be fetched'), noteText.slice(0, 60));
+await page.click('.api-dismiss');
+record('notice dismissible', (await page.locator('.api-note').count()) === 0, '');
 
-await page.click('.layout-btn:has(.layout-name:text-is("Classic"))');
-await page.waitForTimeout(500);
-
-// 4c. New variables apply
-async function setRange(label, value) {
+// 4c. Variables via SnapSlider pointer drags
+async function dragSlider(label, targetValue) {
     const field = page.locator('.field', { hasText: label });
-    await field.locator('input[type=range]').evaluate((el, v) => {
-        el.value = String(v);
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-    }, value);
+    const track = field.locator('.snap .track');
+    await track.scrollIntoViewIfNeeded();
+    const box = await track.boundingBox();
+    const bounds = await track.evaluate((el) => ({
+        min: +el.getAttribute('aria-valuemin'),
+        max: +el.getAttribute('aria-valuemax')
+    }));
+    const t = (targetValue - bounds.min) / (bounds.max - bounds.min);
+    const x = box.x + box.width * t;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.up();
+    await page.waitForTimeout(350);
 }
 
-const spacingBefore = await page.evaluate(() => getComputedStyle(document.querySelector('.cl-wrap')).gap);
-await setRange('Element spacing', 1.5);
-await page.waitForTimeout(300);
-const spacingAfter = await page.evaluate(() => getComputedStyle(document.querySelector('.cl-wrap')).gap);
-record('spacing multiplier applies', spacingBefore !== spacingAfter, `${spacingBefore} -> ${spacingAfter}`);
+// Text spacing (title↔channel↔meta)
+const textGapBefore = await page.evaluate(() => getComputedStyle(document.querySelector('.yt-text')).gap);
+await dragSlider('Text spacing', 18); // between notches 16/24 → snaps to 16
+const textGapAfter = await page.evaluate(() => getComputedStyle(document.querySelector('.yt-text')).gap);
+record('text spacing applies', textGapBefore !== textGapAfter && textGapAfter === '16px', `${textGapBefore} -> ${textGapAfter}`);
 
-await setRange('Card radius', 16);
-await page.waitForTimeout(300);
+// Thumbnail spacing (thumb↔text block, classic uses .cl-wrap)
+const thumbGapBefore = await page.evaluate(() => getComputedStyle(document.querySelector('.cl-wrap')).gap);
+await dragSlider('Thumbnail spacing', 54); // free value between 48/64
+const thumbGapAfter = await page.evaluate(() => getComputedStyle(document.querySelector('.cl-wrap')).gap);
+record('thumb spacing applies (classic)', thumbGapBefore !== thumbGapAfter && thumbGapAfter === '54px', `${thumbGapBefore} -> ${thumbGapAfter}`);
+
+await dragSlider('Card radius', 16); // notch
 const cardRadius = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).borderRadius);
 record('card radius applies', cardRadius === '16px', cardRadius);
 
-const padBefore = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).padding);
-await setRange('Card padding', 60);
-await page.waitForTimeout(300);
-const padAfter = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).padding);
-record('card padding applies', padBefore !== padAfter, `${padBefore} -> ${padAfter}`);
+// Container size (free value 1600 between 1440/1920)
+await dragSlider('Container size', 1600);
+const contW = await card.evaluate((el) => el.offsetWidth);
+const contThumbW = await card.evaluate((el) => el.querySelector('.yt-thumb').offsetWidth);
+record('container size applies', contW === 1600 + 80, `${contW}px (content 1600 + frame 40)`);
+record('content stays static at new container size', contThumbW === 1600, `${contThumbW}px`);
 
-// touched padding persists across layout switches
+// Padding = outer frame: card grows, content width unchanged
+await dragSlider('Card padding', 43); // free value (dist 3 from notches 40/48)
+const padAfter = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).padding);
+const padCardW = await card.evaluate((el) => el.offsetWidth);
+const padThumbW = await card.evaluate((el) => el.querySelector('.yt-thumb').offsetWidth);
+record('padding applies as outer frame only', padAfter === '43px' && padCardW === 1600 + 86 && padThumbW === 1600,
+    `frame ${padAfter}, card ${padCardW}px, content ${padThumbW}px`);
+
+// Snap: near-notch values snap, mid-notch values stay free
+await dragSlider('Card padding', 50); // dist 2 from notch 48 → snap
+const snapPad = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).padding);
+record('slider snaps to notch', snapPad === '48px', snapPad);
+await dragSlider('Card padding', 56); // dist 8 from notches → free
+const freePad = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).padding);
+record('free values reachable between notches', freePad === '56px', freePad);
+
+// tuned values persist across layout switches
 await page.click('.layout-btn:has(.layout-name:text-is("Stacked"))');
 await page.waitForTimeout(300);
 const padStacked = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).padding);
-record('custom padding persists on layout switch', padStacked.includes('60px'), padStacked);
+record('custom padding persists on layout switch', padStacked.includes('56px'), padStacked);
 
 // hero scrim: default 0.85, configurable
 await page.click('.layout-btn:has(.layout-name:text-is("Hero"))');
 await page.waitForTimeout(400);
 const scrimDefault = await page.evaluate(() => getComputedStyle(document.querySelector('.hr-scrim')).backgroundImage);
 record('hero scrim dark by default', scrimDefault.includes('0.85'), scrimDefault.slice(0, 90));
-await setRange('Scrim darkness', 50);
-await page.waitForTimeout(300);
+await dragSlider('Scrim darkness', 50); // notch
 const scrimTuned = await page.evaluate(() => getComputedStyle(document.querySelector('.hr-scrim')).backgroundImage);
 record('scrim darkness configurable', scrimDefault !== scrimTuned && scrimTuned.includes('0.5'), scrimTuned.slice(0, 90));
 
@@ -165,6 +184,7 @@ await chk.check();
 // 7. Export: real Download button → capture playback download, verify PNG dimensions
 await page.locator('.palette-btn').filter({ hasText: 'OLED Black' }).click();
 await page.waitForTimeout(400);
+const expectedExportW = await card.evaluate((el) => el.offsetWidth);
 await page.locator('.seg-btn:has-text("1x")').click();
 const downloadPromise = page.waitForEvent('download');
 await page.locator('.btn-download').click();
@@ -174,7 +194,7 @@ const pngBuf = await readFile(dlPath ?? '');
 // PNG IHDR: bytes 16-19 width, 20-23 height (big-endian)
 const w = pngBuf.readUInt32BE(16);
 const h = pngBuf.readUInt32BE(20);
-record('download button produces PNG', w === 1280, `${w}x${h} (expected 1280x~1000)`);
+record('download PNG width matches card', w === expectedExportW, `${w}x${h} (card ${expectedExportW})`);
 record('download filename', download.suggestedFilename().startsWith('dQw4w9WgXcQ'), download.suggestedFilename());
 
 // 2x export
@@ -183,7 +203,8 @@ await page.locator('.seg-btn:has-text("2x")').click();
 await page.locator('.btn-download').click();
 const dl2 = await dl2Promise;
 const pngBuf2 = await readFile(await dl2.path());
-record('2x export is 2560px wide', pngBuf2.readUInt32BE(16) === 2560, `w=${pngBuf2.readUInt32BE(16)}`);
+record('2x export doubles card width', pngBuf2.readUInt32BE(16) === expectedExportW * 2,
+    `w=${pngBuf2.readUInt32BE(16)} (expected ${expectedExportW * 2})`);
 
 await page.screenshot({ path: `${outDir}/4-oled.png` });
 
