@@ -7,12 +7,12 @@
 
 <svelte:head>
     <title>Tools — DONCEZART</title>
-    <meta name="description" content="Free tools and utilities for digital artists — build video reference cards, generate assets, and more." />
+    <meta name="description" content="Free tools and utilities for digital artists: video reference cards and more." />
 </svelte:head>
 
 <PageHeader
     title="Tools"
-    subtitle="Free utilities built for the creative workflow — no signup, no watermarks, no nonsense."
+    subtitle="Free utilities built for the creative workflow. No signup, no watermarks."
 />
 
 <div class="tools-grid">

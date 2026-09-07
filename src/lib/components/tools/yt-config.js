@@ -37,17 +37,25 @@ export const FONTS = [
  * - `defaults`: per-layout gap defaults: { thumb, column, text } in px at 1280 design width.
  */
 export const LAYOUTS = {
+	modern: {
+		label: 'Modern', hint: 'Avatar beside the info block',
+		titleSize: 16, titleWeight: 500, font: 'Roboto', descriptionOn: false,
+		defaultPadding: 40,
+		defaults: { thumb: 48, column: 48, text: 28 }
+	},
 	classic: {
 		label: 'Classic', hint: 'YouTube-native feed card',
 		titleSize: 16, titleWeight: 500, font: 'Roboto', descriptionOn: false,
 		defaultPadding: 40,
-		defaults: { thumb: 48, column: 48, text: 28 }
+		defaults: { thumb: 48, column: 48, text: 28 },
+		moduleDefaults: { avatar: true, channel: true, duration: true }
 	},
 	compact: {
 		label: 'Compact', hint: 'Thumb, title, views · date',
 		titleSize: 14, titleWeight: 500, font: 'Roboto', descriptionOn: false,
 		defaultPadding: 24,
-		defaults: { thumb: 28, column: 48, text: 20 }
+		defaults: { thumb: 28, column: 48, text: 20 },
+		moduleDefaults: { avatar: false, channel: false }
 	},
 	split: {
 		label: 'Wide Split', hint: 'Side-by-side hero',
@@ -55,7 +63,8 @@ export const LAYOUTS = {
 		defaultPadding: 40,
 		defaultTitleLines: 1, // wide flat card: one title line keeps the natural thumbnail height
 		defaultTextScale: 0.5, // text ~half size so the 16:9 thumbnail dominates the wide card
-		defaults: { thumb: 48, column: 48, text: 16 }
+		defaults: { thumb: 48, column: 48, text: 16 },
+		moduleDefaults: { scrim: false } // optional scrim on the split thumbnail, off by default
 	},
 	stacked: {
 		label: 'Stacked', hint: 'Full-bleed thumb, editorial block',
@@ -68,18 +77,20 @@ export const LAYOUTS = {
 		titleSize: 24, titleWeight: 700, font: 'Archivo', descriptionOn: false,
 		defaultPadding: 0,
 		defaultTitleScale: 0.8, // hero poster title at 0.8× by default
-		defaults: { thumb: 48, column: 48, text: 28 }
+		defaults: { thumb: 48, column: 48, text: 28 },
+		moduleDefaults: { duration: false } // poster layouts keep the corner clean by default
 	},
 	underlay: {
 		label: 'Underlay', hint: 'Hero poster, title below',
 		titleSize: 24, titleWeight: 700, font: 'Archivo', descriptionOn: false,
 		defaultPadding: 0,
+		moduleDefaults: { avatar: true, channel: true, duration: true },
 		defaults: { thumb: 48, column: 48, text: 28 }
 	}
 };
 
 export const DEFAULT_CONFIG = {
-	layout: 'classic', // key into LAYOUTS
+	layout: 'modern', // key into LAYOUTS
 	aspect: 'auto', // auto | 16:9 | 4:3 | 1:1 | 4:5 | 9:16
 	ratio: 34, // thumb share % (split: text column ≈ 2× the thumbnail, 25–85)
 	splitWideness: 3.2, // split card aspect (1.2–4) — higher = wider/flatter

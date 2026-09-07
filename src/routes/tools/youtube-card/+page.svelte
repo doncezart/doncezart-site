@@ -21,18 +21,24 @@
         padding: false, thumbGap: false, columnGap: false, textGap: false,
         titleLines: false, titleScale: false, textScale: false, description: false
     });
+    // Module toggles a user has flipped manually — per-layout module defaults
+    // (e.g. Modern/Classic avatar+channel on, Compact off, Hero duration off)
+    // stop overriding the user's own state once a module was touched.
+    const touchedModules = $state(new Set());
 
     // ── Preview: the card always renders at ONE fixed on-screen size inside a
 // fixed-height pane (no scrollbars, no overflow). Container size is an
 // export-only setting, so the display scale counter-acts the export zoom
 // (×1280/C). The fit term uses the card's design-1280 height, which makes the
 // scale EXACTLY container-invariant — dragging export size cannot twitch it. ──
-const PREVIEW_SCALE = 0.5;
+const PREVIEW_SCALE = 0.45;
     const PANE_HEIGHT = 480; // matches the controls rail's max-height — preview = controls, height-wise
     const previewScale = $derived((() => {
         const C = config.containerSize ?? 1280;
         const designH = cardHeight * 1280 / C; // height as if the card were at 1280 design width
-        const fit = Math.min(PREVIEW_SCALE, (PANE_HEIGHT - 24) / Math.max(designH, 1));
+        // -56 keeps the card clearly inside the pane: 480 - 2px borders - 32px padding,
+        // plus ~22px breathing room so the shadow never touches the edge (no scrollbars).
+        const fit = Math.min(PREVIEW_SCALE, (PANE_HEIGHT - 56) / Math.max(designH, 1));
         return fit * 1280 / C;
     })());
     let paneEl = $state(null);
@@ -100,6 +106,10 @@ const PREVIEW_SCALE = 0.5;
         if (!touched.titleScale) config.titleScale = LAYOUTS[key].defaultTitleScale ?? 1;
         if (!touched.textScale) config.textScale = LAYOUTS[key].defaultTextScale ?? 1;
         if (!touched.description) config.modules.description = LAYOUTS[key].descriptionOn ?? false;
+        const md = LAYOUTS[key].moduleDefaults ?? {};
+        for (const [k, v] of Object.entries(md)) {
+            if (!touchedModules.has(k)) config.modules[k] = v;
+        }
     }
 
     const modulesList = [
@@ -118,12 +128,13 @@ const PREVIEW_SCALE = 0.5;
     function toggleModule(key) {
         config.modules[key] = !config.modules[key];
         if (key === 'description') touched.description = true;
+        touchedModules.add(key);
     }
 
     const ratioActive = $derived(config.layout === 'split');
     const thumbGapActive = $derived(['classic', 'stacked', 'compact'].includes(config.layout));
     const columnGapActive = $derived(config.layout === 'split');
-    const scrimActive = $derived(config.layout === 'hero' || config.layout === 'underlay');
+    const scrimActive = $derived(['hero', 'underlay', 'split'].includes(config.layout));
 
     const accentColor = $derived(
         config.palette === 'custom' ? config.colors.accent : PALETTES[config.palette].accent
@@ -163,11 +174,18 @@ const PREVIEW_SCALE = 0.5;
     }
 
     // Smooth-scroll the tool containers into view once a video loads.
+    // scrollIntoView anchors the element top flush with the viewport (under the
+    // fixed navbar), so instead compute the target manually: the container top
+    // minus 88px keeps the Layout/Style titles fully visible below the navbar,
+    // and behavior:'smooth' animates the whole distance.
     let bodyEl = $state(null);
     $effect(() => {
         if (!video) return;
         const t = setTimeout(() => {
-            bodyEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const el = bodyEl;
+            if (!el) return;
+            const top = el.getBoundingClientRect().top + window.scrollY - 88;
+            window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
         }, 120);
         return () => clearTimeout(t);
     });
@@ -210,7 +228,7 @@ const PREVIEW_SCALE = 0.5;
 
 <svelte:head>
     <title>YouTube Card Generator — DONCEZART Tools</title>
-    <meta name="description" content="Turn any YouTube video into a clean, customizable reference card — layouts, palettes, fonts, full-res export. Free, no signup." />
+    <meta name="description" content="Turn any YouTube video into a clean, customizable reference card with layouts, palettes, fonts and full-res export. Free, no signup." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -221,7 +239,7 @@ const PREVIEW_SCALE = 0.5;
 
 <PageHeader
     title="YouTube Card Generator"
-    subtitle="Paste a video link and get a pixel-perfect reference card — layouts inspired by YouTube's own UI, full-res export, zero signup."
+    subtitle="Paste a video link and get a pixel-perfect reference card with YouTube-inspired layouts, full-res export and zero signup."
 />
 
 <form class="input-row" onsubmit={(e) => { e.preventDefault(); fetchVideo(); }}>
@@ -467,6 +485,8 @@ const PREVIEW_SCALE = 0.5;
                             min={25} max={85} step={1}
                             notches={[40, 50, 60, 70, 85]}
                             snapDistance={2}
+                            baseline={34}
+                            reset={() => (config.ratio = 34)}
                             disabled={!ratioActive}
                         />
                     </div>
@@ -479,6 +499,8 @@ const PREVIEW_SCALE = 0.5;
                             min={0} max={72} step={1}
                             notches={[0, 4, 8, 12, 16, 24, 36, 48, 72]}
                             snapDistance={1.5}
+                            baseline={24}
+                            reset={() => (config.radius = 24)}
                         />
                     </div>
 
@@ -490,6 +512,8 @@ const PREVIEW_SCALE = 0.5;
                             min={0} max={128} step={1}
                             notches={[0, 8, 16, 24, 32, 48, 64, 96, 128]}
                             snapDistance={3}
+                            baseline={32}
+                            reset={() => (config.containerRadius = 32)}
                         />
                     </div>
 
@@ -501,6 +525,11 @@ const PREVIEW_SCALE = 0.5;
                             min={0} max={80} step={1}
                             notches={[0, 16, 32, 40, 48, 64, 80]}
                             snapDistance={2}
+                            baseline={LAYOUTS[config.layout].defaultPadding ?? 0}
+                            reset={() => {
+                                touched.padding = false;
+                                config.padding = LAYOUTS[config.layout].defaultPadding ?? 0;
+                            }}
                             tune={() => (touched.padding = true)}
                         />
                     </div>
@@ -513,6 +542,11 @@ const PREVIEW_SCALE = 0.5;
                             min={0} max={80} step={1}
                             notches={GAP_NOTCHES}
                             snapDistance={3}
+                            baseline={LAYOUTS[config.layout].defaults.thumb}
+                            reset={() => {
+                                touched.thumbGap = false;
+                                config.thumbGap = LAYOUTS[config.layout].defaults.thumb;
+                            }}
                             disabled={!thumbGapActive}
                             tune={() => (touched.thumbGap = true)}
                         />
@@ -526,6 +560,11 @@ const PREVIEW_SCALE = 0.5;
                             min={0} max={80} step={1}
                             notches={GAP_NOTCHES}
                             snapDistance={3}
+                            baseline={LAYOUTS[config.layout].defaults.column}
+                            reset={() => {
+                                touched.columnGap = false;
+                                config.columnGap = LAYOUTS[config.layout].defaults.column;
+                            }}
                             disabled={!columnGapActive}
                             tune={() => (touched.columnGap = true)}
                         />
@@ -539,6 +578,11 @@ const PREVIEW_SCALE = 0.5;
                             min={0} max={80} step={1}
                             notches={[0, 8, 16, 24, 32, 48]}
                             snapDistance={2}
+                            baseline={LAYOUTS[config.layout].defaults.text}
+                            reset={() => {
+                                touched.textGap = false;
+                                config.textGap = LAYOUTS[config.layout].defaults.text;
+                            }}
                             tune={() => (touched.textGap = true)}
                         />
                     </div>
@@ -551,6 +595,11 @@ const PREVIEW_SCALE = 0.5;
                             min={0.8} max={1.6} step={0.05}
                             notches={[1]}
                             snapDistance={0.05}
+                            baseline={LAYOUTS[config.layout].defaultTitleScale ?? 1}
+                            reset={() => {
+                                touched.titleScale = false;
+                                config.titleScale = LAYOUTS[config.layout].defaultTitleScale ?? 1;
+                            }}
                             tune={() => (touched.titleScale = true)}
                         />
                     </div>
@@ -563,6 +612,11 @@ const PREVIEW_SCALE = 0.5;
                             min={0.5} max={1.5} step={0.05}
                             notches={[0.5, 0.75, 1, 1.25]}
                             snapDistance={0.05}
+                            baseline={LAYOUTS[config.layout].defaultTextScale ?? 1}
+                            reset={() => {
+                                touched.textScale = false;
+                                config.textScale = LAYOUTS[config.layout].defaultTextScale ?? 1;
+                            }}
                             tune={() => (touched.textScale = true)}
                         />
                     </div>
@@ -575,6 +629,8 @@ const PREVIEW_SCALE = 0.5;
                             min={30} max={100} step={1}
                             notches={[50, 70, 85, 100]}
                             snapDistance={5}
+                            baseline={85}
+                            reset={() => (config.scrimOpacity = 85)}
                             disabled={!scrimActive}
                         />
                     </div>
@@ -601,7 +657,7 @@ const PREVIEW_SCALE = 0.5;
                             <span class="module-label">{mod.label}</span>
                         </button>
                     {/each}
-                    {#if config.layout === 'hero' || config.layout === 'underlay'}
+                    {#if config.layout === 'hero' || config.layout === 'underlay' || config.layout === 'split'}
                         <button
                             type="button"
                             class="module-btn"
@@ -654,6 +710,8 @@ const PREVIEW_SCALE = 0.5;
                         min={720} max={1920} step={10}
                         notches={[720, 1080, 1280, 1440, 1920]}
                         snapDistance={60}
+                        baseline={1280}
+                        reset={() => (config.containerSize = 1280)}
                     />
                 </div>
                 <ExportBar {cardEl} filename={video.id} />
@@ -1254,8 +1312,9 @@ const PREVIEW_SCALE = 0.5;
         display: block;
     }
     .field.disabled {
-        opacity: 0.4;
         pointer-events: none;
+        /* opacity kept at 1 — the SnapSlider dims its own track/input while the
+           label (title) stays clearly readable on disabled fields */
     }
     .field select {
         background: transparent;

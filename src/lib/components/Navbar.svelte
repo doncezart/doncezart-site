@@ -45,12 +45,12 @@
             <a href="/my-work" class="btn-navbar" onclick={() => window.umami?.track('nav-click', { link: 'my-work' })}>My Work</a>
             <NavDropdown
                 label="Tools"
-                headerDescription="Free utilities for digital artists — video cards, assets, and more."
+                headerDescription="Free utilities for digital artists."
                 items={toolsItems}
             />
             <NavDropdown
                 label="Discovery"
-                headerDescription="A curated library of media — handpicked resources, art, and inspiration."
+                headerDescription="A curated library of media."
                 items={discoveryItems}
             />
         </div>

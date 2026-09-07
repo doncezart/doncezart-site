@@ -181,12 +181,24 @@
             class="sp-wrap"
             style="grid-template-columns:{config.ratio ?? 34}% 1fr;min-height:{Math.max(96, Math.round((LW * (config.ratio ?? 34) / 100) / aspect))}px"
         >
-            <div class="sp-media">{@render thumb('fill')}</div>
-            <div class="sp-text">
-                {@render titleEl()}
-                {@render channelRow()}
-                {@render metaEl()}
-                {@render descEl()}
+            <div class="sp-media">
+                {@render thumb('fill')}
+                {#if config.modules.scrim}
+                    <div class="sp-scrim"></div>
+                {/if}
+            </div>
+            <div class="sp-text" class:desc-off={!desc}>
+                <!-- Description off: title + creator pinned to the top, views · date pinned to the bottom -->
+                <div class="sp-top">
+                    {@render titleEl()}
+                    {@render channelRow()}
+                </div>
+                {#if desc}
+                    <div class="yt-desc sp-darker">{desc}</div>
+                {/if}
+                <div class="sp-bottom">
+                    {@render metaEl()}
+                </div>
             </div>
         </div>
 
@@ -259,9 +271,70 @@
             {@render thumb(thumbHeight)}
             <div class="cm-text">
                 {@render titleEl()}
-                {@render channelRow()}
-                {@render metaEl()}
+                <div class="cm-line">
+                    {#if showAvatar}
+                        <img
+                            class="yt-avatar cm-avatar"
+                            src={video.channel.avatarUrl}
+                            alt=""
+                            crossorigin="anonymous"
+                            referrerpolicy="no-referrer"
+                            loading="eager"
+                            onerror={(e) => (e.currentTarget.style.display = 'none')}
+                        />
+                    {/if}
+                    {#if config.modules.channel && video?.channel?.name}
+                        <span class="yt-channel-name">{video.channel.name}</span>
+                        {#if config.modules.verified}
+                            <span class="yt-verified">
+                                <i class="fa-solid fa-check"></i>
+                            </span>
+                        {/if}
+                        {#if config.modules.subscribers && video?.channel?.subscribers != null}
+                            <span class="yt-subscribers">· {formatViews(video.channel.subscribers)} subscribers</span>
+                        {/if}
+                    {/if}
+                    {#if metaLine}
+                        <span class="cm-meta">{metaLine}</span>
+                    {/if}
+                </div>
                 {@render descEl()}
+            </div>
+        </div>
+
+    {:else if config.layout === 'modern'}
+        <div class="mo-wrap">
+            {@render thumb(thumbHeight)}
+            <div class="mo-body">
+                {#if showAvatar}
+                    <img
+                        class="yt-avatar mo-avatar"
+                        src={video.channel.avatarUrl}
+                        alt=""
+                        crossorigin="anonymous"
+                        referrerpolicy="no-referrer"
+                        loading="eager"
+                        onerror={(e) => (e.currentTarget.style.display = 'none')}
+                    />
+                {/if}
+                <div class="mo-text">
+                    {@render titleEl()}
+                    {#if config.modules.channel && video?.channel?.name}
+                        <div class="mo-creator">
+                            <span class="yt-channel-name">{video.channel.name}</span>
+                            {#if config.modules.verified}
+                                <span class="yt-verified">
+                                    <i class="fa-solid fa-check"></i>
+                                </span>
+                            {/if}
+                            {#if config.modules.subscribers && video?.channel?.subscribers != null}
+                                <span class="yt-subscribers">· {formatViews(video.channel.subscribers)} subscribers</span>
+                            {/if}
+                        </div>
+                    {/if}
+                    {@render metaEl()}
+                    {@render descEl()}
+                </div>
             </div>
         </div>
     {/if}
@@ -512,6 +585,8 @@
     }
     .sp-media {
         position: relative;
+        border-radius: var(--yt-radius);
+        overflow: hidden;
     }
     .sp-media .yt-thumb {
         position: absolute;
@@ -526,6 +601,30 @@
         justify-content: center;
         gap: var(--yt-text-gap);
         min-width: 0;
+    }
+    /* Description off: title + creator pinned to the top, views · date at the
+       bottom (space-between); with description on the column stays centered. */
+    .sp-text.desc-off {
+        justify-content: space-between;
+    }
+    .sp-top,
+    .sp-bottom {
+        display: flex;
+        flex-direction: column;
+        gap: var(--yt-text-gap);
+        min-width: 0;
+    }
+    /* Optional scrim over the split thumbnail (clipped to its radius) */
+    .sp-scrim {
+        position: absolute;
+        inset: 0;
+        border-radius: var(--yt-radius);
+        background: linear-gradient(180deg, rgba(0, 0, 0, 0) 26%, rgba(0, 0, 0, var(--yt-scrim-a)) 100%);
+        pointer-events: none;
+    }
+    /* Split description is intentionally darker than the other text */
+    .sp-darker {
+        opacity: 0.72;
     }
 
     /* ── Stacked ── */
@@ -593,7 +692,7 @@
     .hr-corner {
         position: absolute;
         right: var(--yt-hero-corner);
-        bottom: var(--yt-hero-corner);
+        bottom: var(--yt-hero-pad); /* same line as the views · date meta */
     }
     .hr-corner .yt-duration,
     .hr-corner .yt-live {
@@ -635,7 +734,7 @@
     .ul-corner {
         position: absolute;
         right: var(--yt-hero-corner);
-        bottom: var(--yt-hero-corner);
+        bottom: var(--yt-hero-pad); /* same line as the views · date meta */
     }
     .ul-corner .yt-duration,
     .ul-corner .yt-live {
@@ -648,7 +747,7 @@
         gap: var(--yt-text-gap);
     }
 
-    /* ── Compact (thumb, title, views · date) ── */
+    /* ── Compact (thumb, title, one-line meta with small avatar) ── */
     .cm-wrap {
         display: flex;
         flex-direction: column;
@@ -658,5 +757,61 @@
         display: flex;
         flex-direction: column;
         gap: var(--yt-text-gap);
+    }
+    .cm-line {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: calc(var(--yt-text-gap) * 0.6);
+        font-size: var(--yt-name);
+        font-weight: 400;
+        color: var(--yt-secondary);
+        min-width: 0;
+    }
+    /* creator icon same size as the text */
+    .cm-line .cm-avatar {
+        width: var(--yt-name);
+        height: var(--yt-name);
+    }
+    .cm-line .yt-channel-name {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .cm-meta {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* ── Modern (avatar left, 3-line info block beside it) ── */
+    .mo-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: var(--yt-thumb-gap);
+    }
+    .mo-body {
+        display: flex;
+        align-items: center;
+        gap: var(--yt-thumb-gap);
+        min-width: 0;
+    }
+    .mo-avatar {
+        flex-shrink: 0;
+    }
+    .mo-text {
+        display: flex;
+        flex-direction: column;
+        gap: var(--yt-text-gap);
+        min-width: 0;
+    }
+    .mo-creator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6em;
+        font-size: var(--yt-name);
+        font-weight: 400;
+        color: var(--yt-secondary);
+        min-width: 0;
     }
 </style>

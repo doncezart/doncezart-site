@@ -19,11 +19,26 @@
         notches = [],
         snapDistance = null,
         disabled = false,
-        tune = () => {}
+        tune = () => {},
+        baseline = null, // the value that counts as "unchanged" (per-layout default)
+        reset = () => {}
     } = $props();
 
     let trackEl = $state(null);
     let audioCtx = null;
+
+    // The reset icon lights up once the slider deviates from its baseline
+    // (the layout's default). Clicking it restores the baseline and lets the
+    // page clear its "touched" flag, so per-layout defaults apply again.
+    const changed = $derived(baseline != null && Math.abs(value - baseline) > Math.max(step * 0.25, 1e-6));
+
+    function doReset() {
+        if (!changed) return;
+        value = baseline;
+        draft = baseline;
+        lastSnapped = null;
+        reset();
+    }
 
     // Readout draft: what the user is typing; synced from the slider position.
     let draft = $state(value);
@@ -164,23 +179,36 @@
 <div class="snap" class:disabled>
     <div class="readout-row">
         <span class="readout-label">{label}</span>
-        <span class="readout-input-wrap">
-            {#if unit}
-                <span class="readout-unit">{unit}</span>
-            {/if}
-            <input
-                class="readout-input"
-                type="number"
-                min={min}
-                max={max}
-                step={step}
-                bind:value={draft}
-                disabled={disabled}
-                placeholder={String(min)}
-                aria-label={label}
-                onblur={commitReadout}
-                onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-            />
+        <span class="readout-controls">
+            <button
+                type="button"
+                class="reset-btn"
+                class:active={changed}
+                title={changed ? 'Reset to layout default' : 'Default value'}
+                aria-label={`Reset ${label} to default`}
+                disabled={disabled || !changed}
+                onclick={doReset}
+            >
+                <i class="fa-solid fa-rotate-left"></i>
+            </button>
+            <span class="readout-input-wrap">
+                {#if unit}
+                    <span class="readout-unit">{unit}</span>
+                {/if}
+                <input
+                    class="readout-input"
+                    type="number"
+                    min={min}
+                    max={max}
+                    step={step}
+                    bind:value={draft}
+                    disabled={disabled}
+                    placeholder={String(min)}
+                    aria-label={label}
+                    onblur={commitReadout}
+                    onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                />
+            </span>
         </span>
     </div>
 
@@ -218,19 +246,47 @@
         color: var(--color-text-secondary);
     }
 
+    .readout-controls {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .reset-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.35rem;
+        height: 1.35rem;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--color-text-secondary);
+        opacity: 0.22;
+        cursor: default;
+        font-size: 0.7rem;
+        transition: opacity var(--transition-fast), color var(--transition-fast);
+    }
+    .reset-btn.active {
+        opacity: 0.9;
+        cursor: pointer;
+    }
+    .reset-btn.active:hover {
+        color: var(--color-accent, var(--color-text-primary));
+        opacity: 1;
+    }
     .readout-input-wrap {
         position: relative;
         display: inline-block;
     }
     .readout-input {
-        width: 4.5rem;
+        width: 3.5rem;
         background: transparent;
         border: var(--border);
         color: var(--color-text-primary);
         font-family: var(--font-body);
         font-size: var(--text-sm);
         text-align: right;
-        padding: 0.2rem 0.4rem 0.2rem 1.7rem;
+        padding: 0.2rem 0.35rem 0.2rem 1.5rem;
         outline: none;
         -moz-appearance: textfield;
         appearance: textfield;
@@ -307,7 +363,20 @@
     }
 
     .snap.disabled {
-        opacity: 0.4;
         pointer-events: none;
+        /* the label stays readable; only the track/input/unit are dimmed so a
+           deactivated slider's title is still easy to read */
+    }
+    .snap.disabled .track {
+        opacity: 0.35;
+    }
+    .snap.disabled .readout-input {
+        opacity: 0.45;
+    }
+    .snap.disabled .readout-unit {
+        opacity: 0.3;
+    }
+    .snap.disabled .reset-btn {
+        opacity: 0.15;
     }
 </style>

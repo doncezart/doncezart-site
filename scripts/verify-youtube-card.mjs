@@ -58,7 +58,21 @@ record('page scrolls to tool containers', scrollY > 0, `scrollY=${scrollY}`);
 
 const card = page.locator('.ycard');
 const h0 = await card.evaluate((el) => el.offsetHeight);
-record('classic card has height', h0 > 700, `${h0}px`);
+const modernShape = await card.evaluate((el) => ({
+    isModern: el.classList.contains('ly-modern'),
+    avatar: !!el.querySelector('.mo-avatar'),
+    threeLines: !!el.querySelector('.mo-text .yt-title') && !!el.querySelector('.mo-text .yt-meta'),
+    creatorLine: !!el.querySelector('.mo-text .mo-creator .yt-channel-name')
+}));
+record('default layout is Modern (avatar + 3-line block)', h0 > 700 && modernShape.isModern && modernShape.avatar && modernShape.threeLines && modernShape.creatorLine,
+    `${h0}px ${JSON.stringify(modernShape)}`);
+
+// Scroll lands with the Layout/Style row visible below the navbar (not hidden at the top)
+const scrollReveal = await page.evaluate(() => {
+    const btn = document.querySelector('.layout-btn');
+    return btn ? Math.round(btn.getBoundingClientRect().top) : -1;
+});
+record('scroll lands with tool headers visible', scrollReveal >= 40, `layout row top=${scrollReveal}px`);
 
 await page.screenshot({ path: `${outDir}/1-classic.png` });
 
@@ -92,15 +106,40 @@ const underlay = await page.evaluate(() => {
 });
 record('underlay: title below image (not overlaid)', !!(underlay.titleBelow && !underlay.titleOnImg), JSON.stringify(underlay));
 record('underlay: channel/meta stay on image', !!(underlay.channelOnImg && underlay.metaOnImg), JSON.stringify(underlay));
+const ulCornerBottom = await page.evaluate(() => {
+    const el = document.querySelector('.ul-corner');
+    return el ? getComputedStyle(el).bottom : '';
+});
+record('underlay duration aligned with views · date', ulCornerBottom === '56px', ulCornerBottom);
 
-// 4a3. Compact: channel row + avatar honor the toggles (both on by default)
+// 4a3. Compact: single-line meta by default (title, views · date); creator and
+// a small avatar (same size as the text) join that same line when toggled on
 await page.click('.layout-btn:has(.layout-name:text-is("Compact"))');
 await page.waitForTimeout(600);
-const compact = await page.evaluate(() => {
+const compactDefault = await page.evaluate(() => {
     const card = document.querySelector('.ycard');
-    return { channel: !!card.querySelector('.yt-channel'), avatar: !!card.querySelector('.yt-avatar') };
+    return {
+        line: !!card.querySelector('.cm-line'),
+        channel: !!card.querySelector('.cm-line .yt-channel-name'),
+        avatar: !!card.querySelector('.cm-line .cm-avatar'),
+        meta: !!card.querySelector('.cm-line .cm-meta')
+    };
 });
-record('compact shows channel/avatar when toggled on', compact.channel && compact.avatar, JSON.stringify(compact));
+record('compact defaults to title + views · date only', compactDefault.line && !compactDefault.channel && !compactDefault.avatar && compactDefault.meta, JSON.stringify(compactDefault));
+await page.locator('.module-btn', { hasText: 'Channel' }).click();
+await page.locator('.module-btn', { hasText: 'Avatar' }).click();
+await page.waitForTimeout(400);
+const compactOn = await page.evaluate(() => {
+    const line = document.querySelector('.cm-line');
+    const avatar = line.querySelector('.cm-avatar');
+    return {
+        channel: !!line.querySelector('.yt-channel-name'),
+        avatar: !!avatar,
+        inlineMeta: !!line.querySelector('.cm-meta'),
+        avatarSize: avatar ? getComputedStyle(avatar).width : null
+    };
+});
+record('compact creator + small avatar share one line with views · date', compactOn.channel && compactOn.avatar && compactOn.inlineMeta && compactOn.avatarSize === '43px', JSON.stringify(compactOn));
 
 // Back to classic before further checks
 await page.click('.layout-btn:has(.layout-name:text-is("Classic"))');
@@ -218,6 +257,37 @@ const spWrapH = await page.evaluate(() => document.querySelector('.sp-wrap').off
 record('split stays natural height with description (no thumbnail crop)', spWrapH <= 250, `${spWrapH}px`);
 const spTitleFs = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('.sp-text .yt-title')).fontSize));
 record('split text halved by default (text size 0.5x)', Math.abs(spTitleFs - 28) <= 1, `${spTitleFs}px`);
+const spDescOpacity = await page.evaluate(() => getComputedStyle(document.querySelector('.sp-text .yt-desc')).opacity);
+record('split description text darker', spDescOpacity === '0.72', `opacity ${spDescOpacity}`);
+record('split scrim off by default', await page.evaluate(() => !document.querySelector('.sp-scrim')), '');
+const scrimBtn = page.locator('.module-btn', { hasText: 'Bottom scrim' });
+await scrimBtn.click();
+await page.waitForTimeout(300);
+record('split scrim toggles on', await page.evaluate(() => !!document.querySelector('.sp-scrim')), '');
+await scrimBtn.click();
+await page.waitForTimeout(250);
+record('split scrim toggles off', await page.evaluate(() => !document.querySelector('.sp-scrim')), '');
+// restore the default on-state deterministically (the rest of the flow expects it)
+if ((await scrimBtn.getAttribute('aria-checked')) !== 'true') {
+    await scrimBtn.click();
+    await page.waitForTimeout(250);
+}
+// Description off → title + creator pinned to the top, views · date pinned to the bottom
+await page.locator('.module-btn', { hasText: 'Description' }).click();
+await page.waitForTimeout(300);
+record('split pins title top / views bottom when description off', await page.evaluate(() => {
+    const t = document.querySelector('.sp-text');
+    const box = t.getBoundingClientRect();
+    const topGap = Math.abs(t.querySelector('.sp-top').getBoundingClientRect().top - box.top);
+    const botGap = Math.abs(t.querySelector('.sp-bottom').getBoundingClientRect().bottom - box.bottom);
+    return topGap <= 2 && botGap <= 2;
+}), '');
+// put description back on (the flow checks description rendering later)
+const descBtn = page.locator('.module-btn', { hasText: 'Description' });
+if ((await descBtn.getAttribute('aria-checked')) !== 'true') {
+    await descBtn.click();
+    await page.waitForTimeout(200);
+}
 
 // Split layout: thumbnail keeps its corner radius and text column ≈ 2× the thumbnail
 const spThumbR = await page.evaluate(() => getComputedStyle(document.querySelector('.sp-media .yt-thumb')).borderRadius);
@@ -288,10 +358,20 @@ record('custom padding persists on layout switch', padStacked.includes('70px'), 
 // hero scrim: default 0.85, configurable
 await page.click('.layout-btn:has(.layout-name:text-is("Hero"))');
 await page.waitForTimeout(400);
-const scrimDefault = await page.evaluate(() => getComputedStyle(document.querySelector('.hr-scrim')).backgroundImage);
+const scrimDefault = await page.evaluate(() => {
+    const el = document.querySelector('.hr-scrim');
+    return el ? getComputedStyle(el).backgroundImage : '';
+});
 record('hero scrim dark by default', scrimDefault.includes('0.85'), scrimDefault.slice(0, 90));
+record('hero hides duration by default', await page.evaluate(() => !document.querySelector('.hr-corner .yt-duration')), '');
+const hrCornerBottom = await page.evaluate(() => {
+    const el = document.querySelector('.hr-corner');
+    return el ? getComputedStyle(el).bottom : '';
+});
+record('hero duration line aligns with views · date', hrCornerBottom === '70px', hrCornerBottom);
 const heroTitleInfo = await page.evaluate(() => {
     const el = document.querySelector('.hr-main .yt-title');
+    if (!el) return { fs: -1, expected: 0 };
     const C = parseFloat(document.querySelector('.ycard').style.width); // current container size
     return { fs: parseFloat(getComputedStyle(el).fontSize), expected: Math.round(24 * (C / 360) * 0.8) };
 });
@@ -354,6 +434,12 @@ await page.waitForTimeout(250);
 
 // 6a3. Description renders in every layout when enabled (classic has none by default)
 const descModule = page.locator('.module-btn', { hasText: 'Description' });
+// The split section toggled description; normalise back so this check measures
+// the classic default state (off) before enabling it.
+if ((await descModule.getAttribute('aria-checked')) !== 'false') {
+    await descModule.click();
+    await page.waitForTimeout(250);
+}
 const descBefore = await card.evaluate((el) => !!el.querySelector('.yt-desc'));
 await descModule.click();
 await page.waitForTimeout(300);
@@ -470,75 +556,6 @@ const errs = [...new Set([...consoleErrors, ...pageErrors])]
 record('no console/page errors', errs.length === 0, errs.join(' || '));
 const bad = badResponses.filter((b) => !b.includes('url=notaurl'));
 record('no 4xx/5xx responses (besides deliberate test)', bad.length === 0, bad.slice(0, 5).join(' | '));
-
-// ── Safe-Zone Checker ──
-await page.goto(`${base}/tools/safe-zone`, { waitUntil: 'networkidle' });
-const szTitle = await page.title();
-record('safe-zone page loads', szTitle.includes('Safe-Zone'), szTitle);
-
-// Generate a synthetic 1280×720 PNG in-page → base64 → write to disk → upload it
-const filePath = '/tmp/opencode/ytc-shots/test-thumb.png';
-const b64 = await page.evaluate(async () => {
-    const c = document.createElement('canvas');
-    c.width = 1280; c.height = 720;
-    const ctx = c.getContext('2d');
-    const g = ctx.createLinearGradient(0, 0, 1280, 720);
-    g.addColorStop(0, '#ff0000');
-    g.addColorStop(1, '#0000ff');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, 1280, 720);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 120px Arial';
-    ctx.fillText('TEST', 100, 300);
-    const blob = await new Promise((r) => c.toBlob(r, 'image/png'));
-    const bytes = new Uint8Array(await blob.arrayBuffer());
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    return btoa(binary);
-});
-const { writeFile } = await import('node:fs/promises');
-await writeFile(filePath, Buffer.from(b64, 'base64'));
-
-await page.locator('input[type=file]').setInputFiles(filePath);
-await page.waitForTimeout(1200);
-const px = await page.evaluate(() => {
-    const canvas = document.querySelector('canvas.main-canvas');
-    const ctx = canvas.getContext('2d');
-    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-    let nonBlack = 0;
-    for (let i = 0; i < data.length; i += 40) {
-        if (data[i] || data[i + 1] || data[i + 2]) nonBlack++;
-    }
-    return { nonBlack, w: canvas.width, h: canvas.height };
-});
-record('safe-zone canvas draws content', px.nonBlack > 1000, `${px.nonBlack} sampled non-black px, ${px.w}x${px.h}`);
-
-// Toggle an overlay off → canvas re-renders
-async function canvasChecksum() {
-    return page.evaluate(() => {
-        const canvas = document.querySelector('canvas.main-canvas');
-        const ctx = canvas.getContext('2d');
-        const data = ctx.getImageData(0, 0, 1280, 720).data;
-        let h = 0;
-        for (let i = 0; i < data.length; i += 16) {
-            h = (h * 31 + data[i] * 7 + data[i + 1] * 3 + data[i + 2] + data[i + 3]) >>> 0;
-        }
-        return h;
-    });
-}
-const beforeSum = await canvasChecksum();
-await page.locator('.toggle', { hasText: 'Duration badge' }).locator('input').uncheck();
-await page.waitForTimeout(300);
-const afterSum = await canvasChecksum();
-record('overlay toggle re-renders canvas', beforeSum !== afterSum, `checksum ${beforeSum}->${afterSum}`);
-
-// Export annotated PNG
-const dlAnnotPromise = page.waitForEvent('download');
-await page.locator('.btn-download').click();
-const dlAnnot = await dlAnnotPromise;
-const annotBuf = await readFile(await dlAnnot.path());
-record('safe-zone export is 1280×720 PNG', annotBuf.readUInt32BE(16) === 1280 && annotBuf.readUInt32BE(20) === 720,
-    `${annotBuf.readUInt32BE(16)}x${annotBuf.readUInt32BE(20)}`);
 
 await browser.close();
 console.log('\n---');

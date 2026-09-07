@@ -5,17 +5,9 @@ export const tools = [
 	{
 		slug: 'youtube-card',
 		name: 'YouTube Card Generator',
-		description: 'Turn any YouTube video into a clean, branded reference card — full-res thumbnail, title, creator, duration, and more.',
+		description: 'Turn any YouTube video into a clean, branded reference card.',
 		href: '/tools/youtube-card',
 		icon: 'fa-brands fa-youtube',
-		status: 'live'
-	},
-	{
-		slug: 'safe-zone',
-		name: 'Thumbnail Safe-Zone Checker',
-		description: 'See exactly what YouTube\u2019s UI will cover on your thumbnail — duration badge, progress bar, hover icons, scrim — at every placement size.',
-		href: '/tools/safe-zone',
-		icon: 'fa-solid fa-bullseye',
 		status: 'live'
 	}
 ];
