@@ -51,8 +51,9 @@ export const LAYOUTS = {
 	},
 	split: {
 		label: 'Wide Split', hint: 'Side-by-side hero',
-		titleSize: 18, titleWeight: 500, font: 'Roboto', descriptionOn: false,
+		titleSize: 16, titleWeight: 500, font: 'Roboto', descriptionOn: false,
 		defaultPadding: 40,
+		defaultTitleLines: 1, // wide flat card: one title line keeps the natural thumbnail height
 		defaults: { thumb: 48, column: 48, text: 28 }
 	},
 	stacked: {

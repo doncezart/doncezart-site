@@ -47,6 +47,15 @@
     );
     const verifiedFg = $derived(verifiedBg === '#ffffff' ? '#0f0f0f' : '#ffffff');
 
+    // Thumbnail radius. With a zero frame (padding = 0) the thumbnail touches
+    // the card's own corners, so it must follow the container radius exactly —
+    // otherwise thin card-background slivers show between the two arcs.
+    const thumbRadius = $derived((() => {
+        const free = (config.radius ?? 0) * S;
+        const container = (config.containerRadius ?? 0) * S;
+        return pad * S < 0.5 ? container : free;
+    })());
+
     // All tunable CSS values flow through custom properties (Svelte 5 has no style interpolation).
     // Design-px values are scaled by S (uniform zoom); % values and colors pass through.
     const cssVars = $derived(
@@ -54,7 +63,7 @@
         `--yt-bg:${colors.bg};--yt-text:${colors.text};--yt-secondary:${colors.secondary};` +
         `--yt-accent:${colors.accent};` +
         `--yt-verified-bg:${verifiedBg};--yt-verified-fg:${verifiedFg};` +
-        `--yt-radius:${Math.round((config.radius ?? 0) * S)}px;--yt-container-radius:${Math.round((config.containerRadius ?? 0) * S)}px;` +
+        `--yt-radius:${Math.round(thumbRadius)}px;--yt-container-radius:${Math.round((config.containerRadius ?? 0) * S)}px;` +
         `--yt-pad:${Math.round(pad * S)}px;` +
         `--yt-thumb-gap:${Math.round((config.thumbGap ?? 48) * S)}px;--yt-column-gap:${Math.round((config.columnGap ?? 48) * S)}px;--yt-text-gap:${Math.round((config.textGap ?? 28) * S)}px;` +
         `--yt-name:${m.name}px;--yt-avatar:${m.avatar}px;` +
@@ -167,7 +176,7 @@
     {:else if config.layout === 'split'}
         <div
             class="sp-wrap"
-            style="grid-template-columns:{config.ratio ?? 34}% 1fr;min-height:{Math.max(280, Math.round(LW / (config.splitWideness ?? 3.2)))}px"
+            style="grid-template-columns:{config.ratio ?? 34}% 1fr;min-height:{Math.max(96, Math.round((LW * (config.ratio ?? 34) / 100) / aspect))}px"
         >
             <div class="sp-media">{@render thumb('fill')}</div>
             <div class="sp-text">
@@ -335,7 +344,10 @@
 <style>
     /* ── Root ──
        content-box semantics: the design width (--yt-width) belongs to the content;
-       padding is an OUTER frame — content and canvas never change size with it. */
+       padding is an OUTER frame — content and canvas never change size with it.
+       The drop shadow lives HERE (not on the preview wrapper) so it always hugs
+       the card's exact corners and size — padding, radius and export-size
+       changes can never leave a stale square shadow behind it. */
     .ycard {
         font-family: var(--yt-font, sans-serif);
         background-color: var(--yt-bg);
@@ -345,6 +357,7 @@
         line-height: 1.35;
         padding: var(--yt-pad);
         border-radius: var(--yt-container-radius);
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
     }
 
     /* Thumbnail (background-image so object-fit: cover survives html2canvas) */

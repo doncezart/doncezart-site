@@ -113,7 +113,7 @@ const previewDims = await page.evaluate(() => {
     return { visualW: Math.round(scaled.getBoundingClientRect().width), paneH: pane.offsetHeight };
 });
 record('preview much smaller (classic < 560px visual)', previewDims.visualW <= 560, `${previewDims.visualW}px wide`);
-record('preview pane fixed height', previewDims.paneH === 400, `${previewDims.paneH}px (offsetHeight incl. border)`);
+record('preview pane fixed height', previewDims.paneH === 440, `${previewDims.paneH}px (offsetHeight incl. border)`);
 
 // 4a4. Preview background picker: dropdown, palette colors, custom color
 await page.click('.preview-bg-btn');
@@ -199,13 +199,13 @@ await dragSlider('Card radius', 16); // notch
 const cardRadius = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).borderRadius);
 record('card radius applies', cardRadius === '16px', cardRadius);
 
-// Split wideness: flattens the split card (min-height = width / wideness, never below the thumb's natural aspect)
+// Split: the card height = the thumbnail's natural aspect height (no stretch, no crop)
 await page.click('.layout-btn:has(.layout-name:text-is("Wide Split"))');
 await page.waitForTimeout(500);
-const spMinBefore = await page.evaluate(() => getComputedStyle(document.querySelector('.sp-wrap')).minHeight);
-await dragSlider('Split wideness', 2.8); // free value between notches 2.4/3.2
-const spMinAfter = await page.evaluate(() => getComputedStyle(document.querySelector('.sp-wrap')).minHeight);
-record('split wideness adjusts card height', spMinBefore !== spMinAfter && spMinAfter === '457px', `${spMinBefore} -> ${spMinAfter}`);
+const spMin = await page.evaluate(() => getComputedStyle(document.querySelector('.sp-wrap')).minHeight);
+record('split card height = thumbnail natural aspect', spMin === '245px', spMin);
+const spClamp = await page.evaluate(() => getComputedStyle(document.querySelector('.sp-text .yt-title')).webkitLineClamp);
+record('wide split defaults to 1 title line', spClamp === '1', `line-clamp ${spClamp}`);
 
 // Split layout: thumbnail keeps its corner radius and text column ≈ 2× the thumbnail
 const spThumbR = await page.evaluate(() => getComputedStyle(document.querySelector('.sp-media .yt-thumb')).borderRadius);

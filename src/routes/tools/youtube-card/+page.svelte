@@ -17,7 +17,7 @@
     let cardEl = $state(null);
 
     // Per-layout defaults are applied on layout switch until the user tunes a value.
-    const touched = $state({ padding: false, thumbGap: false, columnGap: false, textGap: false });
+    const touched = $state({ padding: false, thumbGap: false, columnGap: false, textGap: false, titleLines: false });
 
     // ── Preview: the card always renders at ONE fixed on-screen size inside a
 // fixed-height pane (no scrollbars, no overflow). Container size is an
@@ -25,7 +25,7 @@
 // (×1280/C). The fit term uses the card's design-1280 height, which makes the
 // scale EXACTLY container-invariant — dragging export size cannot twitch it. ──
 const PREVIEW_SCALE = 0.36;
-    const PANE_HEIGHT = 400;
+    const PANE_HEIGHT = 440;
     const previewScale = $derived((() => {
         const C = config.containerSize ?? 1280;
         const designH = cardHeight * 1280 / C; // height as if the card were at 1280 design width
@@ -93,6 +93,7 @@ const PREVIEW_SCALE = 0.36;
         if (!touched.thumbGap) config.thumbGap = d.thumb;
         if (!touched.columnGap) config.columnGap = d.column;
         if (!touched.textGap) config.textGap = d.text;
+        if (!touched.titleLines) config.titleLines = LAYOUTS[key].defaultTitleLines ?? 2;
     }
 
     const modulesList = [
@@ -188,9 +189,12 @@ const PREVIEW_SCALE = 0.36;
         (config.containerSize ?? 1280) + 2 * Math.round((config.padding ?? 0) * (config.containerSize ?? 1280) / 1280)
     );
 
-    // Shadow behind the preview follows the card's rounded corners (scaled).
-    const previewShadowRadius = $derived(
-        Math.round((config.containerRadius ?? 0) * (config.containerSize ?? 1280) / 1280)
+    // The preview box width is derived from the config (never measured) so the
+// wrapper and the card shrink/grow in the same render tick — padding and
+// export-size changes can't leave a stale box behind. The drop shadow itself
+// lives on the .ycard, so it can never lag either.
+    const previewBoxWidth = $derived(
+        (config.containerSize ?? 1280) + 2 * Math.round((config.padding ?? 0) * (config.containerSize ?? 1280) / 1280)
     );
 
     // Notch patterns for the sliders (snap points; free values still reachable).
@@ -428,7 +432,7 @@ const PREVIEW_SCALE = 0.36;
                     {/if}
 
                     <div class="preview-stage" style="width:{cardWidth * previewScale}px;height:{cardHeight * previewScale}px">
-                        <div class="preview-scaled" style="transform:scale({previewScale});width:{cardWidth || 1280}px;border-radius:{previewShadowRadius}px">
+                        <div class="preview-scaled" style="transform:scale({previewScale});width:{previewBoxWidth}px">
                             <YouTubeCard bind:cardEl {video} {config} />
                         </div>
                     </div>
@@ -457,18 +461,6 @@ const PREVIEW_SCALE = 0.36;
                             notches={[40, 50, 60, 70, 85]}
                             snapDistance={2}
                             disabled={!ratioActive}
-                        />
-                    </div>
-
-                    <div class="field" class:disabled={!columnGapActive}>
-                        <SnapSlider
-                            label="Split wideness"
-                            unit="×"
-                            bind:value={config.splitWideness}
-                            min={1.2} max={4} step={0.1}
-                            notches={[1.6, 2, 2.4, 3.2, 4]}
-                            snapDistance={0.2}
-                            disabled={!columnGapActive}
                         />
                     </div>
 
@@ -608,7 +600,7 @@ const PREVIEW_SCALE = 0.36;
                 <div class="content-fields">
                     <label class="field">
                         <span>Title lines</span>
-                        <select bind:value={config.titleLines}>
+                        <select bind:value={config.titleLines} onchange={() => (touched.titleLines = true)}>
                             {#each [1, 2, 3] as n}
                                 <option value={n}>{n}</option>
                             {/each}
