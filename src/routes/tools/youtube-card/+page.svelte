@@ -19,26 +19,23 @@
     // Per-layout defaults are applied on layout switch until the user tunes a value.
     const touched = $state({ padding: false, thumbGap: false, columnGap: false, textGap: false });
 
-    // ── Preview scaling ──
+    // ── Preview: the card always renders at ONE fixed on-screen size. Container
+// size is an export-only setting, so the display scale counter-acts the export
+// zoom (×1280/C) — changing it never re-squishes or re-sizes the preview. ──
+const PREVIEW_SCALE = 0.4;
+    const previewScale = $derived(PREVIEW_SCALE * 1280 / (config.containerSize ?? 1280));
     let paneEl = $state(null);
     let cardHeight = $state(0);
     let cardWidth = $state(0);
-    let scale = $state(0.3);
 
     $effect(() => {
         const pane = paneEl;
         if (!pane) return;
         const update = () => {
-            const cw = cardEl?.offsetWidth ?? 0;
-            if (cw) cardWidth = cw;
-            const paneW = pane.clientWidth - 48;
-            const paneH = pane.clientHeight - 48;
-            scale = Math.min(
-                0.4,
-                Math.max(0.08, paneW / (cardWidth || 1280)),
-                cardHeight > 0 ? paneH / cardHeight : 1
-            );
-            if (cardEl) cardHeight = cardEl.offsetHeight;
+            if (cardEl) {
+                cardWidth = cardEl.offsetWidth;
+                cardHeight = cardEl.offsetHeight;
+            }
         };
         update();
         const ro = new ResizeObserver(update);
@@ -293,7 +290,7 @@
                         {/if}
 
                         <span class="ver-swatches">
-                            <span class="ver-label">Verified</span>
+                            <span class="ver-label">Verified badge</span>
                             {#each VERIFIED as v}
                                 <button
                                     type="button"
@@ -361,7 +358,7 @@
                     </div>
                 {/if}
 
-                <div class="preview-pane" bind:this={paneEl} style="height:{Math.min(480, Math.max(320, cardHeight * scale + 56))}px;{paneBgStyle}">
+                <div class="preview-pane" bind:this={paneEl} style="height:{Math.min(480, Math.max(320, cardHeight * previewScale + 56))}px;{paneBgStyle}">
                     <button
                         type="button"
                         class="preview-bg-btn"
@@ -422,8 +419,8 @@
                         </div>
                     {/if}
 
-                    <div class="preview-stage" style="width:{cardWidth * scale}px;height:{cardHeight * scale}px">
-                        <div class="preview-scaled" style="transform:scale({scale});width:{cardWidth || 1280}px;border-radius:{previewShadowRadius}px">
+                    <div class="preview-stage" style="width:{cardWidth * previewScale}px;height:{cardHeight * previewScale}px">
+                        <div class="preview-scaled" style="transform:scale({previewScale});width:{cardWidth || 1280}px;border-radius:{previewShadowRadius}px">
                             <YouTubeCard bind:cardEl {video} {config} />
                         </div>
                     </div>
@@ -448,21 +445,10 @@
                             label="Thumb / text ratio"
                             unit="%"
                             bind:value={config.ratio}
-                            min={40} max={85} step={1}
-                            notches={[40, 50, 60, 70, 80, 85]}
+                            min={25} max={85} step={1}
+                            notches={[40, 50, 60, 70, 85]}
                             snapDistance={2}
                             disabled={!ratioActive}
-                        />
-                    </div>
-
-                    <div class="field">
-                        <SnapSlider
-                            label="Container size"
-                            unit="px"
-                            bind:value={config.containerSize}
-                            min={720} max={1920} step={10}
-                            notches={[720, 1080, 1280, 1440, 1920]}
-                            snapDistance={60}
                         />
                     </div>
 
@@ -640,9 +626,19 @@
 
             <aside class="bottom-col export-col">
                 <h2 class="band-title">Export</h2>
+                <div class="field export-size-field">
+                    <SnapSlider
+                        label="Export size"
+                        unit="px"
+                        bind:value={config.containerSize}
+                        min={720} max={1920} step={10}
+                        notches={[720, 1080, 1280, 1440, 1920]}
+                        snapDistance={60}
+                    />
+                </div>
                 <ExportBar {cardEl} filename={video.id} />
                 <p class="card-note">
-                    Card exports at its true pixel size ({exportWidth}px wide) · grow or shrink it with the container-size slider · transparent PNG supported
+                    Export size is a pure scaling setting — the whole composition (text, spacing, radiuses, frame) grows or shrinks proportionally, and the preview stays at a fixed size. Transparent PNG supported.
                 </p>
             </aside>
         </div>

@@ -107,7 +107,7 @@
         const cw = contentW - 48 * S;
         if (config.layout === 'split') {
             // text column = width − thumb share − column gap
-            return Math.round(contentW - (contentW * (config.ratio ?? 60) / 100) - (config.columnGap ?? 48) * S) - 24 * S;
+            return Math.round(contentW - (contentW * (config.ratio ?? 34) / 100) - (config.columnGap ?? 48) * S) - 24 * S;
         }
         if (config.layout === 'hero') {
             // .hr-content has --yt-hero-pad padding; .hr-main caps at 82% of that box
@@ -121,7 +121,7 @@
     }
     function descWidth() {
         if (config.layout === 'split') {
-            return Math.round(contentW - (contentW * (config.ratio ?? 60) / 100) - (config.columnGap ?? 48) * S) - 24 * S;
+            return Math.round(contentW - (contentW * (config.ratio ?? 34) / 100) - (config.columnGap ?? 48) * S) - 24 * S;
         }
         return Math.max(Math.round(240 * S), Math.round(contentW - 48 * S));
     }
@@ -135,9 +135,6 @@
     const metaLine = $derived((() => {
         const parts = [];
         if (config.modules.views && video?.views != null) parts.push(`${formatViews(video.views)} views`);
-        if (config.modules.subscribers && video?.channel?.subscribers != null) {
-            parts.push(`${formatViews(video.channel.subscribers)} subscribers`);
-        }
         if (config.modules.date && video?.publishedAt) {
             parts.push(
                 config.dateFormat === 'relative' ? relativeDate(video.publishedAt) : formatDate(video.publishedAt)
@@ -169,9 +166,9 @@
     {:else if config.layout === 'split'}
         <div
             class="sp-wrap"
-            style="grid-template-columns:{config.ratio ?? 60}% 1fr;min-height:{Math.max(Math.round(LW / (config.splitWideness ?? 3.2)), Math.round((LW * (config.ratio ?? 60) / 100) / aspect))}px"
+            style="grid-template-columns:{config.ratio ?? 34}% 1fr;min-height:{Math.max(Math.round(LW / (config.splitWideness ?? 3.2)), Math.round((LW * (config.ratio ?? 34) / 100) / aspect))}px"
         >
-            <div class="sp-media">{@render thumb('fill')}</div>
+            <div class="sp-media">{@render thumb(Math.max(96, Math.round((LW * (config.ratio ?? 34) / 100) / aspect)))}</div>
             <div class="sp-text">
                 {@render titleEl()}
                 {@render channelRow()}
@@ -289,12 +286,17 @@
                     onerror={(e) => (e.currentTarget.style.display = 'none')}
                 />
             {/if}
-            <span class="yt-channel-name">{video.channel.name}</span>
-            {#if config.modules.verified}
-                <span class="yt-verified">
-                    <i class="fa-solid fa-check"></i>
-                </span>
-            {/if}
+            <span class="yt-ident">
+                <span class="yt-channel-name">{video.channel.name}</span>
+                {#if config.modules.verified}
+                    <span class="yt-verified">
+                        <i class="fa-solid fa-check"></i>
+                    </span>
+                {/if}
+                {#if config.modules.subscribers && video?.channel?.subscribers != null}
+                    <span class="yt-subscribers">· {formatViews(video.channel.subscribers)} subscribers</span>
+                {/if}
+            </span>
         </div>
     {/if}
 {/snippet}
@@ -414,6 +416,22 @@
         overflow: hidden;
         text-overflow: ellipsis;
     }
+    .yt-ident {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6em;
+        min-width: 0;
+    }
+    .yt-ident .yt-channel-name {
+        flex: 0 1 auto;
+        min-width: 0;
+    }
+    .yt-subscribers {
+        color: var(--yt-secondary);
+        font-size: var(--yt-name);
+        white-space: nowrap;
+        opacity: 0.85;
+    }
     .yt-verified {
         width: var(--yt-name);
         height: var(--yt-name);
@@ -474,9 +492,9 @@
     }
     .sp-media .yt-thumb {
         position: absolute;
-        inset: 0;
-        height: 100% !important;
-        border-radius: 0 !important;
+        top: 0;
+        left: 0;
+        width: 100%;
     }
     .sp-text {
         display: flex;
@@ -539,6 +557,10 @@
         text-shadow: 0 2px 16px rgba(0, 0, 0, 0.55);
     }
     .hr-main .yt-channel {
+        color: inherit;
+    }
+    .hr-main .yt-subscribers,
+    .ul-overlay .yt-subscribers {
         color: inherit;
     }
     .hr-corner {

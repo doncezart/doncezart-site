@@ -149,7 +149,7 @@ const apiData = await page.evaluate(() => {
 });
 record('data API provides duration', apiData.duration === '3:34', apiData.duration ?? 'missing');
 record('data API provides channel avatar', apiData.avatar, '');
-record('data API provides views/subscribers/date meta', (apiData.meta ?? '').includes('views') && (apiData.meta ?? '').includes('subscribers'), apiData.meta ?? 'missing');
+record('data API provides views/date meta (subscribers not in meta)', (apiData.meta ?? '').includes('views') && !(apiData.meta ?? '').includes('subscribers'), apiData.meta ?? 'missing');
 record('no fallback notice when API works', apiData.noteCount === 0, `${apiData.noteCount} notice(s)`);
 
 // 4b2. Avatar actually loads (not just an element with a src)
@@ -199,18 +199,35 @@ await dragSlider('Card radius', 16); // notch
 const cardRadius = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).borderRadius);
 record('card radius applies', cardRadius === '16px', cardRadius);
 
-// Split wideness: flattens the split card (min-height = width / aspect)
+// Split wideness: flattens the split card (min-height = width / wideness, never below the thumb's natural aspect)
 await page.click('.layout-btn:has(.layout-name:text-is("Wide Split"))');
 await page.waitForTimeout(500);
 const spMinBefore = await page.evaluate(() => getComputedStyle(document.querySelector('.sp-wrap')).minHeight);
 await dragSlider('Split wideness', 2.8); // free value between notches 2.4/3.2
 const spMinAfter = await page.evaluate(() => getComputedStyle(document.querySelector('.sp-wrap')).minHeight);
 record('split wideness adjusts card height', spMinBefore !== spMinAfter && spMinAfter === '457px', `${spMinBefore} -> ${spMinAfter}`);
+
+// Split layout: thumbnail keeps its corner radius and text column ≈ 2× the thumbnail
+const spThumbR = await page.evaluate(() => getComputedStyle(document.querySelector('.sp-media .yt-thumb')).borderRadius);
+record('split thumbnail keeps radius', spThumbR === '24px', spThumbR);
+const spCols = await page.evaluate(() => {
+    const wrap = document.querySelector('.sp-wrap');
+    return {
+        thumb: wrap.querySelector(':scope > .sp-media').getBoundingClientRect().width,
+        text: wrap.querySelector(':scope > .sp-text').getBoundingClientRect().width
+    };
+});
+const spColRatio = spCols.text / spCols.thumb;
+record('split text area ≈ 2× thumbnail', spColRatio > 1.75 && spColRatio < 2.3, `text ${spCols.text.toFixed(0)} / thumb ${spCols.thumb.toFixed(0)} = ${spColRatio.toFixed(2)}`);
 await page.click('.layout-btn:has(.layout-name:text-is("Classic"))');
 await page.waitForTimeout(400);
 
-// Container size (free value 1600 between 1440/1920) — uniform zoom: design px scale ×1.25
-await dragSlider('Container size', 1600);
+// Export size (free value 1600 between 1440/1920) — uniform zoom: design px scale ×1.25.
+// First capture the on-screen preview size: the fixed-scale preview must NOT change.
+const visualPre = await page.evaluate(() => Math.round(document.querySelector('.preview-scaled').getBoundingClientRect().width));
+await dragSlider('Export size', 1600);
+const visualPost = await page.evaluate(() => Math.round(document.querySelector('.preview-scaled').getBoundingClientRect().width));
+record('preview stays fixed when export size changes', visualPre === visualPost && visualPost > 0, `${visualPre}px -> ${visualPost}px`);
 const contW = await card.evaluate((el) => el.offsetWidth);
 const contThumbW = await card.evaluate((el) => el.querySelector('.yt-thumb').offsetWidth);
 record('container size applies', contW === 1700, `${contW}px (content 1600 + frame ${2 * Math.round(40 * 1.25)})`);
@@ -297,6 +314,19 @@ await page.waitForTimeout(300);
 const after = await card.evaluate((el) => el.innerText.length);
 record('module toggle removes content', after < before && (await chk.getAttribute('aria-checked')) === 'false', `${before}→${after}`);
 await chk.click();
+
+// 6a2. Subscribers: off by default, appears next to the creator name when enabled
+const subsModule = page.locator('.module-btn', { hasText: 'Subscribers' });
+record('subscribers module off by default', (await subsModule.getAttribute('aria-checked')) === 'false', `aria-checked=${await subsModule.getAttribute('aria-checked')}`);
+await subsModule.click();
+await page.waitForTimeout(300);
+const subsInfo = await card.evaluate((el) => {
+    const s = el.querySelector('.yt-subscribers');
+    return { present: !!s, text: s?.innerText ?? '', owner: !!s && s.closest('.yt-channel') !== null };
+});
+record('subscribers show next to creator name', subsInfo.present && subsInfo.owner && subsInfo.text.includes('subscribers'), subsInfo.text);
+await subsModule.click();
+await page.waitForTimeout(250);
 
 // 6b. Verified check colors
 await page.locator('.module-btn', { hasText: 'Verified' }).click();
