@@ -20,13 +20,21 @@
     $effect(() => {
         if (!open) return;
 
-        // Position panel flush under the navbar (not the button itself)
-        if (triggerEl) {
+        // Position panel flush under the navbar, clamped so it can never flow
+        // off either side of the viewport regardless of menu width.
+        function position() {
+            if (!triggerEl || !menuEl) return;
             const rect = triggerEl.getBoundingClientRect();
-            menuLeft = rect.left + rect.width / 2;
             const navbarEl = triggerEl.closest('.navbar');
             menuTop = navbarEl ? navbarEl.getBoundingClientRect().bottom : rect.bottom;
+            const w = menuEl.offsetWidth || 280;
+            const cx = rect.left + rect.width / 2;
+            menuLeft = Math.min(Math.max(cx, w / 2 + 8), window.innerWidth - w / 2 - 8);
         }
+        position();
+        // Re-measure once laid out / fonts settled so the clamp uses the real width.
+        const raf1 = requestAnimationFrame(() => { position(); });
+        const raf2 = requestAnimationFrame(() => requestAnimationFrame(position));
 
         function handleClickOutside(e) {
             if (
@@ -48,6 +56,8 @@
         window.addEventListener('scroll', handleScroll, { passive: true });
 
         return () => {
+            cancelAnimationFrame(raf1);
+            cancelAnimationFrame(raf2);
             document.removeEventListener('click', handleClickOutside);
             document.removeEventListener('keydown', handleKeydown);
             window.removeEventListener('scroll', handleScroll);
@@ -126,6 +136,7 @@
         position: fixed;
         transform: translateX(-50%);
         min-width: 280px;
+        max-width: min(360px, calc(100vw - 16px));
         background: rgba(0, 0, 0, 0.85);
         -webkit-backdrop-filter: blur(24px) saturate(180%);
         backdrop-filter: blur(24px) saturate(180%);

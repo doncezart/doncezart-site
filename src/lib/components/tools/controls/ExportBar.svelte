@@ -15,7 +15,7 @@
     let copied = $state(false);
     let error = $state('');
 
-    async function capture() {
+    async function capture(backgroundColor = null) {
         if (!cardEl) throw new Error('Card not ready.');
         await document.fonts.ready;
 
@@ -31,9 +31,9 @@
         holder.appendChild(cardEl);
 
         // JPEG has no alpha channel — render against white instead of transparent black.
-        const backgroundColor = format === 'jpeg' ? '#ffffff' : null;
+        const bg = backgroundColor ?? (format === 'jpeg' ? '#ffffff' : null);
         try {
-            return await html2canvas(cardEl, { scale: 1, backgroundColor, useCORS: true });
+            return await html2canvas(cardEl, { scale: 1, backgroundColor: bg, useCORS: true });
         } finally {
             if (originalParent) {
                 originalParent.insertBefore(cardEl, nextSibling);
@@ -69,8 +69,8 @@
         exporting = true;
         error = '';
         try {
-            await document.fonts.ready;
-            const canvas = await html2canvas(cardEl, { scale: 1, backgroundColor: null, useCORS: true });
+            // Same mount-out capture as Download: PNG at the true card size.
+            const canvas = await capture(null);
             const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
             await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
             copied = true;

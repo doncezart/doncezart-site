@@ -149,7 +149,7 @@ const apiData = await page.evaluate(() => {
 });
 record('data API provides duration', apiData.duration === '3:34', apiData.duration ?? 'missing');
 record('data API provides channel avatar', apiData.avatar, '');
-record('data API provides views/date meta', (apiData.meta ?? '').includes('views'), apiData.meta ?? 'missing');
+record('data API provides views/subscribers/date meta', (apiData.meta ?? '').includes('views') && (apiData.meta ?? '').includes('subscribers'), apiData.meta ?? 'missing');
 record('no fallback notice when API works', apiData.noteCount === 0, `${apiData.noteCount} notice(s)`);
 
 // 4b2. Avatar actually loads (not just an element with a src)
@@ -183,7 +183,7 @@ async function dragSlider(label, targetValue) {
     await page.waitForTimeout(350);
 }
 
-// Text spacing (title↔channel↔meta)
+// Text spacing (title↔channel↔meta) — container still 1280 here, so S = 1
 const textGapBefore = await page.evaluate(() => getComputedStyle(document.querySelector('.yt-text')).gap);
 await dragSlider('Text spacing', 18); // between notches 16/24 → snaps to 16
 const textGapAfter = await page.evaluate(() => getComputedStyle(document.querySelector('.yt-text')).gap);
@@ -209,34 +209,46 @@ record('split wideness adjusts card height', spMinBefore !== spMinAfter && spMin
 await page.click('.layout-btn:has(.layout-name:text-is("Classic"))');
 await page.waitForTimeout(400);
 
-// Container size (free value 1600 between 1440/1920)
+// Container size (free value 1600 between 1440/1920) — uniform zoom: design px scale ×1.25
 await dragSlider('Container size', 1600);
 const contW = await card.evaluate((el) => el.offsetWidth);
 const contThumbW = await card.evaluate((el) => el.querySelector('.yt-thumb').offsetWidth);
-record('container size applies', contW === 1600 + 80, `${contW}px (content 1600 + frame 40)`);
-record('content stays static at new container size', contThumbW === 1600, `${contThumbW}px`);
+record('container size applies', contW === 1700, `${contW}px (content 1600 + frame ${2 * Math.round(40 * 1.25)})`);
+record('content keeps its width at new container size', contThumbW === 1600, `${contThumbW}px`);
 
-// Padding = outer frame: card grows, content width unchanged
+// Uniform zoom: thumbnail radius default 24 ×1.25 = 30, card radius 16 (tuned) ×1.25 = 20
+const scaledRadiuses = await page.evaluate(() => {
+    const card = document.querySelector('.ycard');
+    const thumb = card.querySelector('.yt-thumb');
+    return {
+        thumbR: getComputedStyle(thumb).borderRadius,
+        cardR: getComputedStyle(card).borderRadius
+    };
+});
+record('radiuses scale with container (uniform zoom)', scaledRadiuses.thumbR === '30px' && scaledRadiuses.cardR === '20px',
+    `thumb ${scaledRadiuses.thumbR} / card ${scaledRadiuses.cardR}`);
+
+// Padding = outer frame that scales with the container: card grows, content width unchanged
 await dragSlider('Card padding', 43); // free value (dist 3 from notches 40/48)
 const padAfter = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).padding);
 const padCardW = await card.evaluate((el) => el.offsetWidth);
 const padThumbW = await card.evaluate((el) => el.querySelector('.yt-thumb').offsetWidth);
-record('padding applies as outer frame only', padAfter === '43px' && padCardW === 1600 + 86 && padThumbW === 1600,
+record('padding applies as outer frame only', padAfter === '54px' && padCardW === 1708 && padThumbW === 1600,
     `frame ${padAfter}, card ${padCardW}px, content ${padThumbW}px`);
 
-// Snap: near-notch values snap, mid-notch values stay free
+// Snap: near-notch values snap, mid-notch values stay free — both scaled ×1.25
 await dragSlider('Card padding', 50); // dist 2 from notch 48 → snap
 const snapPad = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).padding);
-record('slider snaps to notch', snapPad === '48px', snapPad);
+record('slider snaps to notch', snapPad === '60px', snapPad);
 await dragSlider('Card padding', 56); // dist 8 from notches → free
 const freePad = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).padding);
-record('free values reachable between notches', freePad === '56px', freePad);
+record('free values reachable between notches', freePad === '70px', freePad);
 
 // tuned values persist across layout switches
 await page.click('.layout-btn:has(.layout-name:text-is("Stacked"))');
 await page.waitForTimeout(300);
 const padStacked = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).padding);
-record('custom padding persists on layout switch', padStacked.includes('56px'), padStacked);
+record('custom padding persists on layout switch', padStacked.includes('70px'), padStacked);
 
 // hero scrim: default 0.85, configurable
 await page.click('.layout-btn:has(.layout-name:text-is("Hero"))');
@@ -278,7 +290,7 @@ await page.waitForTimeout(400);
 
 // 6. Module toggles hide content (box grid)
 const before = await card.evaluate((el) => el.innerText.length);
-const chk = page.locator('.module-btn', { hasText: 'Channel name' });
+const chk = page.locator('.module-btn', { hasText: 'Channel' });
 record('module box 2-state', (await chk.getAttribute('aria-checked')) === 'true', 'aria-checked');
 await chk.click();
 await page.waitForTimeout(300);
@@ -287,7 +299,7 @@ record('module toggle removes content', after < before && (await chk.getAttribut
 await chk.click();
 
 // 6b. Verified check colors
-await page.locator('.module-btn', { hasText: 'Verified check' }).click();
+await page.locator('.module-btn', { hasText: 'Verified' }).click();
 await page.waitForTimeout(250);
 await page.locator('.ver-swatch[data-v="accent"]').click();
 await page.waitForTimeout(250);
@@ -359,7 +371,34 @@ await page.waitForTimeout(1500);
 const copyLabel = await page.locator('.btn-copy').innerText();
 record('copy to clipboard works', copyLabel.includes('Copied!'), copyLabel);
 
+// The copied PNG must be the true card size (mount-out capture), not a preview-scaled shrink
+const clipW = await page.evaluate(async () => {
+    const items = await navigator.clipboard.read();
+    for (const it of items) {
+        const t = it.types.find((x) => x.startsWith('image/'));
+        if (!t) continue;
+        const blob = await it.getType(t);
+        const buf = new Uint8Array(await blob.arrayBuffer());
+        return (buf[16] << 24) | (buf[17] << 16) | (buf[18] << 8) | buf[19];
+    }
+    return 0;
+});
+record('copy to clipboard size matches card', clipW === expectedExportW, `${clipW}px vs card ${expectedExportW}px`);
+
 await page.screenshot({ path: `${outDir}/4-oled.png` });
+
+// 8. Navbar Tools dropdown must stay fully on-screen
+await page.locator('.dropdown .trigger').first().click();
+await page.waitForSelector('.menu');
+const ddBox = await page.evaluate(() => {
+    const menu = document.querySelector('.menu');
+    if (!menu) return null;
+    const r = menu.getBoundingClientRect();
+    return { left: Math.round(r.left), right: Math.round(r.right), vw: window.innerWidth };
+});
+record('tools dropdown stays on screen', !!ddBox && ddBox.left >= 0 && ddBox.right <= ddBox.vw, JSON.stringify(ddBox));
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
 
 // 8. Console hygiene (ignore the deliberate invalid-URL 400)
 const errs = [...new Set([...consoleErrors, ...pageErrors])]

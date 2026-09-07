@@ -140,7 +140,7 @@ async function fetchOembed(url, id) {
 		description: null,
 		thumbnails: ytThumbnails(id),
 		duration: null,
-		channel: j.author_name ? { id: null, name: j.author_name, avatarUrl: null } : null,
+		channel: j.author_name ? { id: null, name: j.author_name, avatarUrl: null, subscribers: null } : null,
 		views: null,
 		publishedAt: null
 	};
@@ -157,16 +157,20 @@ async function fetchDataApi(id, apiKey) {
 
 	const resolved = resolveThumbnails(s.thumbnails, id);
 
-	let channel = { id: channelId, name: s.channelTitle ?? null, avatarUrl: null };
+	let channel = { id: channelId, name: s.channelTitle ?? null, avatarUrl: null, subscribers: null };
 	if (channelId) {
 		try {
 			const cj = await fetchJson(
-				`https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${channelId}&key=${apiKey}`
+				`https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${apiKey}`
 			);
-			const av = cj.items?.[0]?.snippet?.thumbnails;
+			const item = cj.items?.[0];
+			const av = item?.snippet?.thumbnails;
 			channel.avatarUrl = av?.high?.url ?? av?.medium?.url ?? av?.default?.url ?? null;
+			channel.subscribers = item?.statistics?.subscriberCount != null
+				? Number(item.statistics.subscriberCount)
+				: null;
 		} catch {
-			// avatar is optional — fail silently
+			// avatar + subscriber count are optional — fail silently
 		}
 	}
 

@@ -91,14 +91,16 @@
     }
 
     const modulesList = [
-        { key: 'duration', label: 'Duration badge' },
+        { key: 'duration', label: 'Duration' },
         { key: 'title', label: 'Title' },
         { key: 'description', label: 'Description' },
-        { key: 'channel', label: 'Channel name' },
-        { key: 'avatar', label: 'Channel avatar' },
-        { key: 'meta', label: 'Views & date' },
-        { key: 'verified', label: 'Verified check' },
-        { key: 'live', label: 'LIVE badge' }
+        { key: 'channel', label: 'Channel' },
+        { key: 'avatar', label: 'Avatar' },
+        { key: 'views', label: 'Views' },
+        { key: 'subscribers', label: 'Subscribers' },
+        { key: 'date', label: 'Date' },
+        { key: 'verified', label: 'Verified' },
+        { key: 'live', label: 'Live' }
     ];
 
     function toggleModule(key) {
@@ -177,7 +179,14 @@
         } catch { /* private mode */ }
     });
 
-    const exportWidth = $derived((config.containerSize ?? 1280) + 2 * (config.padding ?? 0));
+    const exportWidth = $derived(
+        (config.containerSize ?? 1280) + 2 * Math.round((config.padding ?? 0) * (config.containerSize ?? 1280) / 1280)
+    );
+
+    // Shadow behind the preview follows the card's rounded corners (scaled).
+    const previewShadowRadius = $derived(
+        Math.round((config.containerRadius ?? 0) * (config.containerSize ?? 1280) / 1280)
+    );
 
     // Notch patterns for the sliders (snap points; free values still reachable).
     const GAP_NOTCHES = [0, 16, 32, 48, 64, 80];
@@ -284,6 +293,7 @@
                         {/if}
 
                         <span class="ver-swatches">
+                            <span class="ver-label">Verified</span>
                             {#each VERIFIED as v}
                                 <button
                                     type="button"
@@ -311,12 +321,14 @@
                     </div>
                     <div class="style-row">
                         <label class="inline-field">
-                            <span>Font</span>
-                            <select bind:value={config.font} class="font-select">
-                                {#each FONTS as f}
-                                    <option value={f} style="font-family:'{f}'">{f}</option>
-                                {/each}
-                            </select>
+                            <span class="font-wrap">
+                                <span class="font-tag">Font</span>
+                                <select bind:value={config.font} class="font-select">
+                                    {#each FONTS as f}
+                                        <option value={f} style="font-family:'{f}'">{f}</option>
+                                    {/each}
+                                </select>
+                            </span>
                         </label>
                     </div>
                 </div>
@@ -331,7 +343,7 @@
                         <i class="fa-solid fa-triangle-exclamation"></i>
                         <div class="api-note-body">
                             <strong>Some video data couldn't be fetched</strong>
-                            <p>Duration, views, description and creator details come from the YouTube API — it appears to be down, throttled, or unreachable right now. The card generator still works fully: layouts, colors, fonts and export all function, and the thumbnail and title are loaded directly.</p>
+                            <p>Duration, views, subscribers, description and creator details come from the YouTube API — it appears to be down, throttled, or unreachable right now. The card generator still works fully: layouts, colors, fonts and export all function, and the thumbnail and title are loaded directly.</p>
                             {#if video.dataError}
                                 <p class="api-note-err">
                                     API · {video.dataError.status || 'network'} — {video.dataError.message}
@@ -411,7 +423,7 @@
                     {/if}
 
                     <div class="preview-stage" style="width:{cardWidth * scale}px;height:{cardHeight * scale}px">
-                        <div class="preview-scaled" style="transform:scale({scale});width:{cardWidth || 1280}px">
+                        <div class="preview-scaled" style="transform:scale({scale});width:{cardWidth || 1280}px;border-radius:{previewShadowRadius}px">
                             <YouTubeCard bind:cardEl {video} {config} />
                         </div>
                     </div>
@@ -436,9 +448,9 @@
                             label="Thumb / text ratio"
                             unit="%"
                             bind:value={config.ratio}
-                            min={30} max={70} step={1}
-                            notches={[30, 40, 50, 60, 70]}
-                            snapDistance={3}
+                            min={40} max={85} step={1}
+                            notches={[40, 50, 60, 70, 80, 85]}
+                            snapDistance={2}
                             disabled={!ratioActive}
                         />
                     </div>
@@ -471,8 +483,8 @@
                             label="Thumbnail radius"
                             unit="px"
                             bind:value={config.radius}
-                            min={0} max={24} step={1}
-                            notches={[0, 4, 8, 12, 16, 20, 24]}
+                            min={0} max={72} step={1}
+                            notches={[0, 4, 8, 12, 16, 24, 36, 48, 72]}
                             snapDistance={1.5}
                         />
                     </div>
@@ -482,9 +494,9 @@
                             label="Card radius"
                             unit="px"
                             bind:value={config.containerRadius}
-                            min={0} max={32} step={1}
-                            notches={[0, 4, 8, 12, 16, 24, 32]}
-                            snapDistance={1.5}
+                            min={0} max={128} step={1}
+                            notches={[0, 8, 16, 24, 32, 48, 64, 96, 128]}
+                            snapDistance={3}
                         />
                     </div>
 
@@ -630,7 +642,7 @@
                 <h2 class="band-title">Export</h2>
                 <ExportBar {cardEl} filename={video.id} />
                 <p class="card-note">
-                    Card exports at full size ({exportWidth}px wide, up to {exportWidth * 3}px with the container slider) · transparent PNG supported
+                    Card exports at its true pixel size ({exportWidth}px wide) · grow or shrink it with the container-size slider · transparent PNG supported
                 </p>
             </aside>
         </div>
@@ -905,12 +917,41 @@
     .font-select {
         min-width: 16rem;
     }
+    .font-wrap {
+        position: relative;
+        display: inline-block;
+    }
+    .font-wrap .font-select {
+        padding-left: 2.6rem;
+        display: block;
+    }
+    .font-tag {
+        position: absolute;
+        left: 0.55rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.6rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-text-secondary);
+        opacity: 0.7;
+        pointer-events: none;
+        z-index: 1;
+    }
 
     .ver-swatches {
         display: inline-flex;
         align-items: center;
         gap: 0.25rem;
         flex-wrap: wrap;
+    }
+    .ver-label {
+        font-size: 0.6rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-text-secondary);
+        opacity: 0.7;
+        margin-right: 0.25rem;
     }
     .ver-swatch {
         width: 1.4rem;
@@ -1166,6 +1207,7 @@
         box-sizing: border-box;
         overflow-y: auto;
         scrollbar-gutter: stable;
+        overscroll-behavior: contain;
     }
     .rail h3 {
         font-family: var(--font-display);

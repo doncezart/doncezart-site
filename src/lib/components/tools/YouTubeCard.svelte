@@ -1,6 +1,6 @@
 <script>
     import { formatViews, formatDate, relativeDate } from '$lib/data/yt-format.js';
-    import { LAYOUTS, resolveColors, ASPECTS, naturalAspect } from './yt-config.js';
+    import { LAYOUTS, resolveColors, ASPECTS, naturalAspect, DESIGN_WIDTH } from './yt-config.js';
 
     let { video, config, cardEl = $bindable() } = $props();
 
@@ -9,11 +9,14 @@
     const colors = $derived(resolveColors(config));
 
     // Container design width (user-controlled) + per-layout scale.
-    const LW = $derived(config.containerSize ?? 1280);
+    // containerSize is a pure uniform zoom: every px metric (gaps, radiuses,
+    // padding, type) scales by S so the composition never reflows or squishes.
+    const LW = $derived(config.containerSize ?? DESIGN_WIDTH);
+    const S = $derived(LW / DESIGN_WIDTH);
     const LS = $derived(LW / 360);
 
     const pad = $derived(config.padding ?? 0);
-    // Content area stays static when padding changes (padding is an outer frame).
+    // Content area is the design width; padding is an outer frame.
     const contentW = $derived(LW);
 
     const aspect = $derived(config.aspect === 'auto' ? naturalAspect(config.layout) : (ASPECTS[config.aspect] ?? 16 / 9));
@@ -45,19 +48,21 @@
     const verifiedFg = $derived(verifiedBg === '#ffffff' ? '#0f0f0f' : '#ffffff');
 
     // All tunable CSS values flow through custom properties (Svelte 5 has no style interpolation).
+    // Design-px values are scaled by S (uniform zoom); % values and colors pass through.
     const cssVars = $derived(
         `--yt-font:'${config.font}',sans-serif;` +
         `--yt-bg:${colors.bg};--yt-text:${colors.text};--yt-secondary:${colors.secondary};` +
         `--yt-accent:${colors.accent};` +
         `--yt-verified-bg:${verifiedBg};--yt-verified-fg:${verifiedFg};` +
-        `--yt-radius:${config.radius}px;--yt-container-radius:${config.containerRadius ?? 0}px;` +
-        `--yt-pad:${pad}px;` +
-        `--yt-thumb-gap:${config.thumbGap ?? 48}px;--yt-column-gap:${config.columnGap ?? 48}px;--yt-text-gap:${config.textGap ?? 28}px;` +
+        `--yt-radius:${Math.round((config.radius ?? 0) * S)}px;--yt-container-radius:${Math.round((config.containerRadius ?? 0) * S)}px;` +
+        `--yt-pad:${Math.round(pad * S)}px;` +
+        `--yt-thumb-gap:${Math.round((config.thumbGap ?? 48) * S)}px;--yt-column-gap:${Math.round((config.columnGap ?? 48) * S)}px;--yt-text-gap:${Math.round((config.textGap ?? 28) * S)}px;` +
         `--yt-name:${m.name}px;--yt-avatar:${m.avatar}px;` +
         `--yt-badge-font:${m.badgeFont}px;--yt-badge-radius:${m.badgeRadius}px;--yt-badge-pad:${m.badgePad}px;` +
         `--yt-meta:${m.meta}px;--yt-desc:${m.desc}px;` +
         `--yt-scrim-a:${(config.scrimOpacity ?? 85) / 100};` +
         `--yt-clamp:${config.titleLines ?? 2};--yt-clamp-desc:${config.descriptionLines ?? 2};` +
+        `--yt-hero-pad:${Math.round(56 * S)}px;--yt-hero-corner:${Math.round(24 * S)}px;` +
         `width:${LW}px;--yt-width:${LW}px;` +
         `height:${exactHeight ? exactHeight + 'px' : 'auto'};min-height:${minHeight ? minHeight + 'px' : 'auto'}`
     );
@@ -99,26 +104,26 @@
     }
 
     function titleTextWidth() {
-        const cw = contentW - 48;
+        const cw = contentW - 48 * S;
         if (config.layout === 'split') {
             // text column = width − thumb share − column gap
-            return Math.round(contentW - (contentW * (config.ratio ?? 50) / 100) - (config.columnGap ?? 48)) - 24;
+            return Math.round(contentW - (contentW * (config.ratio ?? 60) / 100) - (config.columnGap ?? 48) * S) - 24 * S;
         }
         if (config.layout === 'hero') {
-            // .hr-content has 56px padding; .hr-main caps at 82% of that box
-            return Math.round((contentW - 112) * 0.82) - 24;
+            // .hr-content has --yt-hero-pad padding; .hr-main caps at 82% of that box
+            return Math.round((contentW - 112 * S) * 0.82) - 24 * S;
         }
         if (config.layout === 'underlay') {
-            // title bar padding 56px each side
-            return contentW - 112;
+            // title bar padding --yt-hero-pad each side
+            return contentW - 112 * S;
         }
-        return Math.max(240, cw);
+        return Math.max(Math.round(240 * S), Math.round(cw));
     }
     function descWidth() {
         if (config.layout === 'split') {
-            return Math.round(contentW - (contentW * (config.ratio ?? 50) / 100) - (config.columnGap ?? 48)) - 24;
+            return Math.round(contentW - (contentW * (config.ratio ?? 60) / 100) - (config.columnGap ?? 48) * S) - 24 * S;
         }
-        return Math.max(240, contentW - 48);
+        return Math.max(Math.round(240 * S), Math.round(contentW - 48 * S));
     }
 
     const title = $derived(config.modules.title
@@ -128,12 +133,17 @@
         ? clampText(video?.description ?? '', m.desc, config.descriptionLines ?? 2, descWidth())
         : '');
     const metaLine = $derived((() => {
-        if (!config.modules.meta) return '';
-        const views = video?.views != null ? `${formatViews(video.views)} views` : null;
-        const date = video?.publishedAt
-            ? (config.dateFormat === 'relative' ? relativeDate(video.publishedAt) : formatDate(video.publishedAt))
-            : null;
-        return [views, date].filter(Boolean).join(' · ');
+        const parts = [];
+        if (config.modules.views && video?.views != null) parts.push(`${formatViews(video.views)} views`);
+        if (config.modules.subscribers && video?.channel?.subscribers != null) {
+            parts.push(`${formatViews(video.channel.subscribers)} subscribers`);
+        }
+        if (config.modules.date && video?.publishedAt) {
+            parts.push(
+                config.dateFormat === 'relative' ? relativeDate(video.publishedAt) : formatDate(video.publishedAt)
+            );
+        }
+        return parts.join(' · ');
     })());
 
     const showAvatar = $derived(config.modules.avatar && !!video?.channel?.avatarUrl && config.modules.channel);
@@ -159,7 +169,7 @@
     {:else if config.layout === 'split'}
         <div
             class="sp-wrap"
-            style="grid-template-columns:{config.ratio ?? 50}% 1fr;min-height:{Math.max(280, Math.round(LW / (config.splitWideness ?? 2.2)))}px"
+            style="grid-template-columns:{config.ratio ?? 60}% 1fr;min-height:{Math.max(Math.round(LW / (config.splitWideness ?? 3.2)), Math.round((LW * (config.ratio ?? 60) / 100) / aspect))}px"
         >
             <div class="sp-media">{@render thumb('fill')}</div>
             <div class="sp-text">
@@ -515,7 +525,7 @@
         left: 0;
         right: 0;
         bottom: 0;
-        padding: 56px;
+        padding: var(--yt-hero-pad);
         display: flex;
     }
     .hr-main {
@@ -533,8 +543,8 @@
     }
     .hr-corner {
         position: absolute;
-        right: 24px;
-        bottom: 24px;
+        right: var(--yt-hero-corner);
+        bottom: var(--yt-hero-corner);
     }
     .hr-corner .yt-duration,
     .hr-corner .yt-live {
@@ -563,8 +573,8 @@
     }
     .ul-overlay {
         position: absolute;
-        left: 56px;
-        bottom: 56px;
+        left: var(--yt-hero-pad);
+        bottom: var(--yt-hero-pad);
         display: flex;
         flex-direction: column;
         gap: var(--yt-text-gap);
@@ -575,15 +585,15 @@
     }
     .ul-corner {
         position: absolute;
-        right: 24px;
-        bottom: 24px;
+        right: var(--yt-hero-corner);
+        bottom: var(--yt-hero-corner);
     }
     .ul-corner .yt-duration,
     .ul-corner .yt-live {
         position: static;
     }
     .ul-title-bar {
-        padding: 48px 56px 56px;
+        padding: calc(var(--yt-hero-pad) * 0.86) var(--yt-hero-pad) var(--yt-hero-pad);
     }
 
     /* ── Compact (thumb, title, views · date) ── */
