@@ -28,14 +28,17 @@
     const minHeight = $derived(exactHeight ?? (config.aspect !== 'auto' ? Math.round(LW / aspect) : null));
 
     // ── Shared metrics (multiplied from the 360px YouTube reference) ──
+    // textScale is a global text multiplier (config.textScale, 0.5–1.5) so a
+    // layout like Wide Split can use ~half-size type without reflowing boxes.
+    const T = $derived(config.textScale ?? 1);
     const m = $derived({
-        name: Math.round(12 * LS),
-        avatar: Math.round(24 * LS),
-        badgeFont: Math.round(12 * LS),
-        badgeRadius: Math.round(4 * LS),
-        badgePad: Math.round(4 * LS),
-        meta: Math.round(12 * LS),
-        desc: Math.round(14 * LS)
+        name: Math.round(12 * LS * T),
+        avatar: Math.round(24 * LS * T),
+        badgeFont: Math.round(12 * LS * T),
+        badgeRadius: Math.round(4 * LS * T),
+        badgePad: Math.round(4 * LS * T),
+        meta: Math.round(12 * LS * T),
+        desc: Math.round(14 * LS * T)
     });
 
     // Verified-badge fill + icon contrast: YouTube gray, white, palette accent, or custom.
@@ -100,7 +103,7 @@
         return () => { alive = false; };
     });
 
-    const titleSize = $derived(Math.round(layout.titleSize * LS * (config.titleScale ?? 1)));
+    const titleSize = $derived(Math.round(layout.titleSize * LS * (config.titleScale ?? 1) * T));
 
     // Rough JS clamp so exported text never overflows its line budget.
     // Widths mirror the actual CSS boxes of each layout (incl. hero's 82% cap).

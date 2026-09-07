@@ -110,10 +110,16 @@ await page.waitForTimeout(500);
 const previewDims = await page.evaluate(() => {
     const scaled = document.querySelector('.preview-scaled');
     const pane = document.querySelector('.preview-pane');
-    return { visualW: Math.round(scaled.getBoundingClientRect().width), paneH: pane.offsetHeight };
+    const rail = document.querySelector('.rail');
+    return {
+        visualW: Math.round(scaled.getBoundingClientRect().width),
+        paneH: pane.offsetHeight,
+        railH: rail.offsetHeight
+    };
 });
 record('preview much smaller (classic < 560px visual)', previewDims.visualW <= 560, `${previewDims.visualW}px wide`);
-record('preview pane fixed height', previewDims.paneH === 440, `${previewDims.paneH}px (offsetHeight incl. border)`);
+record('preview pane fixed height', previewDims.paneH === 480, `${previewDims.paneH}px (offsetHeight incl. border)`);
+record('preview pane as tall as the controls rail', previewDims.paneH === previewDims.railH, `pane ${previewDims.paneH}px = rail ${previewDims.railH}px`);
 
 // 4a4. Preview background picker: dropdown, palette colors, custom color
 await page.click('.preview-bg-btn');
@@ -206,6 +212,12 @@ const spMin = await page.evaluate(() => getComputedStyle(document.querySelector(
 record('split card height = thumbnail natural aspect', spMin === '245px', spMin);
 const spClamp = await page.evaluate(() => getComputedStyle(document.querySelector('.sp-text .yt-title')).webkitLineClamp);
 record('wide split defaults to 1 title line', spClamp === '1', `line-clamp ${spClamp}`);
+const spHasDesc = await page.evaluate(() => !!document.querySelector('.sp-text .yt-desc'));
+record('wide split shows description by default', spHasDesc, '');
+const spWrapH = await page.evaluate(() => document.querySelector('.sp-wrap').offsetHeight);
+record('split stays natural height with description (no thumbnail crop)', spWrapH <= 250, `${spWrapH}px`);
+const spTitleFs = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('.sp-text .yt-title')).fontSize));
+record('split text halved by default (text size 0.5x)', Math.abs(spTitleFs - 28) <= 1, `${spTitleFs}px`);
 
 // Split layout: thumbnail keeps its corner radius and text column ≈ 2× the thumbnail
 const spThumbR = await page.evaluate(() => getComputedStyle(document.querySelector('.sp-media .yt-thumb')).borderRadius);
@@ -278,6 +290,12 @@ await page.click('.layout-btn:has(.layout-name:text-is("Hero"))');
 await page.waitForTimeout(400);
 const scrimDefault = await page.evaluate(() => getComputedStyle(document.querySelector('.hr-scrim')).backgroundImage);
 record('hero scrim dark by default', scrimDefault.includes('0.85'), scrimDefault.slice(0, 90));
+const heroTitleInfo = await page.evaluate(() => {
+    const el = document.querySelector('.hr-main .yt-title');
+    const C = parseFloat(document.querySelector('.ycard').style.width); // current container size
+    return { fs: parseFloat(getComputedStyle(el).fontSize), expected: Math.round(24 * (C / 360) * 0.8) };
+});
+record('hero title at 0.8x by default', Math.abs(heroTitleInfo.fs - heroTitleInfo.expected) <= 1, `${heroTitleInfo.fs}px (expected ${heroTitleInfo.expected})`);
 await dragSlider('Scrim darkness', 50); // notch
 const scrimTuned = await page.evaluate(() => getComputedStyle(document.querySelector('.hr-scrim')).backgroundImage);
 record('scrim darkness configurable', scrimDefault !== scrimTuned && scrimTuned.includes('0.5'), scrimTuned.slice(0, 90));

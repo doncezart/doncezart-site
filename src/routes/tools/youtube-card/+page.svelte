@@ -17,15 +17,18 @@
     let cardEl = $state(null);
 
     // Per-layout defaults are applied on layout switch until the user tunes a value.
-    const touched = $state({ padding: false, thumbGap: false, columnGap: false, textGap: false, titleLines: false });
+    const touched = $state({
+        padding: false, thumbGap: false, columnGap: false, textGap: false,
+        titleLines: false, titleScale: false, textScale: false, description: false
+    });
 
     // ── Preview: the card always renders at ONE fixed on-screen size inside a
 // fixed-height pane (no scrollbars, no overflow). Container size is an
 // export-only setting, so the display scale counter-acts the export zoom
 // (×1280/C). The fit term uses the card's design-1280 height, which makes the
 // scale EXACTLY container-invariant — dragging export size cannot twitch it. ──
-const PREVIEW_SCALE = 0.36;
-    const PANE_HEIGHT = 440;
+const PREVIEW_SCALE = 0.5;
+    const PANE_HEIGHT = 480; // matches the controls rail's max-height — preview = controls, height-wise
     const previewScale = $derived((() => {
         const C = config.containerSize ?? 1280;
         const designH = cardHeight * 1280 / C; // height as if the card were at 1280 design width
@@ -94,6 +97,9 @@ const PREVIEW_SCALE = 0.36;
         if (!touched.columnGap) config.columnGap = d.column;
         if (!touched.textGap) config.textGap = d.text;
         if (!touched.titleLines) config.titleLines = LAYOUTS[key].defaultTitleLines ?? 2;
+        if (!touched.titleScale) config.titleScale = LAYOUTS[key].defaultTitleScale ?? 1;
+        if (!touched.textScale) config.textScale = LAYOUTS[key].defaultTextScale ?? 1;
+        if (!touched.description) config.modules.description = LAYOUTS[key].descriptionOn ?? false;
     }
 
     const modulesList = [
@@ -111,6 +117,7 @@ const PREVIEW_SCALE = 0.36;
 
     function toggleModule(key) {
         config.modules[key] = !config.modules[key];
+        if (key === 'description') touched.description = true;
     }
 
     const ratioActive = $derived(config.layout === 'split');
@@ -544,6 +551,19 @@ const PREVIEW_SCALE = 0.36;
                             min={0.8} max={1.6} step={0.05}
                             notches={[1]}
                             snapDistance={0.05}
+                            tune={() => (touched.titleScale = true)}
+                        />
+                    </div>
+
+                    <div class="field">
+                        <SnapSlider
+                            label="Text size"
+                            unit="×"
+                            bind:value={config.textScale}
+                            min={0.5} max={1.5} step={0.05}
+                            notches={[0.5, 0.75, 1, 1.25]}
+                            snapDistance={0.05}
+                            tune={() => (touched.textScale = true)}
                         />
                     </div>
 
@@ -1187,7 +1207,8 @@ const PREVIEW_SCALE = 0.36;
 
     .preview-scaled {
         transform-origin: top left;
-        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+        /* NOTE: no box-shadow here — the card's own shadow (on .ycard) must be
+           the only one, so it always hugs the rounded corners exactly. */
     }
 
     /* Controls rail — hosts every slider, mirrors the preview height */

@@ -51,10 +51,11 @@ export const LAYOUTS = {
 	},
 	split: {
 		label: 'Wide Split', hint: 'Side-by-side hero',
-		titleSize: 16, titleWeight: 500, font: 'Roboto', descriptionOn: false,
+		titleSize: 16, titleWeight: 500, font: 'Roboto', descriptionOn: true,
 		defaultPadding: 40,
 		defaultTitleLines: 1, // wide flat card: one title line keeps the natural thumbnail height
-		defaults: { thumb: 48, column: 48, text: 28 }
+		defaultTextScale: 0.5, // text ~half size so the 16:9 thumbnail dominates the wide card
+		defaults: { thumb: 48, column: 48, text: 16 }
 	},
 	stacked: {
 		label: 'Stacked', hint: 'Full-bleed thumb, editorial block',
@@ -66,6 +67,7 @@ export const LAYOUTS = {
 		label: 'Hero', hint: 'Poster overlay on scrim',
 		titleSize: 24, titleWeight: 700, font: 'Archivo', descriptionOn: false,
 		defaultPadding: 0,
+		defaultTitleScale: 0.8, // hero poster title at 0.8× by default
 		defaults: { thumb: 48, column: 48, text: 28 }
 	},
 	underlay: {
@@ -96,6 +98,7 @@ export const DEFAULT_CONFIG = {
 	colors: { bg: '#0f0f0f', text: '#f1f1f1', secondary: '#aaaaaa', accent: '#ff0000' },
 	font: 'Roboto',
 	titleScale: 1, // 0.8–1.6
+	textScale: 1, // 0.5–1.5 — global text multiplier (per-layout defaults; split uses 0.5)
 	modules: {
 		duration: true,
 		title: true,
