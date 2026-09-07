@@ -160,15 +160,16 @@
                 {@render titleEl()}
                 {@render channelRow()}
                 {@render metaEl()}
+                {@render descEl()}
             </div>
         </div>
 
     {:else if config.layout === 'split'}
         <div
             class="sp-wrap"
-            style="grid-template-columns:{config.ratio ?? 34}% 1fr;min-height:{Math.max(Math.round(LW / (config.splitWideness ?? 3.2)), Math.round((LW * (config.ratio ?? 34) / 100) / aspect))}px"
+            style="grid-template-columns:{config.ratio ?? 34}% 1fr;min-height:{Math.max(280, Math.round(LW / (config.splitWideness ?? 3.2)))}px"
         >
-            <div class="sp-media">{@render thumb(Math.max(96, Math.round((LW * (config.ratio ?? 34) / 100) / aspect)))}</div>
+            <div class="sp-media">{@render thumb('fill')}</div>
             <div class="sp-text">
                 {@render titleEl()}
                 {@render channelRow()}
@@ -205,6 +206,9 @@
                     <div style="color:{config.modules.scrim ? 'rgba(255,255,255,0.9)' : colors.secondary};font-size:var(--yt-meta)">
                         {@render metaEl()}
                     </div>
+                    <div style="color:{config.modules.scrim ? 'rgba(255,255,255,0.75)' : 'inherit'}">
+                        {@render descEl()}
+                    </div>
                 </div>
             </div>
             <div class="hr-corner">
@@ -234,6 +238,7 @@
             </div>
             <div class="ul-title-bar">
                 {@render titleEl()}
+                {@render descEl()}
             </div>
         </div>
 
@@ -242,7 +247,9 @@
             {@render thumb(thumbHeight)}
             <div class="cm-text">
                 {@render titleEl()}
+                {@render channelRow()}
                 {@render metaEl()}
+                {@render descEl()}
             </div>
         </div>
     {/if}
@@ -495,6 +502,7 @@
         top: 0;
         left: 0;
         width: 100%;
+        height: 100%;
     }
     .sp-text {
         display: flex;
@@ -563,6 +571,9 @@
     .ul-overlay .yt-subscribers {
         color: inherit;
     }
+    .hr-main .yt-desc {
+        color: inherit;
+    }
     .hr-corner {
         position: absolute;
         right: var(--yt-hero-corner);
@@ -616,6 +627,9 @@
     }
     .ul-title-bar {
         padding: calc(var(--yt-hero-pad) * 0.86) var(--yt-hero-pad) var(--yt-hero-pad);
+        display: flex;
+        flex-direction: column;
+        gap: var(--yt-text-gap);
     }
 
     /* ── Compact (thumb, title, views · date) ── */

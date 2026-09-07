@@ -19,11 +19,19 @@
     // Per-layout defaults are applied on layout switch until the user tunes a value.
     const touched = $state({ padding: false, thumbGap: false, columnGap: false, textGap: false });
 
-    // ── Preview: the card always renders at ONE fixed on-screen size. Container
-// size is an export-only setting, so the display scale counter-acts the export
-// zoom (×1280/C) — changing it never re-squishes or re-sizes the preview. ──
-const PREVIEW_SCALE = 0.4;
-    const previewScale = $derived(PREVIEW_SCALE * 1280 / (config.containerSize ?? 1280));
+    // ── Preview: the card always renders at ONE fixed on-screen size inside a
+// fixed-height pane (no scrollbars, no overflow). Container size is an
+// export-only setting, so the display scale counter-acts the export zoom
+// (×1280/C). The fit term uses the card's design-1280 height, which makes the
+// scale EXACTLY container-invariant — dragging export size cannot twitch it. ──
+const PREVIEW_SCALE = 0.36;
+    const PANE_HEIGHT = 400;
+    const previewScale = $derived((() => {
+        const C = config.containerSize ?? 1280;
+        const designH = cardHeight * 1280 / C; // height as if the card were at 1280 design width
+        const fit = Math.min(PREVIEW_SCALE, (PANE_HEIGHT - 24) / Math.max(designH, 1));
+        return fit * 1280 / C;
+    })());
     let paneEl = $state(null);
     let cardHeight = $state(0);
     let cardWidth = $state(0);
@@ -358,7 +366,7 @@ const PREVIEW_SCALE = 0.4;
                     </div>
                 {/if}
 
-                <div class="preview-pane" bind:this={paneEl} style="height:{Math.min(480, Math.max(320, cardHeight * previewScale + 56))}px;{paneBgStyle}">
+                <div class="preview-pane" bind:this={paneEl} style="height:{PANE_HEIGHT}px;{paneBgStyle}">
                     <button
                         type="button"
                         class="preview-bg-btn"
@@ -1070,7 +1078,6 @@ const PREVIEW_SCALE = 0.4;
             repeating-conic-gradient(rgba(255, 255, 255, 0.03) 0% 25%, transparent 0% 50%) 0 0 / 24px 24px,
             #0a0a0a;
         scrollbar-gutter: stable;
-        flex: 1;
         position: relative;
     }
 

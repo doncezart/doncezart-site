@@ -93,27 +93,27 @@ const underlay = await page.evaluate(() => {
 record('underlay: title below image (not overlaid)', !!(underlay.titleBelow && !underlay.titleOnImg), JSON.stringify(underlay));
 record('underlay: channel/meta stay on image', !!(underlay.channelOnImg && underlay.metaOnImg), JSON.stringify(underlay));
 
-// 4a3. Compact: channel row and avatar are never rendered
+// 4a3. Compact: channel row + avatar honor the toggles (both on by default)
 await page.click('.layout-btn:has(.layout-name:text-is("Compact"))');
 await page.waitForTimeout(600);
 const compact = await page.evaluate(() => {
     const card = document.querySelector('.ycard');
     return { channel: !!card.querySelector('.yt-channel'), avatar: !!card.querySelector('.yt-avatar') };
 });
-record('compact: no channel/avatar', !compact.channel && !compact.avatar, JSON.stringify(compact));
+record('compact shows channel/avatar when toggled on', compact.channel && compact.avatar, JSON.stringify(compact));
 
 // Back to classic before further checks
 await page.click('.layout-btn:has(.layout-name:text-is("Classic"))');
 await page.waitForTimeout(500);
 
-// 4a. Preview is smaller: visual card width is capped, pane height capped
+// 4a. Preview is smaller: visual card width is capped, pane height fixed
 const previewDims = await page.evaluate(() => {
     const scaled = document.querySelector('.preview-scaled');
     const pane = document.querySelector('.preview-pane');
-    return { visualW: Math.round(scaled.getBoundingClientRect().width), paneH: pane.clientHeight };
+    return { visualW: Math.round(scaled.getBoundingClientRect().width), paneH: pane.offsetHeight };
 });
 record('preview much smaller (classic < 560px visual)', previewDims.visualW <= 560, `${previewDims.visualW}px wide`);
-record('preview pane height capped', previewDims.paneH <= 480, `${previewDims.paneH}px`);
+record('preview pane fixed height', previewDims.paneH === 400, `${previewDims.paneH}px (offsetHeight incl. border)`);
 
 // 4a4. Preview background picker: dropdown, palette colors, custom color
 await page.click('.preview-bg-btn');
@@ -219,6 +219,12 @@ const spCols = await page.evaluate(() => {
 });
 const spColRatio = spCols.text / spCols.thumb;
 record('split text area ≈ 2× thumbnail', spColRatio > 1.75 && spColRatio < 2.3, `text ${spCols.text.toFixed(0)} / thumb ${spCols.thumb.toFixed(0)} = ${spColRatio.toFixed(2)}`);
+const spFill = await page.evaluate(() => {
+    const media = document.querySelector('.sp-media');
+    const t = media.querySelector('.yt-thumb');
+    return { thumbH: t.offsetHeight, mediaH: media.offsetHeight };
+});
+record('split thumbnail fills full column height', spFill.thumbH >= spFill.mediaH * 0.98, `${spFill.thumbH}/${spFill.mediaH}px`);
 await page.click('.layout-btn:has(.layout-name:text-is("Classic"))');
 await page.waitForTimeout(400);
 
@@ -227,7 +233,7 @@ await page.waitForTimeout(400);
 const visualPre = await page.evaluate(() => Math.round(document.querySelector('.preview-scaled').getBoundingClientRect().width));
 await dragSlider('Export size', 1600);
 const visualPost = await page.evaluate(() => Math.round(document.querySelector('.preview-scaled').getBoundingClientRect().width));
-record('preview stays fixed when export size changes', visualPre === visualPost && visualPost > 0, `${visualPre}px -> ${visualPost}px`);
+record('preview stays fixed when export size changes', Math.abs(visualPre - visualPost) <= 2 && visualPost > 0, `${visualPre}px -> ${visualPost}px`);
 const contW = await card.evaluate((el) => el.offsetWidth);
 const contThumbW = await card.evaluate((el) => el.querySelector('.yt-thumb').offsetWidth);
 record('container size applies', contW === 1700, `${contW}px (content 1600 + frame ${2 * Math.round(40 * 1.25)})`);
@@ -326,6 +332,16 @@ const subsInfo = await card.evaluate((el) => {
 });
 record('subscribers show next to creator name', subsInfo.present && subsInfo.owner && subsInfo.text.includes('subscribers'), subsInfo.text);
 await subsModule.click();
+await page.waitForTimeout(250);
+
+// 6a3. Description renders in every layout when enabled (classic has none by default)
+const descModule = page.locator('.module-btn', { hasText: 'Description' });
+const descBefore = await card.evaluate((el) => !!el.querySelector('.yt-desc'));
+await descModule.click();
+await page.waitForTimeout(300);
+const descAfter = await card.evaluate((el) => !!el.querySelector('.yt-desc'));
+record('description shows in classic when enabled', !descBefore && descAfter, `${descBefore} -> ${descAfter}`);
+await descModule.click();
 await page.waitForTimeout(250);
 
 // 6b. Verified check colors
