@@ -132,7 +132,7 @@ const PREVIEW_SCALE = 0.45;
     }
 
     const ratioActive = $derived(config.layout === 'split');
-    const thumbGapActive = $derived(['classic', 'stacked', 'compact'].includes(config.layout));
+    const thumbGapActive = $derived(['classic', 'compact'].includes(config.layout));
     const columnGapActive = $derived(config.layout === 'split');
     const scrimActive = $derived(['hero', 'underlay', 'split'].includes(config.layout));
 
@@ -1256,15 +1256,25 @@ const PREVIEW_SCALE = 0.45;
         pointer-events: none;
     }
 
-    /* margin:auto centers the stage when it fits and never clips the top when it overflows */
+    /* The stage is centered in the pane (margin:auto) and the card is centered
+       INSIDE the stage (flex centering) — so while the stage's measured size
+       lags one frame behind a padding change, the card still grows/shrinks
+       around its own center instead of anchoring to the stage's top-left. */
     .preview-stage {
         position: relative;
         flex-shrink: 0;
         margin: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .preview-scaled {
-        transform-origin: top left;
+        /* origin center: the visual card shrinks/grows around its own center
+           (the flex-centered layout box), so a one-frame lag of the stage's
+           measured size can never make it appear anchored to a corner */
+        transform-origin: center center;
+        flex-shrink: 0;
         /* NOTE: no box-shadow here — the card's own shadow (on .ycard) must be
            the only one, so it always hugs the rounded corners exactly. */
     }

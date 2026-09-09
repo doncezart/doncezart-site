@@ -202,19 +202,6 @@
             </div>
         </div>
 
-    {:else if config.layout === 'stacked'}
-        <div class="st-wrap">
-            {@render thumb(thumbHeight)}
-            <div class="st-text">
-                {@render titleEl()}
-                <div class="st-sub">
-                    {@render channelRow()}
-                    {@render metaEl()}
-                </div>
-                {@render descEl()}
-            </div>
-        </div>
-
     {:else if config.layout === 'hero'}
         <div class="hr-wrap">
             {#if thumbUrl}
@@ -319,20 +306,22 @@
                 {/if}
                 <div class="mo-text">
                     {@render titleEl()}
-                    {#if config.modules.channel && video?.channel?.name}
-                        <div class="mo-creator">
-                            <span class="yt-channel-name">{video.channel.name}</span>
-                            {#if config.modules.verified}
-                                <span class="yt-verified">
-                                    <i class="fa-solid fa-check"></i>
-                                </span>
-                            {/if}
-                            {#if config.modules.subscribers && video?.channel?.subscribers != null}
-                                <span class="yt-subscribers">· {formatViews(video.channel.subscribers)} subscribers</span>
-                            {/if}
-                        </div>
-                    {/if}
-                    {@render metaEl()}
+                    <div class="mo-sub">
+                        {#if config.modules.channel && video?.channel?.name}
+                            <div class="mo-creator">
+                                <span class="yt-channel-name">{video.channel.name}</span>
+                                {#if config.modules.verified}
+                                    <span class="yt-verified">
+                                        <i class="fa-solid fa-check"></i>
+                                    </span>
+                                {/if}
+                                {#if config.modules.subscribers && video?.channel?.subscribers != null}
+                                    <span class="yt-subscribers">· {formatViews(video.channel.subscribers)} subscribers</span>
+                                {/if}
+                            </div>
+                        {/if}
+                        {@render metaEl()}
+                    </div>
                     {@render descEl()}
                 </div>
             </div>
@@ -627,24 +616,6 @@
         opacity: 0.72;
     }
 
-    /* ── Stacked ── */
-    .st-wrap {
-        display: flex;
-        flex-direction: column;
-        gap: var(--yt-thumb-gap);
-    }
-    .st-text {
-        display: flex;
-        flex-direction: column;
-        gap: var(--yt-text-gap);
-    }
-    .st-sub {
-        display: flex;
-        align-items: center;
-        gap: var(--yt-text-gap);
-        flex-wrap: wrap;
-    }
-
     /* ── Hero ── */
     .hr-wrap {
         position: absolute;
@@ -784,7 +755,7 @@
         text-overflow: ellipsis;
     }
 
-    /* ── Modern (avatar left, 3-line info block beside it) ── */
+    /* ── Modern (avatar top-left, 3-line info block beside it) ── */
     .mo-wrap {
         display: flex;
         flex-direction: column;
@@ -792,7 +763,7 @@
     }
     .mo-body {
         display: flex;
-        align-items: center;
+        align-items: flex-start; /* avatar top-aligned with the text block */
         gap: var(--yt-thumb-gap);
         min-width: 0;
     }
@@ -803,6 +774,13 @@
         display: flex;
         flex-direction: column;
         gap: var(--yt-text-gap);
+        min-width: 0;
+    }
+    /* creator + views · date sit closer together than the other text blocks */
+    .mo-sub {
+        display: flex;
+        flex-direction: column;
+        gap: calc(var(--yt-text-gap) * 0.5);
         min-width: 0;
     }
     .mo-creator {

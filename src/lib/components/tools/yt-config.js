@@ -66,25 +66,19 @@ export const LAYOUTS = {
 		defaults: { thumb: 48, column: 48, text: 16 },
 		moduleDefaults: { scrim: false } // optional scrim on the split thumbnail, off by default
 	},
-	stacked: {
-		label: 'Stacked', hint: 'Full-bleed thumb, editorial block',
-		titleSize: 22, titleWeight: 600, font: 'Space Grotesk', descriptionOn: true,
-		defaultPadding: 40,
-		defaults: { thumb: 48, column: 48, text: 28 }
-	},
 	hero: {
 		label: 'Hero', hint: 'Poster overlay on scrim',
 		titleSize: 24, titleWeight: 700, font: 'Archivo', descriptionOn: false,
 		defaultPadding: 0,
 		defaultTitleScale: 0.8, // hero poster title at 0.8× by default
 		defaults: { thumb: 48, column: 48, text: 28 },
-		moduleDefaults: { duration: false } // poster layouts keep the corner clean by default
+		moduleDefaults: { duration: false, scrim: true } // poster + scrim, no duration by default
 	},
 	underlay: {
 		label: 'Underlay', hint: 'Hero poster, title below',
 		titleSize: 24, titleWeight: 700, font: 'Archivo', descriptionOn: false,
 		defaultPadding: 0,
-		moduleDefaults: { avatar: true, channel: true, duration: true },
+		moduleDefaults: { avatar: true, channel: true, duration: true, scrim: true },
 		defaults: { thumb: 48, column: 48, text: 28 }
 	}
 };
@@ -95,7 +89,7 @@ export const DEFAULT_CONFIG = {
 	ratio: 34, // thumb share % (split: text column ≈ 2× the thumbnail, 25–85)
 	splitWideness: 3.2, // split card aspect (1.2–4) — higher = wider/flatter
 	containerSize: 1280, // design width 720–1920 px — pure uniform zoom of the composition
-	thumbGap: 48, // space between thumbnail and text block (classic, stacked, compact)
+	thumbGap: 48, // space between thumbnail and text block (classic, compact)
 	columnGap: 48, // space between columns (split)
 	textGap: 28, // space between title / channel / meta / description
 	radius: 24, // thumbnail corner radius (design px)

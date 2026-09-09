@@ -314,11 +314,13 @@
     }
 
     /* Invisible hitbox: big grab area, thin visuals. Pointer cursor, not the
-       resize one — the knob reads as the handle but the whole row works. */
+       resize one — the knob reads as the handle but the whole strip works.
+       No negative top/bottom margins: the hitbox stays inside its own field
+       and never covers the readout textbox or the reset icon. */
     .hitbox {
         position: relative;
         padding: 18px 12px;
-        margin: -18px -12px;
+        margin: 0 -12px;
         cursor: pointer;
         touch-action: none;
         outline: none;

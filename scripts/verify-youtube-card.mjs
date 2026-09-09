@@ -67,6 +67,28 @@ const modernShape = await card.evaluate((el) => ({
 record('default layout is Modern (avatar + 3-line block)', h0 > 700 && modernShape.isModern && modernShape.avatar && modernShape.threeLines && modernShape.creatorLine,
     `${h0}px ${JSON.stringify(modernShape)}`);
 
+// Modern: avatar top-aligned with the text block; creator ↔ views·date gap is tighter than title ↔ creator
+const modernGaps = await page.evaluate(() => {
+    const body = document.querySelector('.mo-body');
+    const avatar = body.querySelector('.mo-avatar');
+    const text = body.querySelector('.mo-text');
+    const title = text.querySelector('.yt-title');
+    const sub = text.querySelector('.mo-sub');
+    const creator = sub.querySelector('.mo-creator')?.getBoundingClientRect() ?? null;
+    const meta = sub.querySelector('.yt-meta').getBoundingClientRect();
+    const bodyR = body.getBoundingClientRect();
+    const titleR = title.getBoundingClientRect();
+    const subR = sub.getBoundingClientRect();
+    return {
+        avatarTopOff: Math.round((avatar.getBoundingClientRect().top - bodyR.top) * 10) / 10,
+        gapTitleSub: Math.round((subR.top - titleR.bottom) * 10) / 10,
+        gapCreatorMeta: creator ? Math.round((meta.top - creator.bottom) * 10) / 10 : -1
+    };
+});
+record('modern avatar top-aligned', modernGaps.avatarTopOff <= 1, `offset ${modernGaps.avatarTopOff}px`);
+record('modern creator/views gap tighter than title/creator gap', modernGaps.gapCreatorMeta > 0 && modernGaps.gapCreatorMeta < modernGaps.gapTitleSub,
+    `${modernGaps.gapCreatorMeta}px vs ${modernGaps.gapTitleSub}px`);
+
 // Scroll lands with the Layout/Style row visible below the navbar (not hidden at the top)
 const scrollReveal = await page.evaluate(() => {
     const btn = document.querySelector('.layout-btn');
@@ -78,7 +100,7 @@ await page.screenshot({ path: `${outDir}/1-classic.png` });
 
 // 4. All 6 layouts render without errors
 const layouts = [
-    ['split', 'Wide Split'], ['stacked', 'Stacked'], ['hero', 'Hero'],
+    ['split', 'Wide Split'], ['hero', 'Hero'],
     ['underlay', 'Underlay'], ['compact', 'Compact']
 ];
 for (const [key, label] of layouts) {
@@ -90,6 +112,10 @@ for (const [key, label] of layouts) {
     record(`layout ${key} renders`, h > 300 && hasMedia, `${h}px`);
     await page.screenshot({ path: `${outDir}/2-${key}.png` });
 }
+
+// Stacked was removed from the layout set entirely
+const stackedBtns = await page.locator('.layout-btn:has(.layout-name:text-is("Stacked"))').count();
+record('Stacked layout removed', stackedBtns === 0, `${stackedBtns} button(s)`);
 
 // 4a2. Underlay: title below the image; channel + meta stay overlaid on it
 await page.click('.layout-btn:has(.layout-name:text-is("Underlay"))');
@@ -106,6 +132,7 @@ const underlay = await page.evaluate(() => {
 });
 record('underlay: title below image (not overlaid)', !!(underlay.titleBelow && !underlay.titleOnImg), JSON.stringify(underlay));
 record('underlay: channel/meta stay on image', !!(underlay.channelOnImg && underlay.metaOnImg), JSON.stringify(underlay));
+record('underlay scrim on by default', underlay.scrim, '');
 const ulCornerBottom = await page.evaluate(() => {
     const el = document.querySelector('.ul-corner');
     return el ? getComputedStyle(el).bottom : '';
@@ -350,10 +377,10 @@ const freePad = await page.evaluate(() => getComputedStyle(document.querySelecto
 record('free values reachable between notches', freePad === '70px', freePad);
 
 // tuned values persist across layout switches
-await page.click('.layout-btn:has(.layout-name:text-is("Stacked"))');
+await page.click('.layout-btn:has(.layout-name:text-is("Modern"))');
 await page.waitForTimeout(300);
-const padStacked = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).padding);
-record('custom padding persists on layout switch', padStacked.includes('70px'), padStacked);
+const padModern = await page.evaluate(() => getComputedStyle(document.querySelector('.ycard')).padding);
+record('custom padding persists on layout switch', padModern.includes('70px'), padModern);
 
 // hero scrim: default 0.85, configurable
 await page.click('.layout-btn:has(.layout-name:text-is("Hero"))');
@@ -399,6 +426,20 @@ record('readout accepts manual value', (await readout.inputValue()) === '17', aw
 // 4e. Slider hitbox: expanded + pointer cursor
 const hitCursor = await page.evaluate(() => getComputedStyle(document.querySelector('.hitbox')).cursor);
 record('slider hitbox has pointer cursor', hitCursor === 'pointer', hitCursor);
+const hitOverlap = await page.evaluate(() => {
+    const field = [...document.querySelectorAll('.field')].find((f) => f.textContent.includes('Card padding'));
+    const hit = field.querySelector('.hitbox').getBoundingClientRect();
+    const input = field.querySelector('input').getBoundingClientRect();
+    const reset = field.querySelector('.reset-btn').getBoundingClientRect();
+    return {
+        hitTop: Math.round(hit.top),
+        inputBottom: Math.round(input.bottom),
+        resetBottom: Math.round(reset.bottom)
+    };
+});
+record('slider hitbox never covers textbox or reset icon',
+    hitOverlap.hitTop >= hitOverlap.inputBottom - 1 && hitOverlap.hitTop >= hitOverlap.resetBottom - 1,
+    JSON.stringify(hitOverlap));
 
 // 5. Palettes apply
 await page.locator('.palette-btn').filter({ hasText: 'YouTube Light' }).click();
