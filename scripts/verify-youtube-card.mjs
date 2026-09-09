@@ -554,6 +554,59 @@ const jpgD = jpegDims(jpgBuf);
 record('JPEG export matches card width', jpgD?.w === expectedExportW, `w=${jpgD?.w} (card ${expectedExportW})`);
 record('JPEG filename extension', dlJpg.suggestedFilename().endsWith('.jpg'), dlJpg.suggestedFilename());
 
+// Pixel purity: the exported frame must be a single uniform color — no
+// html2canvas box-shadow tint over the padding band — and the four corners
+// exactly the palette background (with radius 0 the corners are plain frame).
+// The heavy tinting is only visible on non-black backgrounds, so use Dark.
+await page.locator('.palette-btn').filter({ hasText: 'YouTube Dark' }).click();
+await page.waitForTimeout(400);
+const shadowSplit = await page.evaluate(() => ({
+    cardShadow: getComputedStyle(document.querySelector('.ycard')).boxShadow,
+    wrapperShadow: getComputedStyle(document.querySelector('.preview-scaled')).boxShadow,
+    wrapperRadius: document.querySelector('.preview-scaled').style.borderRadius,
+    cardRadius: getComputedStyle(document.querySelector('.ycard')).borderRadius
+}));
+record('preview shadow on wrapper only (card export stays clean)',
+    shadowSplit.cardShadow === 'none' && shadowSplit.wrapperShadow !== 'none' && shadowSplit.wrapperRadius === shadowSplit.cardRadius,
+    JSON.stringify(shadowSplit));
+const cardRadiusInput = page.locator('.field', { hasText: 'Card radius' }).locator('input[type=number]');
+await cardRadiusInput.fill('0');
+await cardRadiusInput.blur();
+await page.waitForTimeout(400);
+const dlPixPromise = page.waitForEvent('download');
+await page.locator('.btn-download').click();
+const dlPix = await dlPixPromise;
+const pixBuf = await readFile(await dlPix.path());
+const pix = await page.evaluate(async (b64) => {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = `data:image/png;base64,${b64}`; });
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const g = (x, y) => Array.from(ctx.getImageData(x, y, 1, 1).data);
+    const w = img.width, h = img.height;
+    const band = [];
+    for (let x = Math.floor(w * 0.25); x < Math.floor(w * 0.75); x += 3) {
+        band.push(g(x, 14).join(','));
+    }
+    const corners = [g(2, 2), g(w - 3, 2), g(2, h - 3), g(w - 3, h - 3)];
+    return {
+        distinctBandColors: new Set(band).size,
+        bandUniform: new Set(band).size === 1 && band[0] === '15,15,15,255',
+        cornersAll: corners.every((p) => p.join(',') === '15,15,15,255') && corners.every((p) => p[3] === 255),
+        corners: corners.map((p) => p.join(',')).join(' | ')
+    };
+}, pixBuf.toString('base64'));
+record('export frame is one clean uniform color (no shadow tint)',
+    pix.bandUniform && pix.cornersAll,
+    JSON.stringify(pix));
+await cardRadiusInput.fill('16');
+await cardRadiusInput.blur();
+await page.waitForTimeout(400);
+await page.locator('.palette-btn').filter({ hasText: 'OLED Black' }).click();
+await page.waitForTimeout(300);
+
 // Copy to clipboard
 await page.locator('.btn-action:has-text("PNG")').click();
 await page.waitForTimeout(200);

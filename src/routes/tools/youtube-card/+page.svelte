@@ -216,11 +216,14 @@ const PREVIEW_SCALE = 0.45;
 
     // The preview box width is derived from the config (never measured) so the
 // wrapper and the card shrink/grow in the same render tick — padding and
-// export-size changes can't leave a stale box behind. The drop shadow itself
-// lives on the .ycard, so it can never lag either.
+// export-size changes can't leave a stale box behind. The drop shadow lives on
+// the WRAPPER (matching the card's exact box and radius) so the exported image
+// never contains it — html2canvas paints box-shadows over the element's own
+// frame band and corners, tinting them.
     const previewBoxWidth = $derived(
         (config.containerSize ?? 1280) + 2 * Math.round((config.padding ?? 0) * (config.containerSize ?? 1280) / 1280)
     );
+    const previewShadowRadius = $derived(Math.round((config.containerRadius ?? 0) * (config.containerSize ?? 1280) / 1280));
 
     // Notch patterns for the sliders (snap points; free values still reachable).
     const GAP_NOTCHES = [0, 16, 32, 48, 64, 80];
@@ -457,7 +460,7 @@ const PREVIEW_SCALE = 0.45;
                     {/if}
 
                     <div class="preview-stage" style="width:{cardWidth * previewScale}px;height:{cardHeight * previewScale}px">
-                        <div class="preview-scaled" style="transform:scale({previewScale});width:{previewBoxWidth}px">
+                        <div class="preview-scaled" style="transform:scale({previewScale});width:{previewBoxWidth}px;border-radius:{previewShadowRadius}px">
                             <YouTubeCard bind:cardEl {video} {config} />
                         </div>
                     </div>
@@ -1275,8 +1278,8 @@ const PREVIEW_SCALE = 0.45;
            measured size can never make it appear anchored to a corner */
         transform-origin: center center;
         flex-shrink: 0;
-        /* NOTE: no box-shadow here — the card's own shadow (on .ycard) must be
-           the only one, so it always hugs the rounded corners exactly. */
+        /* the preview drop shadow — the wrapper is never part of the export */
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
     }
 
     /* Controls rail — hosts every slider, mirrors the preview height */

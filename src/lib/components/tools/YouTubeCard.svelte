@@ -410,9 +410,10 @@
     /* ── Root ──
        content-box semantics: the design width (--yt-width) belongs to the content;
        padding is an OUTER frame — content and canvas never change size with it.
-       The drop shadow lives HERE (not on the preview wrapper) so it always hugs
-       the card's exact corners and size — padding, radius and export-size
-       changes can never leave a stale square shadow behind it. */
+       NO box-shadow here: html2canvas renders box-shadows by painting a blurred
+       copy of the shape over the element itself, which tints the frame band and
+       corners in every export. The preview drop shadow lives on the preview
+       wrapper (.preview-scaled) instead, which the capture never sees. */
     .ycard {
         font-family: var(--yt-font, sans-serif);
         background-color: var(--yt-bg);
@@ -422,7 +423,6 @@
         line-height: 1.35;
         padding: var(--yt-pad);
         border-radius: var(--yt-container-radius);
-        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
     }
 
     /* Thumbnail (background-image so object-fit: cover survives html2canvas) */
