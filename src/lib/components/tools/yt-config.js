@@ -87,7 +87,6 @@ export const DEFAULT_CONFIG = {
 	layout: 'modern', // key into LAYOUTS
 	aspect: 'auto', // auto | 16:9 | 4:3 | 1:1 | 4:5 | 9:16
 	ratio: 34, // thumb share % (split: text column ≈ 2× the thumbnail, 25–85)
-	splitWideness: 3.2, // split card aspect (1.2–4) — higher = wider/flatter
 	containerSize: 1280, // design width 720–1920 px — pure uniform zoom of the composition
 	thumbGap: 48, // space between thumbnail and text block (classic, compact)
 	columnGap: 48, // space between columns (split)
