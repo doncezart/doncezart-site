@@ -3,7 +3,6 @@
     import PageHeader from '$lib/components/ui/PageHeader.svelte';
     import ToolGrid from '$lib/components/landing/ToolGrid.svelte';
 
-    $effect(() => { window.umami?.track('page-view', { page: 'tools' }); });
     const track = (name) => window.umami?.track('tools-index', { name });
 </script>
 

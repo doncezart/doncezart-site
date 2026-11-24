@@ -59,7 +59,8 @@ pnpm dev               # http://localhost:6969
 | `R2_PUBLIC_URL` | Public base URL for R2 assets |
 | `YOUTUBE_API_KEY` | YouTube Data API key (optional, oEmbed fallback without it) |
 | `GITHUB_TOKEN` | GitHub token for the profile card (optional, raises the rate limit) |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | Contact confirmation emails (optional) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | Contact form email: each message to the inbox, plus a confirmation to the sender |
+| `CONTACT_TO` | Where contact messages are emailed (default me@doncez.art) |
 | `CHROMIUM_PATH` | Use a system Chromium for the card API instead of Playwright's (optional) |
 | `RENDER_ORIGIN` | Origin the card API's headless browser loads (optional, defaults to the request's) |
 | `TRACKING_SECRET` | Keeps card API usage grouping stable across restarts (optional) |

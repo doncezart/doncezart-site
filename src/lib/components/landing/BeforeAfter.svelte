@@ -59,7 +59,7 @@
 			<ul class="grid" class:more={more[r]} onscroll={phone ? (e) => onRowScroll(e, r) : undefined}>
 				{#each row.list as v, i}
 					<li style="--i: {i + r * 6}">
-						<a href="https://www.youtube.com/watch?v={v.id}" target="_blank" rel="noopener noreferrer">
+						<a href="https://www.youtube.com/watch?v={v.id}" target="_blank" rel="noopener noreferrer" onclick={() => window.umami?.track('results-link', { case: slug, video: v.id })}>
 							<span class="thumb">
 								<img src="/cases/{slug}/{v.id}.webp" alt="" loading="lazy" width="640" height="360" />
 								{#if showDurations}<span class="dur">{fmtDuration(v.duration)}</span>{/if}

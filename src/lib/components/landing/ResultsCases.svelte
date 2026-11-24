@@ -111,8 +111,24 @@
 	const posOf = (y) => ((y - trigger.start) / (trigger.end - trigger.start)) * (N - 1);
 
 	function go(i) {
+		window.umami?.track('results-chapter', { case: cases[i].key });
 		if (trigger) scrollToY(caseY(i));
 	}
+
+	// Which cases people actually look at: one event per case per visit, once
+	// it has been on screen for a moment while the stage is pinned (cases
+	// flicked past don't count).
+	let pinned = $state(false);
+	const seen = new Set();
+	$effect(() => {
+		const key = cases[index].key;
+		if (!pinned || seen.has(key)) return;
+		const t = setTimeout(() => {
+			seen.add(key);
+			window.umami?.track('results-case', { case: key });
+		}, 1200);
+		return () => clearTimeout(t);
+	});
 
 	onMount(() => {
 		gsap.registerPlugin(ScrollTrigger);
@@ -130,7 +146,8 @@
 		// active flag hasn't flipped yet).
 		const onScroll = () => {
 			const y = window.scrollY;
-			document.documentElement.classList.toggle('results-pinned', y >= trigger.start - 2 && y <= trigger.end + 2);
+			pinned = y >= trigger.start - 2 && y <= trigger.end + 2;
+			document.documentElement.classList.toggle('results-pinned', pinned);
 		};
 		onScroll();
 		window.addEventListener('scroll', onScroll, { passive: true });

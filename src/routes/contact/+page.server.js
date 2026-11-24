@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import { submitContact } from '$lib/server/contact.js';
-import { sendConfirmation } from '$lib/server/mail.js';
+import { sendConfirmation, sendNotification, CONTACT_EMAIL } from '$lib/server/mail.js';
 import { TOPICS } from '$lib/data/contact.js';
 
 export const actions = {
@@ -18,10 +18,17 @@ export const actions = {
 		const header = [topics.length && `Needs: ${topics.join(', ')}`, link && `Link: ${link}`].filter(Boolean).join('\n');
 		const message = body && (header ? `${header}\n\n${body}` : body);
 
-		const res = await submitContact({ ip: getClientAddress(), email, name, message, token });
+		const ip = getClientAddress();
+		const res = await submitContact({ ip, email, name, message, token });
 		if (res) return fail(res.status, { ...echo, ...res.body });
-		// The message is already delivered; the confirmation is best-effort and
-		// the page words its thank-you around whether it went out.
+		// The message itself, emailed to the inbox. If that fails, say so
+		// rather than show a thank-you for a message nobody will read.
+		const notified = await sendNotification({ name, email, topics, link, message: body, ip });
+		if (notified === false) {
+			return fail(502, { ...echo, error: `Your message couldn't be sent. Please email ${CONTACT_EMAIL} directly.` });
+		}
+		// The confirmation is best-effort; the page words its thank-you
+		// around whether it went out.
 		const confirmed = await sendConfirmation({ to: email, name });
 		return { success: true, name, email, confirmed };
 	}

@@ -16,7 +16,7 @@
 
     <section>
         <h2>Where it goes</h2>
-        <p>Contact form submissions are forwarded to <strong>Google Forms</strong> (stored by Google under their privacy policy) and trigger a <strong>Discord webhook</strong> notification to a private server. You get one automatic confirmation email at the address you entered, sent through <strong>Purelymail</strong>; it does not repeat your message. Your message is not sold, shared with third parties, or used for marketing.</p>
+        <p>Contact form submissions are emailed to me through <strong>Purelymail</strong>, and forwarded to <strong>Google Forms</strong> (stored by Google under their privacy policy) and trigger a <strong>Discord webhook</strong> notification to a private server. You get one automatic confirmation email at the address you entered, sent through <strong>Purelymail</strong>; it does not repeat your message. Your message is not sold, shared with third parties, or used for marketing.</p>
     </section>
 
     <section>
@@ -29,7 +29,7 @@
         <ul>
             <li><strong>Google</strong>: contact form data is stored in Google Forms</li>
             <li><strong>Discord</strong>: contact form notifications are delivered via webhook</li>
-            <li><strong>Purelymail</strong>: sends the confirmation email after you use the contact form</li>
+            <li><strong>Purelymail</strong>: delivers your contact form message to me and sends you a confirmation email</li>
             <li><strong>Cloudflare</strong>: DNS, CDN, and bot protection (Turnstile). Cloudflare may process IP addresses and request metadata per their privacy policy.</li>
         </ul>
     </section>

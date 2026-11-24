@@ -116,7 +116,7 @@
 <div class="visual" bind:this={root}>
 	<div class="studio">
 		<aside class="sidebar">
-			<a class="channel" href="https://www.youtube.com/{channel.handle}" target="_blank" rel="noopener">
+			<a class="channel" href="https://www.youtube.com/{channel.handle}" target="_blank" rel="noopener" onclick={() => window.umami?.track('results-link', { case: 'santea', link: 'channel' })}>
 				<span class="avatar-wrap"><img class="avatar" src={channel.avatar} alt="" width="108" height="108" /></span>
 				<span class="ch-label">This could be your channel</span>
 				<span class="ch-name">{channel.name}</span>

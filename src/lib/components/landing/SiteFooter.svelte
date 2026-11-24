@@ -18,7 +18,7 @@
 <footer class="foot">
 	<a href="/" class="brand" aria-label="DONCEZART home"><img src="/logo-long.svg" alt="" /></a>
 	<nav aria-label="Footer">
-		{#each links as l}<a href={l.href}>{l.label}</a>{/each}
+		{#each links as l}<a href={l.href} onclick={() => window.umami?.track('footer-click', { link: l.href })}>{l.label}</a>{/each}
 	</nav>
 	<div class="socials">
 		{#each SOCIALS as s}

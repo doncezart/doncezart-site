@@ -14,7 +14,6 @@
 
     let { data } = $props();
 
-    $effect(() => { window.umami?.track('page-view', { page: 'tools-youtube-card' }); });
 
     // ── Video ─────────────────────────────────────────────
     // A demo video (loaded server-side, streamed) fills the editor until the
@@ -652,7 +651,7 @@ When I send a YouTube link, put it in url, keep the rest, and show me the image.
         <div class="block-head"><h2>Layout</h2><span class="head-note">{L.hint}</span></div>
         <div class="layouts">
             {#each layoutKeys as key}
-                <button type="button" class="layout" class:active={config.layout === key} onclick={() => setLayout(key)} aria-pressed={config.layout === key}>
+                <button type="button" class="layout" class:active={config.layout === key} onclick={() => { setLayout(key); window.umami?.track('tool-layout', { tool: 'youtube-card', layout: key }); }} aria-pressed={config.layout === key}>
                     <span class="layout-img">
                         {#if video}
                             <span class="mini" use:fitMini><YouTubeCard {video} config={layoutPreviews[key]} /></span>

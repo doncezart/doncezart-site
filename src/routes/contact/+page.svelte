@@ -71,7 +71,8 @@
 		return async ({ result, update }) => {
 			await update({ reset: false });
 			sending = false;
-			if (result.type === 'success') track('contact-form-submitted', { page: 'landing' });
+			if (result.type === 'success') track('contact-form-submitted', { page: 'contact' });
+			else if (result.type === 'failure') track('contact-form-error', { status: result.status });
 			else window.turnstile?.reset();
 		};
 	}

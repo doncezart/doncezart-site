@@ -9,7 +9,6 @@
     } from '$lib/components/tools/profile-config.js';
     import { PLATFORMS, PLATFORM_KEYS, profileUrl } from '$lib/data/social-platforms.js';
 
-    $effect(() => { window.umami?.track('page-view', { page: 'tools-profile-card' }); });
 
     let input = $state('');
     let loading = $state(false);

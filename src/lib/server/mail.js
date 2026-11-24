@@ -1,6 +1,8 @@
-// Outgoing email (the contact form's confirmation to the sender), over SMTP.
+// Outgoing email over SMTP: each contact form message to the site owner
+// (sendNotification), and a confirmation to the sender (sendConfirmation).
 // Configured by SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / MAIL_FROM; with
-// no SMTP_USER/SMTP_PASS it is off and sendConfirmation() returns false.
+// no SMTP_USER/SMTP_PASS both are off: sendNotification() returns null
+// (not configured) and sendConfirmation() returns false.
 //
 // The recipient address comes from an anonymous form, so the email never
 // repeats anything they typed beyond a sanitised first name: it can't be used
@@ -104,6 +106,48 @@ export async function sendConfirmation({ to, name }) {
 		return true;
 	} catch (e) {
 		console.error('Confirmation email failed:', e);
+		return false;
+	}
+}
+
+/** No line breaks in header values (subject), so a name can't add headers. */
+const oneLine = (s) => String(s).replace(/[\r\n]+/g, ' ').trim();
+
+/**
+ * Email a contact form message to CONTACT_EMAIL (override with CONTACT_TO).
+ * Reply-To is the sender, so replying answers them directly.
+ * Returns true if sent, false if sending failed, null if SMTP isn't set up.
+ * @param {{ name: string, email: string, topics: string[], link: string, message: string, ip?: string }} input
+ */
+export async function sendNotification({ name, email, topics, link, message, ip }) {
+	const t = getTransport();
+	if (!t) return null;
+	const rows = [
+		['Name', name],
+		['Email', email],
+		topics.length ? ['Needs', topics.join(', ')] : null,
+		link ? ['Link', link] : null
+	].filter(Boolean);
+	const text = [...rows.map(([k, v]) => `${k}: ${v}`), '', message, '', '---', `Sent from the contact form at doncez.art${ip ? ` (IP ${ip})` : ''}. Reply to answer ${email}.`].join('\n');
+	const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#111;max-width:600px">
+<table style="border-collapse:collapse;margin-bottom:18px">${rows
+		.map(([k, v]) => `<tr><td style="padding:2px 16px 2px 0;color:#777;vertical-align:top">${k}</td><td style="padding:2px 0">${esc(String(v))}</td></tr>`)
+		.join('')}</table>
+<div style="white-space:pre-wrap;padding:16px;border-left:3px solid #ff2b1f;background:#f6f6f4">${esc(message)}</div>
+<p style="margin-top:20px;font-size:12px;color:#999">Sent from the contact form at doncez.art${ip ? ` (IP ${esc(ip)})` : ''}. Reply to answer ${esc(email)}.</p>
+</div>`;
+	try {
+		await t.sendMail({
+			from: env.MAIL_FROM || `DONCEZART <${env.SMTP_USER}>`,
+			to: env.CONTACT_TO || CONTACT_EMAIL,
+			replyTo: { name: oneLine(name).slice(0, 100), address: email },
+			subject: oneLine(`New enquiry from ${name}`).slice(0, 150),
+			text,
+			html
+		});
+		return true;
+	} catch (e) {
+		console.error('Contact notification email failed:', e);
 		return false;
 	}
 }

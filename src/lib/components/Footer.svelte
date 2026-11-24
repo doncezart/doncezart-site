@@ -53,7 +53,7 @@
                     <span class="heading">{col.heading}</span>
                     <ul>
                         {#each col.links as l}
-                            <li><a href={l.href}>{l.label}</a></li>
+                            <li><a href={l.href} onclick={() => window.umami?.track('footer-click', { link: l.href })}>{l.label}</a></li>
                         {/each}
                     </ul>
                 </div>
@@ -63,7 +63,7 @@
 
     <div class="bottom">
         <small>© {year} DONCEZART. All rights reserved.</small>
-        <a href="mailto:{EMAIL}" class="email">{EMAIL}</a>
+        <a href="mailto:{EMAIL}" class="email" onclick={() => window.umami?.track('email-click', { location: 'footer' })}>{EMAIL}</a>
         <div class="socials">
             {#each SOCIALS as so}
                 <a

@@ -13,7 +13,6 @@
     } from '$lib/components/tools/cutting-mat.js';
     import { makeTextures } from '$lib/components/tools/cutting-mat-tex.js';
 
-    $effect(() => { window.umami?.track('page-view', { page: 'tools-cutting-mat' }); });
 
     let config = $state(structuredClone(DEFAULT_CONFIG));
     const D = DEFAULT_CONFIG;

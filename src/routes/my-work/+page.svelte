@@ -250,7 +250,7 @@
             {#if lightboxItem.videoId}
                 <p class="video-meta">
                     {[lightboxItem.channel, lightboxItem.views != null ? `${fmtCount(lightboxItem.views)} views` : null].filter(Boolean).join(' · ')}
-                    <a href="https://www.youtube.com/watch?v={lightboxItem.videoId}" target="_blank" rel="noopener">Watch on YouTube <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+                    <a href="https://www.youtube.com/watch?v={lightboxItem.videoId}" target="_blank" rel="noopener" onclick={() => window.umami?.track('video-watch-youtube', { id: lightboxItem.videoId })}>Watch on YouTube <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
                 </p>
             {/if}
             {#if lightboxItem.tags?.length}

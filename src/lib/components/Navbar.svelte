@@ -82,7 +82,7 @@
 
     <div class="end">
         <a href={cta.href} class="btn btn-sm" onclick={() => track(cta.track)}>{cta.label}</a>
-        <button class="hamburger" class:open={mobileOpen} onclick={() => (mobileOpen ? closeMobile() : (mobileOpen = true))}
+        <button class="hamburger" class:open={mobileOpen} onclick={() => (mobileOpen ? closeMobile() : ((mobileOpen = true), window.umami?.track('mobile-menu-open')))}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'} aria-expanded={mobileOpen} aria-controls="mobile-menu">
             <span></span><span></span>
         </button>
@@ -109,7 +109,7 @@
                 {#if open}
                     <div class="mm-cards" transition:slide={{ duration: 220 }}>
                         {#each items as it}
-                            <a href={it.href} class="mm-card" class:active={here(it.href)} onclick={closeMobile}>
+                            <a href={it.href} class="mm-card" class:active={here(it.href)} onclick={() => { track(it.href, 'mobile'); closeMobile(); }}>
                                 <i class="{it.icon} mm-card-icon" aria-hidden="true"></i>
                                 <span class="mm-card-text">
                                     <b>{it.label}</b>
@@ -139,7 +139,7 @@
                 {cta.label} <i class="fa-solid fa-arrow-right"></i>
             </a>
             <div class="mm-meta">
-                <a href="mailto:{EMAIL}" class="mm-email">{EMAIL}</a>
+                <a href="mailto:{EMAIL}" class="mm-email" onclick={() => window.umami?.track('email-click', { location: 'mobile-menu' })}>{EMAIL}</a>
                 <div class="mm-socials">
                     {#each menuSocials as so}
                         <a href={so.href} target="_blank" rel="noopener noreferrer" aria-label={so.name}

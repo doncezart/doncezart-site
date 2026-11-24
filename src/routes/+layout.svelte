@@ -18,7 +18,8 @@
 
 
 <svelte:head>
-    {#if !isBare}
+    <!-- Analytics everywhere except admin and the bare card-render pages. -->
+    {#if !isBare && !isAdmin}
         <script defer src="https://analytics.ceza.ro/script.js" data-website-id="acf6ca2d-5e48-4171-ab60-5dda92cbd17e"></script>
     {/if}
 </svelte:head>
