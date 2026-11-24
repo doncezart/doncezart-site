@@ -1,5 +1,5 @@
 <script>
-    import Navbar from '$lib/components/Navbar.svelte'
+    import LandingShell from '$lib/components/landing/LandingShell.svelte'
     import Footer from '$lib/components/Footer.svelte'
     import '@fortawesome/fontawesome-free/css/all.min.css'
     import { fly } from 'svelte/transition';
@@ -7,30 +7,53 @@
     let { data, children } = $props();
 
     let isAdmin = $derived(page.url.pathname.startsWith('/admin'));
+    // /render/* are bare pages the card API screenshots: no frame at all.
+    let isBare = $derived(page.url.pathname.startsWith('/render/'));
+    // Pages built on LandingShell draw their own nav, footer and background.
+    const SHELL_ROUTES = ['/contact', '/designer'];
+    let isShell = $derived(
+        page.url.pathname === '/' || SHELL_ROUTES.some((r) => page.url.pathname === r || page.url.pathname.startsWith(r + '/'))
+    );
 </script>
 
 
 <svelte:head>
-    <script defer src="https://analytics.ceza.ro/script.js" data-website-id="acf6ca2d-5e48-4171-ab60-5dda92cbd17e"></script>
+    {#if !isBare}
+        <script defer src="https://analytics.ceza.ro/script.js" data-website-id="acf6ca2d-5e48-4171-ab60-5dda92cbd17e"></script>
+    {/if}
 </svelte:head>
 
-{#if !isAdmin}
-    <Navbar discoverySections={data.discoverySections ?? []} />
-{/if}
-{#if isAdmin}
+{#if isBare}
+    {@render children?.()}
+{:else if isAdmin}
     <div class="slot admin-reset">
         {@render children?.()}
     </div>
+{:else if isShell}
+    <!-- Landing, contact and designer pages bring their own LandingShell. -->
+    {@render children?.()}
 {:else}
-    {#key data.pathname}
-        <div class="slot crt" in:fly={{ y: 10, duration: 180, opacity: 0 }}>
-            {@render children?.()}
-        </div>
-    {/key}
-    <Footer discoverySections={data.discoverySections ?? []} />
+    <!-- Every other page: same frame as the landing page (embers, grain,
+         nav), content below the fixed nav, then the footer. -->
+    <LandingShell>
+        {#key data.pathname}
+            <div class="slot site-slot" in:fly={{ y: 10, duration: 180, opacity: 0 }}>
+                {@render children?.()}
+            </div>
+        {/key}
+        <Footer discoverySections={data.discoverySections ?? []} />
+    </LandingShell>
 {/if}
 
 <style>
+.slot.site-slot {
+    position: relative;
+    z-index: 1;
+    /* Clears the fixed nav (.slot below resets padding). */
+    padding-top: 4.75rem;
+    min-height: calc(100vh - 4.75rem);
+}
+
 /* .crt::before {
     content: " ";
     display: block;

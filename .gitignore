@@ -9,3 +9,13 @@ node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .superpowers/
+
+# AI assistant working files (logs, task lists, plans, design references).
+# Kept locally, not needed to build or run the site. Rules and reference docs
+# (BRIEF, CONVENTIONS, DECISIONS, FUNCTIONALITY, STYLE_GUIDE, CHANGELOG) stay tracked.
+docs/AI_LOG.md
+docs/TASKS.md
+docs/superpowers/
+docs/inspiration/
+.claude/
+CLAUDE.local.md

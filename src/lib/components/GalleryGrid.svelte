@@ -3,6 +3,7 @@
     import { fade } from 'svelte/transition';
     import Badge from './ui/Badge.svelte';
     import Button from './ui/Button.svelte';
+    import { fmtCount as fmtViews } from '$lib/data/cases/format.js';
 
     let { items = [], columns = 4, showMoreHref = '/my-work', onItemClick = null, showAll = false, enableHoverPreview = false } = $props();
 
@@ -157,6 +158,13 @@
                         tabindex="-1"
                     ></video>
                 {/if}
+                {#if item.videoId}
+                    <span class="play" aria-hidden="true"><i class="fa-solid fa-play"></i></span>
+                    {#if item.duration}<span class="duration">{item.duration}</span>{/if}
+                    {#if item.views != null}
+                        <Badge dark position="top-left"><i class="fa-solid fa-eye"></i> {fmtViews(item.views)} views</Badge>
+                    {/if}
+                {/if}
                 {#if item.imageCount > 1}
                     <Badge dark position="top-left">
                         {#if item.displayMode === 'before-after'}
@@ -184,6 +192,10 @@
                         {#if item.displayMode === 'before-after'}
                             <span class="meta-chip meta-chip--accent">
                                 <i class="fa-solid fa-right-left"></i> Before &amp; After
+                            </span>
+                        {:else if item.videoId}
+                            <span class="meta-chip meta-chip--accent">
+                                <i class="fa-brands fa-youtube"></i> Video
                             </span>
                         {:else if item.displayMode === 'carousel'}
                             <span class="meta-chip meta-chip--accent">
@@ -217,11 +229,43 @@
 {/if}
 
 <style>
+    /* Video entries: play button and length over the cover */
+    .play {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        z-index: 1;
+        display: grid;
+        place-items: center;
+        width: 3.2rem;
+        height: 3.2rem;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        font-size: 1rem;
+        transform: translate(-50%, -50%);
+        transition: background 0.2s, transform 0.2s;
+        pointer-events: none;
+    }
+    .play i { margin-left: 0.15rem; }
+    .gallery-item:hover .play { background: var(--color-accent); transform: translate(-50%, -50%) scale(1.08); }
+    .duration {
+        position: absolute;
+        right: 0.5rem;
+        bottom: 0.5rem;
+        z-index: 1;
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.8);
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 600;
+        pointer-events: none;
+    }
     .gallery-wrap {
         position: relative;
         max-height: 72vh;
         overflow: hidden;
-        margin-top: 1.5rem;
         min-height: 300px;
     }
 
@@ -257,12 +301,13 @@
         break-inside: avoid;
         margin-bottom: 12px;
         aspect-ratio: 16 / 9;
+        border-radius: 8px;
         background: linear-gradient(
             90deg,
             rgba(255, 255, 255, 0.04) 0%,
             rgba(255, 255, 255, 0.09) 50%,
             rgba(255, 255, 255, 0.04) 100%
-        );
+        ), rgba(14, 14, 14, 0.55);
         background-size: 200% 100%;
         animation: shimmer 1.5s ease-in-out infinite;
     }
@@ -285,10 +330,26 @@
     .gallery-item {
         overflow: hidden;
         position: relative;
-        border-radius: var(--radius);
+        border-radius: 8px;
         margin-bottom: 0.75rem;
         display: block;
+        background: var(--w-raised, #1b1b1b);
+        /* Keeps the rounded clip on the scaled media in Safari. */
+        isolation: isolate;
     }
+    /* Hairline ring over the media; brightens on hover. */
+    .gallery-item::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        border-radius: inherit;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        pointer-events: none;
+        transition: border-color 0.25s;
+    }
+    .gallery-item:hover::after { border-color: rgba(255, 255, 255, 0.28); }
+    .gallery-item:focus-visible { outline: 2px solid var(--accent, #ff2b1f); outline-offset: 2px; }
 
     .gallery-item.clickable {
         cursor: pointer;
@@ -301,6 +362,15 @@
         display: block;
     }
 
+    .gallery-item img,
+    .gallery-item .thumb-video,
+    .gallery-item .hover-preview {
+        transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.1, 1), opacity 0.15s ease;
+    }
+    .gallery-item:hover img,
+    .gallery-item:hover .thumb-video,
+    .gallery-item:hover .hover-preview { transform: scale(1.04); }
+
     /* No min-height — masonry re-runs on loadedmetadata for correct ratio even on short/wide videos */
     .thumb-video { pointer-events: none; background: #000; }
 
@@ -311,7 +381,6 @@
         height: 100%;
         object-fit: cover;
         opacity: 0;
-        transition: opacity 0.15s ease;
         pointer-events: none;
         display: block;
         background: transparent;
@@ -337,21 +406,25 @@
         bottom: 0;
         left: 0;
         right: 0;
-        padding: 2rem 0.75rem 0.75rem;
-        background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.75) 40%, rgba(0,0,0,0.3) 65%, transparent 100%);
+        z-index: 2;
+        padding: 2.25rem 0.8rem 0.8rem;
+        background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 45%, transparent 100%);
         opacity: 0;
-        transition: opacity 0.22s ease;
+        transform: translateY(6px);
+        transition: opacity 0.25s ease, transform 0.25s ease;
         pointer-events: none;
     }
 
-    .gallery-item:hover .item-overlay {
+    .gallery-item:hover .item-overlay,
+    .gallery-item:focus-visible .item-overlay {
         opacity: 1;
+        transform: none;
     }
 
     .overlay-title {
-        margin: 0 0 0.4rem;
+        margin: 0 0 0.45rem;
         font-family: var(--font-display);
-        font-size: 0.85rem;
+        font-size: 0.88rem;
         font-weight: 600;
         color: #fff;
         line-height: 1.2;
@@ -367,32 +440,44 @@
     }
 
     .meta-chip {
-        font-size: 0.6rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 0.66rem;
         font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        padding: 0.15rem 0.45rem;
-        border-radius: var(--radius);
-        background: rgba(255,255,255,0.12);
-        color: var(--color-text-secondary);
-        border: 1px solid rgba(255,255,255,0.1);
+        padding: 0.18rem 0.55rem;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.6);
+        color: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
         line-height: 1.4;
     }
 
     .meta-chip--accent {
-        background: rgba(255,34,34,0.18);
-        color: #ff6666;
-        border-color: rgba(255,34,34,0.3);
+        background: rgba(255, 43, 31, 0.16);
+        color: #fff;
+        border-color: rgba(255, 43, 31, 0.55);
     }
 
     .meta-chip--tag {
-        background: rgba(255,255,255,0.06);
-        color: rgba(255,255,255,0.55);
+        color: rgba(255, 255, 255, 0.6);
+        border-color: rgba(255, 255, 255, 0.1);
     }
 
     .show-more {
         display: flex;
         justify-content: center;
         margin-top: 2rem;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .gallery-item img,
+        .gallery-item .thumb-video,
+        .gallery-item .hover-preview { transition: opacity 0.15s ease; }
+        .gallery-item:hover img,
+        .gallery-item:hover .thumb-video,
+        .gallery-item:hover .hover-preview { transform: none; }
     }
 </style>

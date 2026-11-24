@@ -13,64 +13,72 @@
 {/if}
 
 <style>
-    .btn {
+    /* Same family as the shell's .btn: 4px corners, white solid, frosted
+       outline, hover warms to the accent. Repeated classes keep these ahead
+       of the shell's global .btn rules. */
+    .btn.btn.btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 0.5rem;
-        padding: 0.75rem 2rem;
+        gap: 0.6rem;
+        padding: 0.95rem 1.6rem;
         font-family: var(--font-body);
-        font-size: var(--text-base);
-        font-weight: 400;
+        font-size: 0.95rem;
+        font-weight: 600;
+        line-height: 1.2;
         text-decoration: none;
         cursor: pointer;
-        border: none;
-        border-radius: var(--radius);
-        transition:
-            background var(--transition-base),
-            color var(--transition-base),
-            border-color var(--transition-base);
+        border-radius: 4px;
+        transition: background 0.2s, color 0.2s, border-color 0.2s;
     }
 
-    .btn--solid {
-        background: var(--color-text-primary);
-        color: var(--color-bg);
-        border: var(--border-solid);
+    .btn.btn.btn--solid {
+        background: #fff;
+        color: #000;
+        border: 1px solid #fff;
     }
-    .btn--solid:hover {
-        background: var(--color-bg);
-        color: var(--color-text-primary);
-    }
-
-    .btn--outline {
-        background: transparent;
-        color: var(--color-text-primary);
-        border: var(--border-solid);
-    }
-    .btn--outline:hover {
-        text-decoration: underline;
+    .btn.btn.btn--solid:hover {
+        background: var(--accent, #ff2b1f);
+        border-color: var(--accent, #ff2b1f);
+        color: #fff;
     }
 
-    .btn--cta {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0 0 0.25rem 0;
+    .btn.btn.btn--outline {
+        background: rgba(0, 0, 0, 0.35);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+    }
+    .btn.btn.btn--outline:hover {
+        background: var(--accent, #ff2b1f);
+        border-color: var(--accent, #ff2b1f);
+        color: #fff;
+    }
+
+    .btn.btn.btn--cta {
+        gap: 0.6rem;
+        padding: 0 0 0.25rem;
         background: none;
         border: none;
-        border-bottom: var(--border-width) solid transparent;
-        color: var(--color-text-primary);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 0;
+        color: #fff;
         font-family: var(--font-display);
-        font-size: var(--text-lg);
+        font-size: 1.05rem;
         font-weight: 600;
-        transition: border-color var(--transition-base);
     }
-    .btn--cta:hover {
-        border-bottom-color: var(--color-text-primary);
+    .btn.btn.btn--cta :global(i) { font-size: 0.8em; color: var(--accent, #ff2b1f); transition: transform 0.2s; }
+    .btn.btn.btn--cta:hover {
+        background: none;
+        color: #fff;
+        border-color: var(--accent, #ff2b1f);
     }
+    .btn.btn.btn--cta:hover :global(i) { transform: translateX(3px); }
 
-    .btn--sm {
-        padding: 0.5rem 1.25rem;
-        font-size: var(--text-sm);
+    .btn.btn.btn--sm {
+        padding: 0.55rem 1rem;
+        font-size: 0.85rem;
     }
+    .btn.btn.btn--cta.btn--sm { padding: 0 0 0.2rem; }
 </style>

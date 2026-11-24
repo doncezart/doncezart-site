@@ -242,8 +242,9 @@
         justify-content: space-between;
         gap: var(--space-sm);
         font-family: var(--font-body);
-        font-size: var(--text-sm);
-        color: var(--color-text-secondary);
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.75);
     }
 
     .readout-controls {
@@ -259,8 +260,9 @@
         height: 1.35rem;
         padding: 0;
         border: 0;
+        border-radius: 50%;
         background: transparent;
-        color: var(--color-text-secondary);
+        color: rgba(255, 255, 255, 0.75);
         opacity: 0.22;
         cursor: default;
         font-size: 0.7rem;
@@ -271,7 +273,7 @@
         cursor: pointer;
     }
     .reset-btn.active:hover {
-        color: var(--color-accent, var(--color-text-primary));
+        color: var(--accent, #ff2b1f);
         opacity: 1;
     }
     .readout-input-wrap {
@@ -279,15 +281,18 @@
         display: inline-block;
     }
     .readout-input {
-        width: 3.5rem;
-        background: transparent;
-        border: var(--border);
-        color: var(--color-text-primary);
+        width: 3.75rem;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        color: #fff;
         font-family: var(--font-body);
-        font-size: var(--text-sm);
+        font-size: 0.82rem;
+        font-variant-numeric: tabular-nums;
         text-align: right;
-        padding: 0.2rem 0.35rem 0.2rem 1.5rem;
+        padding: 0.28rem 0.45rem 0.28rem 1.5rem;
         outline: none;
+        transition: border-color 0.2s, background 0.2s;
         -moz-appearance: textfield;
         appearance: textfield;
     }
@@ -296,8 +301,12 @@
         -webkit-appearance: none;
         margin: 0;
     }
+    .readout-input:hover {
+        border-color: rgba(255, 255, 255, 0.2);
+    }
     .readout-input:focus {
-        border-color: var(--color-text-primary);
+        border-color: rgba(255, 255, 255, 0.45);
+        background: rgba(255, 255, 255, 0.06);
     }
     .readout-input:disabled {
         opacity: 0.4;
@@ -308,8 +317,8 @@
         top: 50%;
         transform: translateY(-50%);
         font-size: 0.62rem;
-        opacity: 0.55;
-        color: var(--color-text-secondary);
+        opacity: 0.45;
+        color: #fff;
         pointer-events: none;
     }
 
@@ -326,14 +335,16 @@
         outline: none;
     }
     .hitbox:focus-visible .track {
-        outline: 1px solid var(--color-text-primary);
-        outline-offset: 6px;
+        outline: 1px solid rgba(255, 43, 31, 0.7);
+        outline-offset: 7px;
+        border-radius: 2px;
     }
 
     .track {
         position: relative;
-        height: 4px;
-        background: rgba(255, 255, 255, 0.15);
+        height: 3px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
     }
 
     .fill {
@@ -341,27 +352,37 @@
         top: 0;
         left: 0;
         bottom: 0;
-        background: var(--color-text-primary);
+        border-radius: 999px;
+        background: var(--accent, #ff2b1f);
     }
 
     .knob {
         position: absolute;
         top: 50%;
-        width: 10px;
-        height: 10px;
-        background: var(--color-text-primary);
+        z-index: 1;
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(255, 43, 31, 0.35), 0 2px 6px rgba(0, 0, 0, 0.5);
         transform: translate(-50%, -50%);
         pointer-events: none;
+        transition: box-shadow 0.2s;
     }
 
     .tick {
         position: absolute;
         top: -3px;
         width: 1px;
-        height: 10px;
-        background: rgba(255, 255, 255, 0.5);
+        height: 9px;
+        background: rgba(255, 255, 255, 0.28);
         transform: translateX(-50%);
         pointer-events: none;
+    }
+
+    .hitbox:hover .knob,
+    .hitbox:active .knob {
+        box-shadow: 0 0 0 5px rgba(255, 43, 31, 0.35), 0 2px 6px rgba(0, 0, 0, 0.5);
     }
 
     .snap.disabled {

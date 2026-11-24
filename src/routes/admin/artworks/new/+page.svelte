@@ -18,7 +18,7 @@
 
 	function handleFileChange(e) {
 		const files = Array.from(e.target.files || []);
-		if (displayMode === 'single') {
+		if (displayMode === 'single' || displayMode === 'video') {
 			selectedFiles = files.slice(0, 1);
 		} else {
 			selectedFiles = [...selectedFiles, ...files];
@@ -31,7 +31,7 @@
 		dragOver = false;
 		const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
 		if (!files.length) return;
-		if (displayMode === 'single') {
+		if (displayMode === 'single' || displayMode === 'video') {
 			selectedFiles = files.slice(0, 1);
 		} else {
 			selectedFiles = [...selectedFiles, ...files];
@@ -68,7 +68,7 @@
 <form method="POST" enctype="multipart/form-data" use:enhance={() => { uploading = true; return async ({ update }) => { uploading = false; await update(); }; }} class="artwork-form">
 	<label>
 		Title *
-		<input type="text" name="title" required />
+		<input type="text" name="title" required={displayMode !== 'video'} />
 	</label>
 
 	<label>
@@ -117,8 +117,21 @@
 				<i class="fa-solid fa-right-left"></i>
 				<span>Before / After</span>
 			</label>
+			<label class="mode-option" class:selected={displayMode === 'video'}>
+				<input type="radio" name="display_mode" value="video" bind:group={displayMode} />
+				<i class="fa-brands fa-youtube"></i>
+				<span>Video</span>
+			</label>
 		</div>
 	</fieldset>
+
+	{#if displayMode === 'video'}
+		<label>
+			YouTube link *
+			<input type="text" name="video_url" required placeholder="https://youtu.be/..." value="" />
+			<small class="hint">Plays in the My Work lightbox with its live view count. Leave the title or the image empty to use the video's own title and thumbnail.</small>
+		</label>
+	{/if}
 
 	{#if displayMode === 'carousel'}
 		<fieldset class="mode-fieldset">
@@ -143,7 +156,7 @@
 		bind:this={hiddenInput}
 		type="file"
 		name="images"
-		multiple={displayMode !== 'single'}
+		multiple={!['single', 'video'].includes(displayMode)}
 		class="sr-only"
 		tabindex="-1"
 		aria-hidden="true"
@@ -151,7 +164,7 @@
 
 	<!-- Images -->
 	<p class="field-label">
-		{displayMode === 'single' ? 'Image *' : displayMode === 'before-after' ? 'Images * (exactly 2: before, then after)' : 'Images * (select multiple for carousel)'}
+		{displayMode === 'video' ? 'Cover image (optional: the YouTube thumbnail is used if empty)' : displayMode === 'single' ? 'Image *' : displayMode === 'before-after' ? 'Images * (exactly 2: before, then after)' : 'Images * (select multiple for carousel)'}
 	</p>
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
@@ -171,11 +184,11 @@
 				<input
 					type="file"
 					accept="image/webp,image/png,image/jpeg,image/gif,image/tiff,image/avif"
-					multiple={displayMode !== 'single'}
+					multiple={!['single', 'video'].includes(displayMode)}
 					onchange={handleFileChange}
 				/>
 			</label>
-			<span class="dropzone-hint">WebP, PNG, JPEG, GIF, TIFF, AVIF — up to 50 MB each</span>
+			<span class="dropzone-hint">WebP, PNG, JPEG, GIF, TIFF, AVIF, up to 50 MB each</span>
 		{:else}
 			<div class="file-preview-list">
 				{#each selectedFiles as file, i (file.name + i)}
@@ -202,11 +215,11 @@
 				{/each}
 			</div>
 			<label class="add-more-btn">
-				<i class="fa-solid fa-plus"></i> {displayMode === 'single' ? 'Replace' : 'Add more'}
+				<i class="fa-solid fa-plus"></i> {displayMode === 'single' || displayMode === 'video' ? 'Replace' : 'Add more'}
 				<input
 					type="file"
 					accept="image/webp,image/png,image/jpeg,image/gif,image/tiff,image/avif"
-					multiple={displayMode !== 'single'}
+					multiple={!['single', 'video'].includes(displayMode)}
 					onchange={handleFileChange}
 				/>
 			</label>
@@ -247,6 +260,7 @@
 </form>
 
 <style>
+	.hint { display: block; margin-top: 0.35rem; font-size: 0.75rem; opacity: 0.6; font-weight: 400; }
 	.artwork-form {
 		display: flex;
 		flex-direction: column;

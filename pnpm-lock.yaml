@@ -26,12 +26,18 @@ importers:
       '@fortawesome/free-solid-svg-icons':
         specifier: ^7.2.0
         version: 7.2.0
+      '@paper-design/shaders':
+        specifier: ^0.0.81
+        version: 0.0.81
       dotenv:
         specifier: ^17.3.1
         version: 17.3.1
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@libsql/client-wasm@0.14.0)(@types/pg@8.20.0)(pg@8.13.1)(postgres@3.4.8)
+      gsap:
+        specifier: ^3.15.0
+        version: 3.15.0
       html2canvas:
         specifier: ^1.4.1
         version: 1.4.1
@@ -41,6 +47,15 @@ importers:
       mdsvex:
         specifier: ^0.12.7
         version: 0.12.7(svelte@5.55.1)
+      motion:
+        specifier: ^13.4.3
+        version: 13.4.3
+      nodemailer:
+        specifier: ^10.6.0
+        version: 10.6.0
+      playwright:
+        specifier: ^1.62.1
+        version: 1.62.1
       postgres:
         specifier: ^3.4.8
         version: 3.4.8
@@ -75,9 +90,6 @@ importers:
       mime-types:
         specifier: ^3.0.2
         version: 3.0.2
-      playwright:
-        specifier: ^1.62.1
-        version: 1.62.1
       svelte:
         specifier: ^5.55.1
         version: 5.55.1
@@ -914,6 +926,9 @@ packages:
   '@oxc-project/types@0.129.0':
     resolution: {integrity: sha512-3oz8m3FGdr2nDXVqmFUw7jolKliC4MoyXYIG2c7gpjBnzUWQpUGIYcXYKxTdTi+N2jusvt610ckTMkxdwHkYEg==}
 
+  '@paper-design/shaders@0.0.81':
+    resolution: {integrity: sha512-jeGdyjMscZ2bxmQdo8lhwUufHUf4iq3s1ayjh8PXU7Go42Rw8E3I0It1FZdc3HuWt5J82m//DRWaxsRqRfA4Gg==}
+
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
 
@@ -1631,6 +1646,17 @@ packages:
   fflate@0.8.3:
     resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
 
+  framer-motion@13.4.3:
+    resolution: {integrity: sha512-mPQe1GtRHWS30zRGaQAfmlIg0baA0jRhkpbFPT1d+s9bZPjMW6pJSjWM6ArmUEjzMgEm089ZL1wd8aPv1/5DJQ==}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
+
   fsevents@2.3.2:
     resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -1646,6 +1672,9 @@ packages:
 
   get-tsconfig@4.13.7:
     resolution: {integrity: sha512-7tN6rFgBlMgpBML5j8typ92BKFi2sFQvIdpAqLA2beia5avZDrMs0FLZiM5etShWq5irVyGcGMEA1jcDaK7A/Q==}
+
+  gsap@3.15.0:
+    resolution: {integrity: sha512-dMW4CWBTUK1AEEDeZc1g4xpPGIrSf9fJF960qbTZmN/QwZIWY5wgliS6JWl9/25fpTGJrMRtSjGtOmPnfjZB+A==}
 
   hasown@2.0.3:
     resolution: {integrity: sha512-ej4AhfhfL2Q2zpMmLo7U1Uv9+PyhIZpgQLGT1F9miIGmiCJIoCgSmczFdrc97mWT4kVY72KA+WnnhJ5pghSvSg==}
@@ -1770,6 +1799,23 @@ packages:
     resolution: {integrity: sha512-Lbgzdk0h4juoQ9fCKXW4by0UJqj+nOOrI9MJ1sSj4nI8aI2eo1qmvQEie4VD1glsS250n15LsWsYtCugiStS5A==}
     engines: {node: '>=18'}
 
+  motion-dom@13.4.2:
+    resolution: {integrity: sha512-mY293Iyj4rOQo5sDxUwPYLOKiveLQrJoK1tKfG8V1H3MMGMfan3s2i7NBW18WnD39DD79ogyiL/1fmy22GLG5w==}
+
+  motion-utils@13.3.0:
+    resolution: {integrity: sha512-sgSschQp7EseHInIlR7hBbMuvet3RA0bs28KPZAXJcGKGdxHGvh1ogpYDilY3bOMtl73EqPNmp75sAKHYPU5sg==}
+
+  motion@13.4.3:
+    resolution: {integrity: sha512-Js4rk+VUxSRMKOFT4hOMyMKlxyF11ee9jomiLT3uuwMOU88EoSro0ZEbTYes4m457pqZQ2G3RsLdHQzoEDyBCQ==}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
+
   mri@1.2.0:
     resolution: {integrity: sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA==}
     engines: {node: '>=4'}
@@ -1782,6 +1828,10 @@ packages:
     resolution: {integrity: sha512-ZB9RH/39qpq5Vu6Y+NmUaFhQR6pp+M2Xt76XBnEwDaGcVAqhlvxrl3B2bKS5D3NH3QR76v3aSrKaF/Kiy7lEtQ==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
+
+  nodemailer@10.6.0:
+    resolution: {integrity: sha512-jWanL7D9GD3jvUDYKmoC5rWTiG8MnBgnN2yV68bgMKip1zUJhiSTyz7Eg+18y8sk5OvdVDzws5nZK5arSI4f5Q==}
+    engines: {node: '>=20.0.0'}
 
   obug@2.1.1:
     resolution: {integrity: sha512-uTqF9MuPraAQ+IsnPf366RG4cP9RtUi7MLO1N3KEc+wb0a6yKpeL0lmk2IB1jY5KHPAlTc6T/JRdC/YqxHNwkQ==}
@@ -2945,6 +2995,8 @@ snapshots:
 
   '@oxc-project/types@0.129.0': {}
 
+  '@paper-design/shaders@0.0.81': {}
+
   '@polka/url@1.0.0-next.29': {}
 
   '@rolldown/binding-android-arm64@1.0.0':
@@ -3596,6 +3648,12 @@ snapshots:
 
   fflate@0.8.3: {}
 
+  framer-motion@13.4.3:
+    dependencies:
+      motion-dom: 13.4.2
+      motion-utils: 13.3.0
+      tslib: 2.8.1
+
   fsevents@2.3.2:
     optional: true
 
@@ -3607,6 +3665,8 @@ snapshots:
   get-tsconfig@4.13.7:
     dependencies:
       resolve-pkg-maps: 1.0.0
+
+  gsap@3.15.0: {}
 
   hasown@2.0.3:
     dependencies:
@@ -3720,11 +3780,24 @@ snapshots:
     dependencies:
       mime-db: 1.54.0
 
+  motion-dom@13.4.2:
+    dependencies:
+      motion-utils: 13.3.0
+
+  motion-utils@13.3.0: {}
+
+  motion@13.4.3:
+    dependencies:
+      framer-motion: 13.4.3
+      tslib: 2.8.1
+
   mri@1.2.0: {}
 
   mrmime@2.0.1: {}
 
   nanoid@3.3.12: {}
+
+  nodemailer@10.6.0: {}
 
   obug@2.1.1: {}
 

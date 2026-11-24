@@ -1,5 +1,5 @@
 <script>
-    let { label, items = [], headerDescription = '' } = $props();
+    let { label, items = [], headerDescription = '', active = false } = $props();
 
     let open = $state(false);
     let triggerEl = $state(null);
@@ -26,7 +26,7 @@
             if (!triggerEl || !menuEl) return;
             const rect = triggerEl.getBoundingClientRect();
             const navbarEl = triggerEl.closest('.navbar');
-            menuTop = navbarEl ? navbarEl.getBoundingClientRect().bottom : rect.bottom;
+            menuTop = (navbarEl ? navbarEl.getBoundingClientRect().bottom : rect.bottom) + 8;
             const w = menuEl.offsetWidth || 280;
             const cx = rect.left + rect.width / 2;
             menuLeft = Math.min(Math.max(cx, w / 2 + 8), window.innerWidth - w / 2 - 8);
@@ -70,6 +70,7 @@
         bind:this={triggerEl}
         class="trigger"
         class:open
+        class:active
         onclick={toggle}
         aria-expanded={open}
         aria-haspopup="true"
@@ -100,80 +101,77 @@
 </div>
 
 <style>
-    .dropdown {
-        position: relative;
-    }
+    .dropdown { position: relative; }
 
     .trigger {
         display: flex;
         align-items: center;
-        gap: 0.35rem;
-        font-family: var(--font-body);
-        font-size: var(--text-base);
-        font-weight: 500;
-        color: var(--color-text-secondary);
-        background: none;
-        border: none;
-        cursor: pointer;
+        gap: 0.4rem;
         padding: 0;
-        transition: color var(--transition-fast);
+        border: none;
+        background: none;
+        font-family: var(--font-body);
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.68);
+        cursor: pointer;
+        transition: color 0.2s;
     }
     .trigger:hover,
-    .trigger.open {
-        color: var(--color-text-primary);
-    }
+    .trigger.open,
+    .trigger.active { color: #fff; }
+    .chevron { font-size: 0.55rem; transition: transform 0.15s; }
+    .trigger.open .chevron { color: #ff2b1f; }
+    .rotated { transform: rotate(180deg); }
 
-    .chevron {
-        font-size: 0.55rem;
-        transition: transform var(--transition-fast);
-    }
-    .rotated {
-        transform: rotate(180deg);
-    }
-
-    /* Portaled to body: position: fixed is now relative to the true viewport */
+    /* Portaled to body: position: fixed is relative to the true viewport. */
     .menu {
         position: fixed;
+        z-index: 400;
         transform: translateX(-50%);
         min-width: 280px;
         max-width: min(360px, calc(100vw - 16px));
-        background: rgba(0, 0, 0, 0.85);
-        -webkit-backdrop-filter: blur(24px) saturate(180%);
-        backdrop-filter: blur(24px) saturate(180%);
-        border-left: var(--border);
-        border-right: var(--border);
-        border-bottom: var(--border);
-        z-index: 400;
+        padding: 0.4rem;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        background: rgba(14, 14, 14, 0.86);
+        -webkit-backdrop-filter: blur(28px) saturate(140%);
+        backdrop-filter: blur(28px) saturate(140%);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+        animation: drop 0.18s ease-out;
+    }
+    @keyframes drop {
+        from { opacity: 0; transform: translate(-50%, -4px); }
+        to { opacity: 1; transform: translate(-50%, 0); }
     }
 
     .menu-item {
         display: block;
-        padding: 0.75rem var(--space-lg);
-        border-bottom: var(--border);
+        padding: 0.7rem 0.85rem;
+        border-radius: 8px;
         text-decoration: none;
-        transition: background var(--transition-fast);
+        transition: background 0.15s;
     }
-    .menu-item:last-child {
-        border-bottom: none;
-    }
-    .menu-item:hover {
-        background: rgba(255, 255, 255, 0.04);
-    }
+    .menu-item:hover { background: rgba(255, 255, 255, 0.06); }
 
     .item-label {
         display: block;
-        font-family: var(--font-display);
-        font-size: var(--text-sm);
+        margin-bottom: 0.15rem;
+        font-family: var(--font-body);
+        font-size: 0.9rem;
         font-weight: 600;
-        color: var(--color-text-primary);
-        margin-bottom: 0.2rem;
+        color: #fff;
     }
-
+    .menu-item:hover .item-label { color: #fff; }
     .item-desc {
         display: block;
         font-family: var(--font-body);
-        font-size: var(--text-sm);
-        color: var(--color-text-secondary);
+        font-size: 0.8rem;
         line-height: 1.4;
+        color: rgba(255, 255, 255, 0.6);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .menu { animation: none; }
     }
 </style>

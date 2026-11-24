@@ -18,7 +18,7 @@
 
 <div class="page-header">
 	<h1>Discovery Tags</h1>
-	<p class="hint">Tags use IDs internally — renaming a tag updates its display name everywhere instantly, no bulk edits needed.</p>
+	<p class="hint">Tags use IDs internally, so renaming a tag updates its display name everywhere instantly, no bulk edits needed.</p>
 </div>
 
 {#if form?.error}

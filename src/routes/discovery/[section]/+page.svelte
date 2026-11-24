@@ -1,4 +1,5 @@
 <script>
+	import Seo from '$lib/components/Seo.svelte';
 	import PageHeader from '$lib/components/ui/PageHeader.svelte';
 	import GalleryGrid from '$lib/components/GalleryGrid.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
@@ -189,6 +190,13 @@
 		if (e.key === 'ArrowRight') carouselNext();
 	}
 
+	// The page slot is its own stacking context under the fixed nav, so the
+	// viewer moves to <body> to sit above the nav and footer.
+	function portal(node) {
+		document.body.appendChild(node);
+		return { destroy: () => node.remove() };
+	}
+
 	// Lock body scroll when modal is open
 	$effect(() => {
 		if (typeof document === 'undefined') return;
@@ -199,15 +207,13 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<svelte:head>
-	<title>{data.section.name} — Discovery — DONCEZART</title>
-	<meta name="description" content={data.section.description ?? ''} />
-</svelte:head>
+<Seo title="{data.section.name} | Discovery" description={data.section.description ?? ''} />
 
-<PageHeader title={data.section.name} subtitle={data.section.description ?? ''} />
+<PageHeader eyebrow="Discovery library" title={data.section.name} subtitle={data.section.description ?? ''} />
 
+<div class="lib-wrap">
 {#if data.items.length > 0}
-	<div class="controls">
+	<div class="controls reveal" style="--d: 3">
 		<div class="tag-pills">
 			{#each tagPills as t}
 				<button
@@ -223,8 +229,9 @@
 			{/each}
 		</div>
 		<div class="controls-right">
-			<div class="col-slider" title="Grid size">
-				<i class="fa-solid fa-grip" style="font-size:0.7rem;opacity:0.5"></i>
+			<span class="item-count">{filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}</span>
+			<div class="col-slider" title="Grid size" style="--fill: {colMax > COL_MIN ? ((columns - COL_MIN) / (colMax - COL_MIN)) * 100 : 0}%">
+				<i class="fa-solid fa-square" aria-hidden="true"></i>
 				<input
 					type="range"
 					min={COL_MIN}
@@ -237,7 +244,7 @@
 					}}
 					aria-label="Grid columns"
 				/>
-				<i class="fa-solid fa-grip" style="opacity:0.5"></i>
+				<i class="fa-solid fa-grip" aria-hidden="true"></i>
 			</div>
 
 		</div>
@@ -276,19 +283,22 @@
 	{/if}
 {:else}
 	<div class="empty-state">
+		<span class="empty-mark"><i class="fa-solid fa-film"></i></span>
 		<p>No items in this section yet. Check back soon.</p>
 		<Button href="/discovery" variant="outline">Back to Discovery</Button>
 	</div>
 {/if}
+</div>
 
 {#if modalItem}
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
+		use:portal
 		class="modal-overlay"
 		onclick={closeModal}
 		role="dialog"
 		aria-modal="true"
-		aria-label="{modalItem.title} — full view"
+		aria-label="{modalItem.title}, full view"
 	>
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -458,92 +468,165 @@
 {/if}
 
 <style>
+	.lib-wrap {
+		max-width: 1500px;
+		margin: 0 auto;
+		padding: 0 clamp(1.25rem, 4vw, 3rem) clamp(3rem, 8vh, 5rem);
+	}
+
+	/* ── Toolbar: tag chips left, count + size slider right ── */
 	.controls {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
 		gap: 1rem;
 		flex-wrap: wrap;
-		padding: 0 var(--container-pad);
-		margin-bottom: var(--space-lg);
+		margin-bottom: 1.5rem;
 	}
 	.controls-right {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: 0.9rem;
 		flex-wrap: wrap;
+	}
+	.item-count {
+		font-family: var(--font-display);
+		font-size: 0.72rem;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: rgba(255, 255, 255, 0.55);
+		white-space: nowrap;
 	}
 	.col-slider {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
-		color: var(--color-text-secondary);
+		gap: 0.6rem;
+		height: 2.25rem;
+		padding: 0 0.9rem;
+		border: 1px solid rgba(255, 255, 255, 0.14);
+		border-radius: 999px;
+		background: rgba(14, 14, 14, 0.55);
+		backdrop-filter: blur(28px) saturate(140%);
+		-webkit-backdrop-filter: blur(28px) saturate(140%);
+		color: rgba(255, 255, 255, 0.5);
 	}
+	.col-slider i:first-child { font-size: 0.75rem; }
+	.col-slider i:last-child { font-size: 0.72rem; }
 	.col-slider input[type="range"] {
-		width: 80px;
-		accent-color: var(--color-text-primary);
+		-webkit-appearance: none;
+		appearance: none;
+		width: 96px;
+		height: 3px;
+		margin: 0;
+		border-radius: 999px;
+		background: linear-gradient(90deg, var(--accent, #ff2b1f) var(--fill, 100%), rgba(255, 255, 255, 0.16) var(--fill, 100%));
 		cursor: pointer;
+		outline: none;
 	}
-	.mode-toggle { display: flex; gap: 0.25rem; }
-	.per-page-select {
-		padding: 0.35rem 0.5rem;
-		background: transparent;
-		border: var(--border);
-		border-radius: var(--radius);
-		color: var(--color-text-secondary);
-		font-family: var(--font-body);
-		font-size: var(--text-sm);
-		cursor: pointer;
+	.col-slider input[type="range"]::-webkit-slider-thumb {
+		-webkit-appearance: none;
+		appearance: none;
+		width: 14px;
+		height: 14px;
+		border-radius: 50%;
+		background: #fff;
+		border: 3px solid var(--accent, #ff2b1f);
+		box-shadow: 0 0 0 4px rgba(255, 43, 31, 0.18);
+		transition: transform 0.15s;
 	}
-	.per-page-select option { background: #111; }
+	.col-slider input[type="range"]::-moz-range-thumb {
+		width: 10px;
+		height: 10px;
+		border-radius: 50%;
+		background: #fff;
+		border: 3px solid var(--accent, #ff2b1f);
+		box-shadow: 0 0 0 4px rgba(255, 43, 31, 0.18);
+	}
+	.col-slider input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.15); }
+	.col-slider input[type="range"]:focus-visible { box-shadow: 0 0 0 3px rgba(255, 43, 31, 0.35); }
+
 	.sentinel { height: 1px; margin: 2rem 0; }
 	.all-loaded {
 		text-align: center;
-		color: var(--color-text-secondary);
-		font-size: var(--text-sm);
-		padding: var(--space-xl) var(--container-pad);
+		font-family: var(--font-display);
+		font-size: 0.72rem;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: rgba(255, 255, 255, 0.45);
+		padding: 2.5rem 0 0;
+		margin: 0;
 	}
 	.pagination {
 		display: flex; align-items: center; justify-content: center;
-		gap: 1rem; padding: var(--space-2xl) var(--container-pad);
+		gap: 1rem; padding: 2.5rem 0 0;
 	}
 	.page-btn {
-		width: 36px; height: 36px; border-radius: 50%;
-		border: var(--border); background: transparent;
-		color: var(--color-text-secondary); cursor: pointer;
+		width: 2.5rem; height: 2.5rem; border-radius: 50%;
+		border: 1px solid rgba(255, 255, 255, 0.14);
+		background: rgba(14, 14, 14, 0.55);
+		backdrop-filter: blur(20px);
+		-webkit-backdrop-filter: blur(20px);
+		color: rgba(255, 255, 255, 0.75); cursor: pointer;
 		display: flex; align-items: center; justify-content: center;
-		transition: all var(--transition-base); font-size: 0.8rem;
+		transition: border-color 0.2s, color 0.2s, background 0.2s; font-size: 0.8rem;
 	}
-	.page-btn:hover:not(:disabled) { border-color: var(--color-text-primary); color: var(--color-text-primary); }
+	.page-btn:hover:not(:disabled) { border-color: rgba(255, 43, 31, 0.55); background: rgba(255, 43, 31, 0.16); color: #fff; }
 	.page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-	.page-info { color: var(--color-text-secondary); font-size: var(--text-sm); }
+	.page-info { font-family: var(--font-display); color: rgba(255, 255, 255, 0.64); font-size: 0.85rem; letter-spacing: 0.08em; }
+
+	/* Tag chips (same as the contact page's). */
 	.tag-pills { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 	.tag-pill {
-		padding: 0.35rem 0.9rem;
+		padding: 0.5rem 1rem;
 		border-radius: 999px;
-		border: var(--border);
-		background: transparent;
-		color: var(--color-text-secondary);
+		border: 1px solid rgba(255, 255, 255, 0.14);
+		background: rgba(14, 14, 14, 0.4);
+		backdrop-filter: blur(14px);
+		-webkit-backdrop-filter: blur(14px);
+		color: rgba(255, 255, 255, 0.7);
 		font-family: var(--font-body);
-		font-size: var(--text-sm);
+		font-size: 0.85rem;
+		font-weight: 500;
+		line-height: 1.2;
 		cursor: pointer;
-		transition: all var(--transition-base);
+		transition: border-color 0.2s, background 0.2s, color 0.2s;
 	}
-	.tag-pill:hover { border-color: var(--color-text-primary); color: var(--color-text-primary); }
-	.tag-pill.active { background: var(--color-text-primary); color: var(--color-bg); border-color: var(--color-text-primary); }
-	.grid-container {
-		padding: 0 var(--container-pad);
+	.tag-pill:hover { border-color: rgba(255, 255, 255, 0.3); color: #fff; }
+	.tag-pill.active {
+		background: rgba(255, 43, 31, 0.16);
+		border-color: rgba(255, 43, 31, 0.55);
+		color: #fff;
 	}
+	.tag-pill:focus-visible { outline: 2px solid var(--accent, #ff2b1f); outline-offset: 2px; }
+
 	.empty-state {
 		display: flex; flex-direction: column; align-items: center;
-		gap: var(--space-xl); text-align: center;
-		padding: var(--space-4xl) var(--container-pad);
+		gap: 1.25rem; text-align: center;
+		max-width: 34rem;
+		margin: 0 auto;
+		padding: 3rem 2rem;
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		border-radius: 12px;
+		background: rgba(14, 14, 14, 0.55);
+		backdrop-filter: blur(28px) saturate(140%);
+		-webkit-backdrop-filter: blur(28px) saturate(140%);
 	}
-	.empty-state p { color: var(--color-text-secondary); }
+	.empty-mark {
+		display: flex; align-items: center; justify-content: center;
+		width: 3rem; height: 3rem; border-radius: 50%;
+		background: rgba(255, 43, 31, 0.16);
+		border: 1px solid rgba(255, 43, 31, 0.55);
+		color: #fff;
+		font-size: 1rem;
+	}
+	.empty-state p { margin: 0; color: var(--muted, rgba(255, 255, 255, 0.68)); }
 
+	/* ── Viewer ── */
 	.modal-overlay {
 		position: fixed; inset: 0; z-index: 1000;
-		background: rgba(0,0,0,0.88);
+		background: rgba(0, 0, 0, 0.85);
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
 		display: flex; align-items: center; justify-content: center;
 		padding: 1rem;
 	}
@@ -552,10 +635,13 @@
 		display: flex;
 		width: min(92vw, 1100px);
 		max-height: 90vh;
-		background: #111;
-		border: 1px solid rgba(255,255,255,0.1);
-		border-radius: 0.75rem;
+		background: rgba(14, 14, 14, 0.72);
+		backdrop-filter: blur(28px) saturate(140%);
+		-webkit-backdrop-filter: blur(28px) saturate(140%);
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		border-radius: 12px;
 		overflow: hidden;
+		box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
 	}
 
 	.modal-media {
@@ -583,7 +669,7 @@
 		margin: auto;
 	}
 	.modal-media:has(video) {
-		background: #0a0a0a;
+		background: #000;
 	}
 	/* Video modal: flex row, info fixed width, media fills the rest. Hard cap at 96vw total. */
 	.modal-content:has(video) {
@@ -597,8 +683,8 @@
 		overflow: hidden;
 	}
 	.modal-content:has(video) .modal-info {
-		flex: 0 0 260px;
-		width: 260px;
+		flex: 0 0 280px;
+		width: 280px;
 		min-width: 0;
 		max-height: 90vh;
 		overflow-y: auto;
@@ -613,13 +699,17 @@
 	.carousel-video { max-width: 100%; max-height: 100%; display: block; }
 	.carousel-arrow {
 		position: absolute; top: 50%; transform: translateY(-50%);
-		background: rgba(0,0,0,0.6); border: none; color: #fff;
+		background: rgba(0, 0, 0, 0.6);
+		border: 1px solid rgba(255, 255, 255, 0.16);
+		backdrop-filter: blur(10px);
+		-webkit-backdrop-filter: blur(10px);
+		color: #fff;
 		width: 40px; height: 40px; border-radius: 50%;
 		display: flex; align-items: center; justify-content: center;
-		cursor: pointer; font-size: 0.9rem;
-		transition: background 0.15s;
+		cursor: pointer; font-size: 0.85rem;
+		transition: background 0.2s, border-color 0.2s;
 	}
-	.carousel-arrow:hover { background: rgba(0,0,0,0.9); }
+	.carousel-arrow:hover { background: rgba(255, 43, 31, 0.16); border-color: rgba(255, 43, 31, 0.55); }
 	.carousel-arrow.prev { left: -1.25rem; }
 	.carousel-arrow.next { right: -1.25rem; }
 	.carousel-dots {
@@ -629,170 +719,178 @@
 		justify-content: center;
 	}
 	.dot {
-		width: 6px; height: 6px; border-radius: 50%;
-		background: rgba(255,255,255,0.3);
+		width: 6px; height: 6px; border-radius: 999px;
+		background: rgba(255, 255, 255, 0.3);
 		border: none; cursor: pointer; padding: 0;
-		transition: background 0.15s;
+		transition: background 0.2s, width 0.2s;
 	}
-	.dot.active { background: #fff; }
+	.dot.active { background: var(--accent, #ff2b1f); width: 16px; }
 
 	.modal-info {
 		flex: 0 0 35%;
 		display: flex; flex-direction: column;
-		gap: var(--space-md);
-		padding: var(--space-xl) var(--space-xl);
+		gap: 1rem;
+		padding: 1.75rem 1.5rem;
 		overflow-y: auto;
 		position: relative;
+		border-left: 1px solid rgba(255, 255, 255, 0.08);
 	}
 	.modal-close {
-		position: absolute; top: var(--space-md); right: var(--space-md); z-index: 10;
-		background: rgba(0,0,0,0.5);
-		border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.7);
-		width: 32px; height: 32px; border-radius: 50%;
+		position: absolute; top: 0.9rem; right: 0.9rem; z-index: 10;
+		background: rgba(0, 0, 0, 0.6);
+		border: 1px solid rgba(255, 255, 255, 0.16); color: rgba(255, 255, 255, 0.8);
+		width: 36px; height: 36px; border-radius: 50%;
 		display: flex; align-items: center; justify-content: center;
-		cursor: pointer; font-size: 0.9rem;
-		-webkit-backdrop-filter: blur(4px);
-		backdrop-filter: blur(4px);
-		transition: all 0.15s;
+		cursor: pointer; font-size: 0.95rem;
+		-webkit-backdrop-filter: blur(10px);
+		backdrop-filter: blur(10px);
+		transition: background 0.2s, border-color 0.2s, color 0.2s;
 	}
-	.modal-close:hover { background: rgba(0,0,0,0.8); color: #fff; }
+	.modal-close:hover { background: rgba(255, 43, 31, 0.16); border-color: rgba(255, 43, 31, 0.55); color: #fff; }
 	.modal-title {
 		font-family: var(--font-display);
-		font-size: var(--text-xl);
+		font-size: 1.35rem;
 		font-weight: 600;
-		color: var(--color-text-primary);
+		line-height: 1.15;
+		color: #fff;
 		margin: 0;
-		padding-right: 2rem;
+		padding-right: 2.25rem;
 	}
 	.modal-desc {
 		font-family: var(--font-body);
-		font-size: var(--text-sm);
-		color: var(--color-text-secondary);
+		font-size: 0.9rem;
+		color: var(--muted, rgba(255, 255, 255, 0.68));
 		line-height: 1.6;
 		margin: 0;
 	}
 	.modal-notes {
 		display: flex;
 		flex-direction: column;
-		gap: 0.2rem;
+		gap: 0.35rem;
+		padding: 0.75rem 0.9rem;
+		border-radius: 8px;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.08);
 	}
-	.modal-notes-label {
-		font-family: var(--font-body);
-		font-size: var(--text-xs);
-		color: var(--color-text-primary);
+	.modal-notes-label,
+	.modal-related-label {
+		font-family: var(--font-display);
+		font-size: 0.68rem;
+		letter-spacing: 0.18em;
 		text-transform: uppercase;
-		letter-spacing: 0.06em;
+		color: rgba(255, 255, 255, 0.55);
 	}
 	.modal-notes p {
 		font-family: var(--font-body);
-		font-size: var(--text-sm);
-		color: var(--color-text-secondary);
+		font-size: 0.88rem;
+		color: var(--muted, rgba(255, 255, 255, 0.68));
 		line-height: 1.6;
 		margin: 0;
 	}
 	.modal-related {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
-	}
-	.modal-related-label {
-		font-family: var(--font-body);
-		font-size: var(--text-xs);
-		color: var(--color-text-secondary);
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
+		gap: 0.55rem;
 	}
 	.modal-related-grid {
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
+		gap: 0.35rem;
 	}
 	.related-row {
 		display: flex;
 		align-items: center;
-		gap: 0.65rem;
+		gap: 0.7rem;
 		width: 100%;
-		background: rgba(255,255,255,0.04);
-		border: 1px solid rgba(255,255,255,0.08);
-		border-radius: 0.4rem;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 8px;
 		padding: 0.4rem;
 		cursor: pointer;
-		transition: border-color 0.15s, background 0.15s;
+		transition: border-color 0.2s, background 0.2s;
 		text-align: left;
 	}
-	.related-row:hover { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.07); }
+	.related-row:hover { border-color: rgba(255, 255, 255, 0.28); background: rgba(255, 255, 255, 0.06); }
 	.related-row-thumb {
 		flex: 0 0 52px;
 		height: 52px;
-		border-radius: 0.25rem;
+		border-radius: 6px;
 		overflow: hidden;
-		background: #111;
+		background: var(--w-raised, #1b1b1b);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: rgba(255,255,255,0.3);
+		color: rgba(255, 255, 255, 0.3);
 		font-size: 1.2rem;
 	}
 	.related-row-thumb img, .related-video-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
 	.related-row-title {
 		font-family: var(--font-body);
-		font-size: var(--text-sm);
-		color: var(--color-text-primary);
+		font-size: 0.85rem;
+		color: #fff;
 		overflow: hidden;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 	}
 	.modal-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 	.tag-badge {
-		padding: 0.35rem 0.9rem;
-		border: var(--border);
+		padding: 0.3rem 0.75rem;
+		border: 1px solid rgba(255, 255, 255, 0.14);
 		border-radius: 999px;
 		font-family: var(--font-body);
-		font-size: var(--text-sm);
-		color: var(--color-text-secondary);
+		font-size: 0.78rem;
+		color: rgba(255, 255, 255, 0.7);
 	}
 	.modal-creator {
 		font-family: var(--font-body);
-		font-size: var(--text-sm);
-		color: var(--color-text-secondary);
+		font-size: 0.88rem;
+		color: var(--muted, rgba(255, 255, 255, 0.68));
 		margin: 0;
 	}
 	.modal-creator a {
-		color: var(--color-text-primary);
-		text-decoration: underline;
-		text-underline-offset: 3px;
+		color: #fff;
+		text-decoration: none;
+		border-bottom: 1px solid rgba(255, 43, 31, 0.6);
+		transition: border-color 0.2s;
 	}
+	.modal-creator a:hover { border-color: var(--accent, #ff2b1f); }
 	.source-block {
 		display: flex;
 		flex-direction: column;
 		align-items: flex-start;
-		gap: 0.35rem;
+		gap: 0.45rem;
 		margin-top: auto;
+		padding-top: 0.5rem;
 	}
 	.source-label {
-		font-family: var(--font-body);
-		font-size: var(--text-xs);
-		color: var(--color-text-secondary);
-		letter-spacing: 0.02em;
-		text-transform: lowercase;
+		font-family: var(--font-display);
+		font-size: 0.68rem;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: rgba(255, 255, 255, 0.5);
 	}
 	.view-original {
-		display: inline-flex; align-items: center; gap: 0.5rem;
-		padding: 0.6rem 1.25rem;
-		border: var(--border-solid);
-		color: var(--color-text-primary);
+		display: inline-flex; align-items: center; gap: 0.55rem;
+		padding: 0.7rem 1.15rem;
+		border: 1px solid #fff;
+		background: #fff;
+		color: #000;
 		text-decoration: none;
 		font-family: var(--font-body);
-		font-size: var(--text-sm);
-		border-radius: var(--radius);
-		transition: all var(--transition-base);
+		font-size: 0.85rem;
+		font-weight: 600;
+		border-radius: 4px;
+		transition: background 0.2s, border-color 0.2s, color 0.2s;
 		align-self: flex-start;
 		white-space: nowrap;
 	}
-	.view-original:hover { background: rgba(255,255,255,0.07); }
+	.view-original i { font-size: 0.8em; }
+	.view-original:hover { background: var(--accent, #ff2b1f); border-color: var(--accent, #ff2b1f); color: #fff; }
 
 	@media (max-width: 768px) {
+		.controls { align-items: flex-start; }
 		.modal-overlay { align-items: flex-end; padding: 0; }
 		.modal-content {
 			flex-direction: column;
@@ -801,6 +899,7 @@
 			max-height: 100dvh;
 			height: 100dvh;
 			border-radius: 0;
+			border: none;
 			overflow-y: auto;
 			overflow-x: hidden;
 		}
@@ -833,8 +932,10 @@
 			flex: 0 0 auto;
 			max-height: none;
 			overflow-y: visible;
-			padding-bottom: var(--space-xl);
+			padding-bottom: 2rem;
+			border-left: none;
+			border-top: 1px solid rgba(255, 255, 255, 0.08);
 		}
-		.source-block { margin-top: var(--space-md); }
+		.source-block { margin-top: 0.75rem; }
 	}
 </style>

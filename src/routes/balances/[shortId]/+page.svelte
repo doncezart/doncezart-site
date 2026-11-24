@@ -1,4 +1,5 @@
 <script>
+    import Seo from '$lib/components/Seo.svelte';
     import PinInput from '$lib/components/PinInput.svelte';
     import Receipt from '$lib/components/Receipt.svelte';
 
@@ -10,6 +11,8 @@
         return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
     }
 </script>
+
+<Seo title="Your balance" noindex />
 
 {#if form?.success}
     <div class="balance-page">
@@ -25,7 +28,12 @@
                 </div>
             </div>
         {/if}
-        <Receipt balance={form.balance} items={form.items} />
+        <Receipt balance={form.balance} items={form.items} carry={form.ledger} />
+        {#if form.ledger?.carriedTo}
+            <a class="next-link" href={`/balances/${form.ledger.carriedTo.shortId}`}>
+                Continued in the {formatDate(form.ledger.carriedTo.paymentDate)} balance <i class="fa-solid fa-arrow-right"></i>
+            </a>
+        {/if}
     </div>
 {:else}
     <div class="pin-page">
@@ -74,6 +82,17 @@
         color: #60a5fa;
         text-decoration: none;
         white-space: nowrap;
+    }
+    .next-link {
+        display: block;
+        text-align: center;
+        margin-top: 0.9rem;
+        color: #60a5fa;
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+    .next-link:hover {
+        text-decoration: underline;
     }
     .prev-link:hover {
         text-decoration: underline;

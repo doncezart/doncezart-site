@@ -60,7 +60,11 @@ export async function handle({ event, resolve }) {
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
 	response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 	response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
-	response.headers.set('Cross-Origin-Resource-Policy', 'same-site');
+	// The card API's images are meant to be embedded on other sites.
+	response.headers.set(
+		'Cross-Origin-Resource-Policy',
+		event.url.pathname === '/api/youtube/card' ? 'cross-origin' : 'same-site'
+	);
 	response.headers.set('X-DNS-Prefetch-Control', 'off');
 
 	// Block search engines from indexing /admin/* and ensure no caching.

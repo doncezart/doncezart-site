@@ -18,6 +18,7 @@ import {
 	validateUploads,
 	processAndUpload
 } from '$lib/server/upload.js';
+import { videoIdFrom } from '$lib/server/video-artwork.js';
 
 export async function load({ params }) {
 	const id = Number(params.id);
@@ -59,6 +60,8 @@ export const actions = {
 		const imageFiles = data.getAll('images').filter((f) => f instanceof File && f.size > 0);
 
 		if (!title || !cat) return fail(400, { error: 'Title and category are required.' });
+		const videoId = displayMode === 'video' ? videoIdFrom(data.get('video_url')) : null;
+		if (displayMode === 'video' && !videoId) return fail(400, { error: 'Paste a valid YouTube link for a video.' });
 		if (displayMode === 'before-after' && imageFiles.length > 0 && imageFiles.length !== 2) {
 			return fail(400, { error: 'Before/After mode requires exactly 2 images.' });
 		}
@@ -81,6 +84,7 @@ export const actions = {
 			category: cat,
 			subcategory: sub,
 			displayMode,
+			videoId,
 			carouselDirection,
 			caseStudyId,
 			hasCaseStudy: !!caseStudyId,

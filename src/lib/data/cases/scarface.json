@@ -1,0 +1,11 @@
+{
+	"_note": "Reddit Mod Insights for r/Scarface, past 12 months, as reported by the user on 2026-11-18. `delta` is the increase over the previous 12 months.",
+	"subreddit": "Scarface",
+	"modSince": "2023-05-17",
+	"source": "Reddit Mod Insights",
+	"fetchedAt": "2026-11-18",
+	"views": { "value": 2800000, "delta": 1000000, "monthlyUniques": 59500, "weeklyVisitors": 21600 },
+	"members": { "value": 20700, "delta": 9000, "joined": 9900, "left": 954 },
+	"posts": { "value": 3500, "delta": 1900, "removed": 832 },
+	"comments": { "value": 51700, "delta": 26900, "removed": 4200 }
+}

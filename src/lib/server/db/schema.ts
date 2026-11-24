@@ -25,7 +25,8 @@ export const artwork = pgTable('artwork', {
     category: text('category').notNull(),
     subcategory: text('subcategory'),
     blurDataUrl: text('blur_data_url'),
-    displayMode: text('display_mode').notNull().default('single'),
+    displayMode: text('display_mode').notNull().default('single'), // single | carousel | before-after | video
+    videoId: text('video_id'), // YouTube video id when displayMode is 'video'
     carouselDirection: text('carousel_direction').notNull().default('horizontal'),
     caseStudyId: integer('case_study_id'),
     hasCaseStudy: boolean('has_case_study').notNull().default(false),
@@ -219,6 +220,28 @@ export const balancePrevious = pgTable('balance_previous', {
 }, (t) => ({
     pk: primaryKey({ columns: [t.balanceId, t.previousId] }),
     balanceIdIdx: index('balance_previous_balance_id_idx').on(t.balanceId)
+}));
+
+// ── Tool generations ───────────────────────────────────
+// One row per card generated with a public tool: a video loaded or exported
+// in the tool page, or rendered through the API. client_hash is an HMAC of
+// the caller's IP (never the IP itself) so repeat callers can be grouped.
+export const cardGeneration = pgTable('card_generation', {
+    id: serial('id').primaryKey(),
+    tool: text('tool').notNull(),
+    source: text('source').notNull(), // tool | api
+    action: text('action').notNull(), // load | download | copy | render
+    videoId: text('video_id'),
+    videoTitle: text('video_title'),
+    channelName: text('channel_name'),
+    layout: text('layout'),
+    format: text('format'),
+    clientHash: text('client_hash'),
+    referrer: text('referrer'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
+}, (t) => ({
+    createdIdx: index('card_generation_created_idx').on(t.createdAt),
+    videoIdx: index('card_generation_video_idx').on(t.videoId)
 }));
 
 // ── Types ──────────────────────────────────────────────

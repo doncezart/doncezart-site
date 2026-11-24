@@ -1,93 +1,108 @@
 <script>
+    // A YouTube video card. Every layout recreates a real YouTube component
+    // from its real measurements (see TYPE below and LAYOUTS in yt-config.js):
+    // each px value is YouTube's own at the width YouTube draws that component
+    // (`w0`), multiplied by k = card width / w0. So the proportions stay true
+    // at any export size, and all layouts share the same badges, tick,
+    // separators and colours.
     import { formatViews, formatDate, relativeDate } from '$lib/data/yt-format.js';
-    import { LAYOUTS, resolveColors, ASPECTS, naturalAspect, DESIGN_WIDTH } from './yt-config.js';
+    import { LAYOUTS, resolveColors, ASPECTS, naturalAspect, resolveWidth } from './yt-config.js';
 
     let { video, config, cardEl = $bindable() } = $props();
 
-    const layout = $derived(LAYOUTS[config.layout] ?? LAYOUTS.classic);
+    /** Real YouTube type per layout: [size, line height, weight] in px at w0. */
+    const TYPE = {
+        classic: { title: [16, 22, 500], name: [14, 20], meta: [14, 20], desc: [14, 20], avatar: 36 },
+        compact: { title: [14, 18, 500], name: [13, 18], meta: [13, 18], desc: [13, 18], avatar: 18 },
+        upnext: { title: [14, 20, 500], name: [12, 18], meta: [12, 18], desc: [12, 18], avatar: 18 },
+        split: { title: [18, 26, 400], name: [12, 18], meta: [12, 18], desc: [12, 18], avatar: 24 },
+        watch: { title: [20, 28, 700], name: [16, 22], meta: [14, 20], desc: [14, 20], avatar: 40 },
+        embed: { title: [18, 24, 500], name: [13, 18], meta: [13, 18], desc: [13, 18], avatar: 40 },
+        hero: { title: [28, 36, 700], name: [16, 22], meta: [14, 20], desc: [14, 20], avatar: 32 },
+        underlay: { title: [24, 32, 700], name: [16, 22], meta: [14, 20], desc: [14, 20], avatar: 32 }
+    };
+    /** Distance of the duration badge from the thumbnail corner, real px. */
+    const BADGE_OFFSET = { compact: 4, upnext: 4, hero: 24, underlay: 24, embed: 12 };
 
+    const key = $derived(LAYOUTS[config.layout] ? config.layout : 'classic');
+    const L = $derived(LAYOUTS[key]);
+    const t = $derived(TYPE[key]);
     const colors = $derived(resolveColors(config));
 
-    // Container design width (user-controlled) + per-layout scale.
-    // containerSize is a pure uniform zoom: every px metric (gaps, radiuses,
-    // padding, type) scales by S so the composition never reflows or squishes.
-    const LW = $derived(config.containerSize ?? DESIGN_WIDTH);
-    const S = $derived(LW / DESIGN_WIDTH);
-    const LS = $derived(LW / 360);
-
-    const pad = $derived(config.padding ?? 0);
-    // Content area is the design width; padding is an outer frame.
-    const contentW = $derived(LW);
-
-    const aspect = $derived(config.aspect === 'auto' ? naturalAspect(config.layout) : (ASPECTS[config.aspect] ?? 16 / 9));
-
-    // Exact card height for cover-fill layouts; min-height for the rest when an aspect is forced.
-    const exactHeight = $derived(config.layout === 'hero'
-        ? Math.round(LW / aspect)
-        : null);
-    const minHeight = $derived(exactHeight ?? (config.aspect !== 'auto' ? Math.round(LW / aspect) : null));
-
-    // ── Shared metrics (multiplied from the 360px YouTube reference) ──
-    // textScale is a global text multiplier (config.textScale, 0.5–1.5) so a
-    // layout like Wide Split can use ~half-size type without reflowing boxes.
+    const LW = $derived(resolveWidth(config)); // content width, px
+    const S = $derived(LW / 1280); // frame + card corners are set relative to a 1280 card
+    const k = $derived(LW / L.w0); // real YouTube px → card px
     const T = $derived(config.textScale ?? 1);
-    const m = $derived({
-        name: Math.round(12 * LS * T),
-        avatar: Math.round(24 * LS * T),
-        badgeFont: Math.round(12 * LS * T),
-        badgeRadius: Math.round(4 * LS * T),
-        badgePad: Math.round(4 * LS * T),
-        meta: Math.round(12 * LS * T),
-        desc: Math.round(14 * LS * T)
-    });
+    const TS = $derived(T * (config.titleScale ?? 1));
+    const r2 = (v) => Math.round(v * 100) / 100;
 
-    // Verified-badge fill + icon contrast: YouTube gray, white, palette accent, or custom.
+    const pad = $derived(Math.round((config.padding ?? 0) * S));
+    const cardRadius = $derived(Math.round((config.containerRadius ?? 0) * S));
+    const aspect = $derived(config.aspect === 'auto' ? naturalAspect(key) : (ASPECTS[config.aspect] ?? 16 / 9));
+
+    // Sizes in card px
+    const titlePx = $derived(r2(t.title[0] * k * TS));
+    const namePx = $derived(r2(t.name[0] * k * T));
+    const metaPx = $derived(r2(t.meta[0] * k * T));
+    const descPx = $derived(r2(t.desc[0] * k * T));
+    const avatarPx = $derived(r2(t.avatar * k * T));
+    const gThumb = $derived(r2((config.thumbGap ?? 12) * k));
+    const gCol = $derived(r2((config.columnGap ?? 12) * k));
+    const gText = $derived(r2((config.textGap ?? 4) * k));
+
+    // With no frame the thumbnail touches the card's corners, so it follows
+    // the card radius (otherwise slivers of background show between the arcs).
+    const thumbRadius = $derived(pad < 0.5 ? cardRadius : r2((config.radius ?? 12) * k));
+
+    // Verified tick: like YouTube, a filled circle in the secondary colour with
+    // the check cut out in the background colour (or white / accent / custom).
     const verifiedBg = $derived(
         config.verifiedColor === 'white' ? '#ffffff'
-        : config.verifiedColor === 'accent' ? colors.accent
-        : config.verifiedColor === 'custom' ? (config.verifiedColorCustom ?? '#a3a3a3')
-        : '#a3a3a3'
+            : config.verifiedColor === 'accent' ? colors.accent
+                : config.verifiedColor === 'custom' ? (config.verifiedColorCustom ?? '#a3a3a3')
+                    : colors.secondary
     );
-    const verifiedFg = $derived(verifiedBg === '#ffffff' ? '#0f0f0f' : '#ffffff');
+    const verifiedFg = $derived(
+        config.verifiedColor === 'white' ? '#0f0f0f' : config.verifiedColor === 'gray' ? colors.bg : '#ffffff'
+    );
 
-    // Thumbnail radius. With a zero frame (padding = 0) the thumbnail touches
-    // the card's own corners, so it must follow the container radius exactly —
-    // otherwise thin card-background slivers show between the two arcs.
-    const thumbRadius = $derived((() => {
-        const free = (config.radius ?? 0) * S;
-        const container = (config.containerRadius ?? 0) * S;
-        return pad * S < 0.5 ? container : free;
-    })());
+    /** Mix two hex colours (for the watch page's description box). */
+    function mix(a, b, w) {
+        const p = (h) => {
+            const x = h.replace('#', '');
+            const f = x.length === 3 ? [...x].map((c) => c + c).join('') : x;
+            return [0, 2, 4].map((i) => parseInt(f.slice(i, i + 2), 16));
+        };
+        const [ca, cb] = [p(a), p(b)];
+        return '#' + ca.map((v, i) => Math.round(v * (1 - w) + cb[i] * w).toString(16).padStart(2, '0')).join('');
+    }
+    const boxBg = $derived(mix(colors.bg, colors.text, 0.08));
 
-    // All tunable CSS values flow through custom properties (Svelte 5 has no style interpolation).
-    // Design-px values are scaled by S (uniform zoom); % values and colors pass through.
     const cssVars = $derived(
-        `--yt-font:'${config.font}',sans-serif;` +
-        `--yt-bg:${colors.bg};--yt-text:${colors.text};--yt-secondary:${colors.secondary};` +
-        `--yt-accent:${colors.accent};` +
-        `--yt-verified-bg:${verifiedBg};--yt-verified-fg:${verifiedFg};` +
-        `--yt-radius:${Math.round(thumbRadius)}px;--yt-container-radius:${Math.round((config.containerRadius ?? 0) * S)}px;` +
-        `--yt-pad:${Math.round(pad * S)}px;` +
-        `--yt-thumb-gap:${Math.round((config.thumbGap ?? 48) * S)}px;--yt-column-gap:${Math.round((config.columnGap ?? 48) * S)}px;--yt-text-gap:${Math.round((config.textGap ?? 28) * S)}px;` +
-        `--yt-name:${m.name}px;--yt-avatar:${m.avatar}px;` +
-        `--yt-badge-font:${m.badgeFont}px;--yt-badge-radius:${m.badgeRadius}px;--yt-badge-pad:${m.badgePad}px;` +
-        `--yt-meta:${m.meta}px;--yt-desc:${m.desc}px;` +
-        `--yt-scrim-a:${(config.scrimOpacity ?? 85) / 100};` +
-        `--yt-clamp:${config.titleLines ?? 2};--yt-clamp-desc:${config.descriptionLines ?? 2};` +
-        `--yt-hero-pad:${Math.round(56 * S)}px;--yt-hero-corner:${Math.round(24 * S)}px;` +
-        `width:${LW}px;--yt-width:${LW}px;` +
-        `height:${exactHeight ? exactHeight + 'px' : 'auto'};min-height:${minHeight ? minHeight + 'px' : 'auto'}`
+        `--yt-font:'${config.font}','Noto Color Emoji',sans-serif;` +
+        `--bg:${colors.bg};--text:${colors.text};--sec:${colors.secondary};--accent:${colors.accent};` +
+        `--v-bg:${verifiedBg};--v-fg:${verifiedFg};` +
+        `--pad:${pad}px;--cr:${cardRadius}px;--r:${thumbRadius}px;` +
+        `--ts:${titlePx}px;--tl:${r2(t.title[1] * k * TS)}px;--tw:${t.title[2]};` +
+        `--ns:${namePx}px;--nl:${r2(t.name[1] * k * T)}px;` +
+        `--ms:${metaPx}px;--ml:${r2(t.meta[1] * k * T)}px;` +
+        `--ds:${descPx}px;--dl:${r2(t.desc[1] * k * T)}px;` +
+        `--av:${avatarPx}px;--g-thumb:${gThumb}px;--g-col:${gCol}px;--g-text:${gText}px;` +
+        `--b-font:${r2(12 * k * T)}px;--b-lh:${r2(18 * k * T)}px;--b-px:${r2(4 * k * T)}px;--b-r:${r2(4 * k)}px;` +
+        `--b-off:${r2((BADGE_OFFSET[key] ?? 8) * k)}px;--k:${r2(k)};` +
+        `--scrim:${(config.scrimOpacity ?? 85) / 100};` +
+        `--clamp:${key === 'embed' ? 1 : (config.titleLines ?? 2)};--clamp-desc:${config.descriptionLines ?? 2};` +
+        `--box-bg:${boxBg};width:${LW}px;` +
+        (config.aspect !== 'auto' && !['hero', 'embed', 'underlay'].includes(key) ? `min-height:${Math.round(LW / aspect)}px;` : '')
     );
 
-    // Thumbnail candidates with fallback chain (maxres → sd → hq).
+    // ── Thumbnail with fallbacks (maxres → sd → hq) ──
     const candidates = $derived((() => {
-        const t = video?.thumbnails ?? {};
-        return [t.maxres, t.sd, t.hq].filter(Boolean);
+        const th = video?.thumbnails ?? {};
+        return [th.maxres, th.sd, th.hq].filter(Boolean);
     })());
-
     let thumbUrl = $state(null);
     let thumbIdx = $state(0);
-
     $effect(() => {
         if (!video || candidates.length === 0) {
             thumbUrl = null;
@@ -103,336 +118,285 @@
         return () => { alive = false; };
     });
 
-    const titleSize = $derived(Math.round(layout.titleSize * LS * (config.titleScale ?? 1) * T));
+    // ── Text ──
+    const showAvatar = $derived(config.modules.avatar && !!video?.channel?.avatarUrl && config.modules.channel);
+    const thumbW = $derived(
+        key === 'upnext' ? r2(168 * k) : key === 'split' ? r2((LW * (config.ratio ?? 40)) / 100) : LW
+    );
 
-    // Rough JS clamp so exported text never overflows its line budget.
-    // Widths mirror the actual CSS boxes of each layout (incl. hero's 82% cap).
-    function clampText(text, fontSize, maxLines, width) {
+    // Rough JS clamp so exported text never overflows its line budget
+    // (html2canvas ignores line-clamp). Widths mirror each layout's text box.
+    function clampText(text, size, lines, width) {
         if (!text) return '';
-        const charsPerLine = Math.max(8, Math.floor(width / (fontSize * 0.55)));
-        const max = charsPerLine * maxLines;
-        if (text.length <= max) return text;
-        return text.slice(0, max - 1).trimEnd() + '…';
+        const perLine = Math.max(8, Math.floor(width / (size * 0.5)));
+        const max = perLine * lines;
+        return text.length <= max ? text : text.slice(0, max - 1).trimEnd() + '…';
     }
-
-    function titleTextWidth() {
-        const cw = contentW - 48 * S;
-        if (config.layout === 'split') {
-            // text column = width − thumb share − column gap
-            return Math.round(contentW - (contentW * (config.ratio ?? 34) / 100) - (config.columnGap ?? 48) * S) - 24 * S;
-        }
-        if (config.layout === 'hero') {
-            // .hr-content has --yt-hero-pad padding; .hr-main caps at 82% of that box
-            return Math.round((contentW - 112 * S) * 0.82) - 24 * S;
-        }
-        if (config.layout === 'underlay') {
-            // title bar padding --yt-hero-pad each side
-            return contentW - 112 * S;
-        }
-        return Math.max(Math.round(240 * S), Math.round(cw));
-    }
-    function descWidth() {
-        if (config.layout === 'split') {
-            return Math.round(contentW - (contentW * (config.ratio ?? 34) / 100) - (config.columnGap ?? 48) * S) - 24 * S;
-        }
-        return Math.max(Math.round(240 * S), Math.round(contentW - 48 * S));
-    }
-
+    const textW = $derived(
+        key === 'classic' ? LW - (showAvatar ? avatarPx + gCol : 0)
+            : key === 'upnext' || key === 'split' ? LW - thumbW - gCol
+                : key === 'embed' ? LW - 24 * k - (showAvatar ? avatarPx + gCol : 0) - 24 * k
+                    : key === 'hero' ? (LW - 48 * k) * 0.85
+                        : key === 'underlay' ? LW - 48 * k
+                            : LW
+    );
     const title = $derived(config.modules.title
-        ? clampText(video?.title ?? '', titleSize, config.titleLines ?? 2, titleTextWidth())
+        ? clampText(video?.title ?? '', titlePx, key === 'embed' ? 1 : (config.titleLines ?? 2), textW)
         : '');
-    const desc = $derived(config.modules.description
-        ? clampText(video?.description ?? '', m.desc, config.descriptionLines ?? 2, descWidth())
+    const desc = $derived(config.modules.description && key !== 'embed'
+        ? clampText(video?.description ?? '', descPx, config.descriptionLines ?? 2, key === 'watch' ? LW - 24 * k : textW)
         : '');
-    const metaLine = $derived((() => {
+    const dateText = $derived(video?.publishedAt
+        ? (config.dateFormat === 'absolute' ? formatDate(video.publishedAt) : relativeDate(video.publishedAt))
+        : '');
+    const meta = $derived((() => {
         const parts = [];
         if (config.modules.views && video?.views != null) parts.push(`${formatViews(video.views)} views`);
-        if (config.modules.date && video?.publishedAt) {
-            parts.push(
-                config.dateFormat === 'relative' ? relativeDate(video.publishedAt) : formatDate(video.publishedAt)
-            );
-        }
-        return parts.join(' · ');
+        if (config.modules.date && dateText) parts.push(dateText);
+        // the watch page's description box uses two spaces, everywhere else a bullet
+        return parts.join(key === 'watch' ? '  ' : ' • ');
     })());
+    const subs = $derived(
+        config.modules.subscribers && video?.channel?.subscribers != null ? `${formatViews(video.channel.subscribers)} subscribers` : ''
+    );
+    const channelName = $derived(config.modules.channel ? (video?.channel?.name ?? '') : '');
 
-    const showAvatar = $derived(config.modules.avatar && !!video?.channel?.avatarUrl && config.modules.channel);
-
-    const thumbHeight = $derived(Math.round(LW * 9 / 16));
+    const posterH = $derived(Math.round(LW / aspect));
+    const onPoster = $derived(['hero', 'underlay', 'embed'].includes(key));
+    // Text over a poster is white while the fade is on; otherwise theme colours.
+    const posterText = $derived(key === 'embed' || config.modules.scrim ? '#ffffff' : colors.text);
+    const posterSec = $derived(key === 'embed' || config.modules.scrim ? 'rgba(255,255,255,0.82)' : colors.secondary);
 </script>
 
-<div
-    bind:this={cardEl}
-    class="ycard ly-{config.layout}"
-    style={cssVars}
->
-    {#if config.layout === 'classic'}
-        <div class="cl-wrap">
-            {@render thumb(thumbHeight)}
-            <div class="yt-text">
-                {@render titleEl()}
-                {@render channelRow()}
-                {@render metaEl()}
-                {@render descEl()}
-            </div>
-        </div>
-
-    {:else if config.layout === 'split'}
-        <div
-            class="sp-wrap"
-            style="grid-template-columns:{config.ratio ?? 34}% 1fr;min-height:{Math.max(96, Math.round((LW * (config.ratio ?? 34) / 100) / aspect))}px"
-        >
-            <div class="sp-media">
-                {@render thumb('fill')}
-                {#if config.modules.scrim}
-                    <div class="sp-scrim"></div>
-                {/if}
-            </div>
-            <div class="sp-text" class:desc-off={!desc}>
-                <!-- Description off: title + creator pinned to the top, views · date pinned to the bottom -->
-                <div class="sp-top">
+<div bind:this={cardEl} class="ycard ly-{key}" style={cssVars}>
+    {#if key === 'classic'}
+        <div class="col">
+            {@render thumb(LW, Math.round((LW * 9) / 16))}
+            <div class="row" style="gap:var(--g-col);margin-top:var(--g-thumb)">
+                {#if showAvatar}{@render avatar()}{/if}
+                <div class="stack">
                     {@render titleEl()}
-                    {@render channelRow()}
-                </div>
-                {#if desc}
-                    <div class="yt-desc sp-darker">{desc}</div>
-                {/if}
-                <div class="sp-bottom">
-                    {@render metaEl()}
-                </div>
-            </div>
-        </div>
-
-    {:else if config.layout === 'hero'}
-        <div class="hr-wrap">
-            {#if thumbUrl}
-                <div class="hr-bg" style="background-image:url('{thumbUrl}')"></div>
-            {/if}
-            {#if config.modules.scrim}
-                <div class="hr-scrim"></div>
-            {/if}
-            <div class="hr-content" style="color:{config.modules.scrim ? '#ffffff' : colors.text}">
-                <div class="hr-main">
-                    {@render titleEl()}
-                    {@render channelRow()}
-                    <div style="color:{config.modules.scrim ? 'rgba(255,255,255,0.9)' : colors.secondary};font-size:var(--yt-meta)">
-                        {@render metaEl()}
-                    </div>
-                    <div style="color:{config.modules.scrim ? 'rgba(255,255,255,0.75)' : 'inherit'}">
-                        {@render descEl()}
-                    </div>
-                </div>
-            </div>
-            <div class="hr-corner">
-                {@render durationBadge()}
-                {@render liveBadge()}
-            </div>
-        </div>
-    {:else if config.layout === 'underlay'}
-        <div class="ul-wrap">
-            <div class="ul-media" style="height:{Math.round(LW / aspect)}px">
-                {#if thumbUrl}
-                    <div class="ul-bg" style="background-image:url('{thumbUrl}')"></div>
-                {/if}
-                {#if config.modules.scrim}
-                    <div class="ul-scrim"></div>
-                {/if}
-                <div class="ul-overlay" style="color:{config.modules.scrim ? '#ffffff' : colors.text}">
-                    {@render channelRow()}
-                    <div style="color:{config.modules.scrim ? 'rgba(255,255,255,0.9)' : colors.secondary};font-size:var(--yt-meta)">
-                        {@render metaEl()}
-                    </div>
-                </div>
-                <div class="ul-corner">
-                    {@render durationBadge()}
-                    {@render liveBadge()}
-                </div>
-            </div>
-            <div class="ul-title-bar">
-                {@render titleEl()}
-                {@render descEl()}
-            </div>
-        </div>
-
-    {:else if config.layout === 'compact'}
-        <div class="cm-wrap">
-            {@render thumb(thumbHeight)}
-            <div class="cm-text">
-                {@render titleEl()}
-                <div class="cm-line">
-                    {#if showAvatar}
-                        <img
-                            class="yt-avatar cm-avatar"
-                            src={video.channel.avatarUrl}
-                            alt=""
-                            crossorigin="anonymous"
-                            referrerpolicy="no-referrer"
-                            loading="eager"
-                            onerror={(e) => (e.currentTarget.style.display = 'none')}
-                        />
-                    {/if}
-                    {#if config.modules.channel && video?.channel?.name}
-                        <span class="yt-channel-name">{video.channel.name}</span>
-                        {#if config.modules.verified}
-                            <span class="yt-verified">
-                                <i class="fa-solid fa-check"></i>
-                            </span>
-                        {/if}
-                        {#if config.modules.subscribers && video?.channel?.subscribers != null}
-                            <span class="yt-subscribers">· {formatViews(video.channel.subscribers)} subscribers</span>
-                        {/if}
-                    {/if}
-                    {#if metaLine}
-                        <span class="cm-meta">{metaLine}</span>
-                    {/if}
-                </div>
-                {@render descEl()}
-            </div>
-        </div>
-
-    {:else if config.layout === 'modern'}
-        <div class="mo-wrap">
-            {@render thumb(thumbHeight)}
-            <div class="mo-body">
-                {#if showAvatar}
-                    <img
-                        class="yt-avatar mo-avatar"
-                        src={video.channel.avatarUrl}
-                        alt=""
-                        crossorigin="anonymous"
-                        referrerpolicy="no-referrer"
-                        loading="eager"
-                        onerror={(e) => (e.currentTarget.style.display = 'none')}
-                    />
-                {/if}
-                <div class="mo-text">
-                    {@render titleEl()}
-                    <div class="mo-sub">
-                        {#if config.modules.channel && video?.channel?.name}
-                            <div class="mo-creator">
-                                <span class="yt-channel-name">{video.channel.name}</span>
-                                {#if config.modules.verified}
-                                    <span class="yt-verified">
-                                        <i class="fa-solid fa-check"></i>
-                                    </span>
-                                {/if}
-                                {#if config.modules.subscribers && video?.channel?.subscribers != null}
-                                    <span class="yt-subscribers">· {formatViews(video.channel.subscribers)} subscribers</span>
-                                {/if}
-                            </div>
-                        {/if}
-                        {@render metaEl()}
+                    <div class="lines" style={title ? 'margin-top:var(--g-text)' : ''}>
+                        {@render nameLine()}
+                        {@render metaLine()}
                     </div>
                     {@render descEl()}
                 </div>
             </div>
         </div>
+
+    {:else if key === 'compact'}
+        <div class="col">
+            {@render thumb(LW, Math.round((LW * 9) / 16))}
+            <div class="stack" style="margin-top:var(--g-thumb)">
+                {@render titleEl()}
+                <div class="lines" style={title ? 'margin-top:var(--g-text)' : ''}>
+                    {@render nameLine(true)}
+                    {@render metaLine()}
+                </div>
+                {@render descEl()}
+            </div>
+        </div>
+
+    {:else if key === 'upnext'}
+        <div class="row" style="gap:var(--g-col)">
+            {@render thumb(thumbW, r2(94 * k))}
+            <div class="stack">
+                {@render titleEl()}
+                <div class="lines" style={title ? 'margin-top:var(--g-text)' : ''}>
+                    {@render nameLine(true)}
+                    {@render metaLine()}
+                </div>
+                {@render descEl()}
+            </div>
+        </div>
+
+    {:else if key === 'split'}
+        <div class="row" style="gap:var(--g-col)">
+            <div class="media" style="width:{thumbW}px">
+                {@render thumb(thumbW, Math.round((thumbW * 9) / 16))}
+                {#if config.modules.scrim}<div class="scrim" style="border-radius:var(--r)"></div>{/if}
+            </div>
+            <div class="stack">
+                {@render titleEl()}
+                {@render metaLine()}
+                {#if channelName}
+                    <div class="chan" style="margin:var(--g-text) 0">
+                        {#if showAvatar}{@render avatar()}{/if}
+                        {@render nameText()}
+                    </div>
+                {/if}
+                {@render descEl()}
+            </div>
+        </div>
+
+    {:else if key === 'watch'}
+        <div class="col">
+            {@render thumb(LW, Math.round((LW * 9) / 16))}
+            <div style="margin-top:var(--g-thumb)">{@render titleEl()}</div>
+            {#if channelName || config.modules.subscribe}
+                <div class="owner" style="margin-top:var(--g-text);gap:var(--g-col)">
+                    {#if showAvatar}{@render avatar()}{/if}
+                    {#if channelName}
+                        <div class="owner-text">
+                            {@render nameText()}
+                            {#if subs}<span class="subs">{subs}</span>{/if}
+                        </div>
+                    {/if}
+                    {#if config.modules.subscribe}<span class="subscribe">Subscribe</span>{/if}
+                </div>
+            {/if}
+            {#if meta || desc}
+                <div class="desc-box" style="margin-top:var(--g-text)">
+                    {#if meta}<div class="box-meta">{meta}</div>{/if}
+                    {#if desc}<div class="desc box-desc">{desc}</div>{/if}
+                </div>
+            {/if}
+        </div>
+
+    {:else if key === 'embed'}
+        <div class="poster" style="height:{posterH}px;border-radius:var(--r)">
+            {@render bgImage()}
+            <div class="embed-top"></div>
+            <div class="embed-head" style="gap:var(--g-col)">
+                {#if showAvatar}{@render avatar()}{/if}
+                <div class="stack">
+                    {#if title}<div class="title" style="color:#fff">{title}</div>{/if}
+                    {#if channelName}<div class="embed-chan">{channelName}</div>{/if}
+                </div>
+            </div>
+            <div class="play"><span></span></div>
+            <div class="corner">{@render badges()}</div>
+        </div>
+
+    {:else if key === 'hero'}
+        <div class="poster" style="height:{posterH}px;border-radius:var(--r)">
+            {@render bgImage()}
+            {#if config.modules.scrim}<div class="scrim"></div>{/if}
+            <div class="poster-text" style="color:{posterText};--sec:{posterSec}">
+                {@render titleEl()}
+                {#if channelName}
+                    <div class="chan" style="margin-top:var(--g-text);gap:var(--g-col)">
+                        {#if showAvatar}{@render avatar()}{/if}
+                        {@render nameText()}
+                    </div>
+                {/if}
+                <div style="margin-top:var(--g-text)">{@render metaLine()}</div>
+                {@render descEl()}
+            </div>
+            <div class="corner">{@render badges()}</div>
+        </div>
+
+    {:else if key === 'underlay'}
+        <div class="col">
+            <div class="poster" style="height:{posterH}px;border-radius:var(--r) var(--r) 0 0">
+                {@render bgImage()}
+                {#if config.modules.scrim}<div class="scrim"></div>{/if}
+                <div class="poster-text" style="color:{posterText};--sec:{posterSec}">
+                    {#if channelName}
+                        <div class="chan" style="gap:var(--g-col)">
+                            {#if showAvatar}{@render avatar()}{/if}
+                            {@render nameText()}
+                        </div>
+                    {/if}
+                    <div style={channelName ? 'margin-top:var(--g-text)' : ''}>{@render metaLine()}</div>
+                </div>
+                <div class="corner">{@render badges()}</div>
+            </div>
+            {#if title || desc}
+                <div class="under">
+                    {@render titleEl()}
+                    {@render descEl()}
+                </div>
+            {/if}
+        </div>
     {/if}
 </div>
 
-<!-- ── Shared snippets ─────────────────────────────────────────────────────── -->
+<!-- ── Shared pieces ── -->
 
-{#snippet thumb(height)}
-    <div
-        class="yt-thumb"
-        style="height:{height === 'fill' ? '100%' : height + 'px'};border-radius:var(--yt-radius)"
-    >
-        {#if thumbUrl}
-            <div class="yt-thumb-img" style="background-image:url('{thumbUrl}')"></div>
-        {/if}
-        {@render durationBadge()}
-        {@render liveBadge()}
+{#snippet bgImage()}
+    {#if thumbUrl}<div class="img" style="background-image:url('{thumbUrl}')"></div>{/if}
+{/snippet}
+
+{#snippet thumb(w, h)}
+    <div class="thumb" style="width:{w}px;height:{h}px">
+        {@render bgImage()}
+        {@render badges()}
     </div>
 {/snippet}
 
-{#snippet titleEl()}
-    {#if title}
-        <div
-            class="yt-title"
-            style="font-size:{titleSize}px;font-weight:{layout.titleWeight}"
-        >{title}</div>
+{#snippet badges()}
+    {#if config.modules.live}
+        <span class="badge live">LIVE</span>
+    {:else if config.modules.duration && video?.duration?.formatted}
+        <span class="badge">{video.duration.formatted}</span>
     {/if}
 {/snippet}
 
-{#snippet channelRow()}
-    {#if config.modules.channel && video?.channel?.name}
-        <div class="yt-channel">
-            {#if showAvatar && video.channel.avatarUrl}
-                <img
-                    class="yt-avatar"
-                    src={video.channel.avatarUrl}
-                    alt=""
-                    crossorigin="anonymous"
-                    referrerpolicy="no-referrer"
-                    loading="eager"
-                    onerror={(e) => (e.currentTarget.style.display = 'none')}
-                />
-            {/if}
-            <span class="yt-ident">
-                <span class="yt-channel-name">{video.channel.name}</span>
-                {#if config.modules.verified}
-                    <span class="yt-verified">
-                        <i class="fa-solid fa-check"></i>
-                    </span>
-                {/if}
-                {#if config.modules.subscribers && video?.channel?.subscribers != null}
-                    <span class="yt-subscribers">· {formatViews(video.channel.subscribers)} subscribers</span>
-                {/if}
-            </span>
+{#snippet avatar()}
+    <img class="avatar" src={video.channel.avatarUrl} alt="" crossorigin="anonymous" referrerpolicy="no-referrer"
+        loading="eager" onerror={(e) => (e.currentTarget.style.display = 'none')} />
+{/snippet}
+
+{#snippet titleEl()}
+    {#if title}<div class="title">{title}</div>{/if}
+{/snippet}
+
+{#snippet nameText()}
+    <span class="name">
+        <span class="name-text">{channelName}</span>
+        {#if config.modules.verified}<span class="tick"><i class="fa-solid fa-check"></i></span>{/if}
+    </span>
+{/snippet}
+
+{#snippet nameLine(smallAvatar = false)}
+    {#if channelName}
+        <div class="name-line">
+            {#if smallAvatar && showAvatar}<img class="avatar inline" src={video.channel.avatarUrl} alt="" crossorigin="anonymous" referrerpolicy="no-referrer" loading="eager" />{/if}
+            {@render nameText()}
+            {#if subs}<span class="subs inline">• {subs}</span>{/if}
         </div>
     {/if}
 {/snippet}
 
-{#snippet metaEl()}
-    {#if metaLine}
-        <div class="yt-meta">{metaLine}</div>
-    {/if}
+{#snippet metaLine()}
+    {#if meta}<div class="meta">{meta}</div>{/if}
 {/snippet}
 
 {#snippet descEl()}
-    {#if desc}
-        <div class="yt-desc">{desc}</div>
-    {/if}
-{/snippet}
-
-{#snippet durationBadge()}
-    {#if config.modules.duration && video?.duration?.formatted && !config.modules.live}
-        <span class="yt-duration">{video.duration.formatted}</span>
-    {/if}
-{/snippet}
-
-{#snippet liveBadge()}
-    {#if config.modules.live}
-        <span class="yt-live">LIVE</span>
-    {/if}
+    {#if desc}<div class="desc" style="margin-top:var(--g-text)">{desc}</div>{/if}
 {/snippet}
 
 <style>
-    /* ── Root ──
-       content-box semantics: the design width (--yt-width) belongs to the content;
-       padding is an OUTER frame — content and canvas never change size with it.
-       NO box-shadow here: html2canvas renders box-shadows by painting a blurred
-       copy of the shape over the element itself, which tints the frame band and
-       corners in every export. The preview drop shadow lives on the preview
-       wrapper (.preview-scaled) instead, which the capture never sees. */
+    /* Content-box: the width is the content; padding is an outer frame.
+       No box-shadow here: html2canvas would paint it over the frame. */
     .ycard {
-        font-family: var(--yt-font, sans-serif);
-        background-color: var(--yt-bg);
-        color: var(--yt-text);
-        overflow: hidden;
         position: relative;
-        line-height: 1.35;
-        padding: var(--yt-pad);
-        border-radius: var(--yt-container-radius);
+        overflow: hidden;
+        padding: var(--pad);
+        border-radius: var(--cr);
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--yt-font, Roboto, sans-serif);
+        line-height: 1.4;
     }
+    .ycard * { box-sizing: border-box; }
 
-    /* Thumbnail (background-image so object-fit: cover survives html2canvas) */
-    .yt-thumb {
+    .col { display: flex; flex-direction: column; }
+    .row { display: flex; align-items: flex-start; }
+    .stack { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+    .lines { display: flex; flex-direction: column; min-width: 0; }
+
+    /* Thumbnail (a background image, so cover-fit survives html2canvas) */
+    .thumb {
         position: relative;
-        overflow: hidden;
-        background: #000;
         flex-shrink: 0;
+        overflow: hidden;
+        border-radius: var(--r);
+        background: #000;
     }
-    .yt-thumb-img {
+    .img {
         position: absolute;
         inset: 0;
         background-size: cover;
@@ -440,356 +404,172 @@
         background-repeat: no-repeat;
     }
 
-    /* Duration + LIVE badges */
-    .yt-duration {
+    /* Duration / LIVE badge: YouTube's own */
+    .badge {
         position: absolute;
-        right: var(--yt-badge-pad);
-        bottom: var(--yt-badge-pad);
-        background: rgba(0, 0, 0, 0.8);
-        color: #ffffff;
-        font-size: var(--yt-badge-font);
+        right: var(--b-off);
+        bottom: var(--b-off);
+        padding: 0 var(--b-px);
+        border-radius: var(--b-r);
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        font-size: var(--b-font);
+        line-height: var(--b-lh);
         font-weight: 500;
-        line-height: 1;
-        padding: calc(var(--yt-badge-pad) * 0.7) var(--yt-badge-pad);
-        border-radius: var(--yt-badge-radius);
+        letter-spacing: 0.01em;
     }
-    .yt-live {
-        position: absolute;
-        right: var(--yt-badge-pad);
-        bottom: var(--yt-badge-pad);
-        background: var(--yt-accent);
-        color: #ffffff;
-        font-size: calc(var(--yt-badge-font) * 0.85);
-        font-weight: 700;
-        letter-spacing: 0.05em;
-        line-height: 1;
-        padding: calc(var(--yt-badge-pad) * 0.75) calc(var(--yt-badge-pad) * 1.5);
-        border-radius: var(--yt-badge-radius);
-    }
+    .badge.live { background: var(--accent); font-weight: 500; }
 
-    /* Title */
-    .yt-title {
-        line-height: 1.25;
+    .title {
         display: -webkit-box;
         -webkit-box-orient: vertical;
-        -webkit-line-clamp: var(--yt-clamp, 2);
-        line-clamp: var(--yt-clamp, 2);
+        -webkit-line-clamp: var(--clamp, 2);
+        line-clamp: var(--clamp, 2);
         overflow: hidden;
-        color: var(--yt-text);
+        font-size: var(--ts);
+        line-height: var(--tl);
+        font-weight: var(--tw);
+        color: inherit;
     }
+    .ly-embed .title { -webkit-line-clamp: 1; line-clamp: 1; white-space: nowrap; text-overflow: ellipsis; display: block; }
 
-    /* Channel row */
-    .yt-channel {
-        display: flex;
-        align-items: center;
-        gap: var(--yt-text-gap);
-        font-size: var(--yt-name);
-        font-weight: 400;
-        color: var(--yt-secondary);
-        min-width: 0;
-    }
-    .yt-avatar {
-        width: var(--yt-avatar);
-        height: var(--yt-avatar);
+    .avatar {
+        width: var(--av);
+        height: var(--av);
+        flex-shrink: 0;
         border-radius: 50%;
         object-fit: cover;
-        flex-shrink: 0;
-        background: rgba(255, 255, 255, 0.08);
+        background: rgba(128, 128, 128, 0.2);
     }
-    .yt-channel-name {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .yt-ident {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.6em;
-        min-width: 0;
-    }
-    .yt-ident .yt-channel-name {
-        flex: 0 1 auto;
-        min-width: 0;
-    }
-    .yt-subscribers {
-        color: var(--yt-secondary);
-        font-size: var(--yt-name);
-        white-space: nowrap;
-        opacity: 0.85;
-    }
-    .yt-verified {
-        width: var(--yt-name);
-        height: var(--yt-name);
-        border-radius: 50%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--yt-verified-bg);
-        color: var(--yt-verified-fg);
-        flex-shrink: 0;
-    }
-    .yt-verified i {
-        font-size: calc(var(--yt-name) * 0.58);
-    }
+    .avatar.inline { width: var(--nl); height: var(--nl); margin-right: calc(var(--ns) * 0.4); }
 
-    /* Meta + description */
-    .yt-meta {
-        font-size: var(--yt-meta);
-        font-weight: 400;
-        color: var(--yt-secondary);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    .name-line, .chan {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        font-size: var(--ns);
+        line-height: var(--nl);
+        color: var(--sec);
     }
-    .yt-desc {
-        font-size: var(--yt-desc);
-        font-weight: 400;
-        line-height: 1.4;
-        color: var(--yt-secondary);
+    .chan { gap: calc(var(--ns) * 0.6); }
+    .name { display: inline-flex; align-items: center; gap: calc(var(--ns) * 0.3); min-width: 0; }
+    .name-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .tick {
+        display: inline-grid;
+        place-items: center;
+        flex-shrink: 0;
+        width: calc(var(--ns) * 0.92);
+        height: calc(var(--ns) * 0.92);
+        border-radius: 50%;
+        background: var(--v-bg);
+        color: var(--v-fg);
+    }
+    .tick i { font-size: calc(var(--ns) * 0.52); }
+    .subs { color: var(--sec); font-size: var(--ms); line-height: var(--ml); white-space: nowrap; }
+    .subs.inline { margin-left: calc(var(--ns) * 0.3); font-size: inherit; line-height: inherit; }
+
+    .meta {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-size: var(--ms);
+        line-height: var(--ml);
+        color: var(--sec);
+    }
+    .desc {
         display: -webkit-box;
         -webkit-box-orient: vertical;
-        -webkit-line-clamp: var(--yt-clamp-desc, 2);
-        line-clamp: var(--yt-clamp-desc, 2);
+        -webkit-line-clamp: var(--clamp-desc, 2);
+        line-clamp: var(--clamp-desc, 2);
         overflow: hidden;
+        font-size: var(--ds);
+        line-height: var(--dl);
+        color: var(--sec);
     }
 
-    /* ── Classic ── */
-    .cl-wrap {
-        display: flex;
-        flex-direction: column;
-        gap: var(--yt-thumb-gap);
-    }
-    .yt-text {
-        display: flex;
-        flex-direction: column;
-        gap: var(--yt-text-gap);
-    }
-
-    /* ── Wide Split ── */
-    .sp-wrap {
-        display: grid;
-        grid-template-columns: 50% 1fr;
-        align-items: stretch;
-        gap: var(--yt-column-gap);
-    }
-    .sp-media {
-        position: relative;
-        border-radius: var(--yt-radius);
-        overflow: hidden;
-    }
-    .sp-media .yt-thumb {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-    }
-    .sp-text {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: var(--yt-text-gap);
-        min-width: 0;
-    }
-    /* Description off: title + creator pinned to the top, views · date at the
-       bottom (space-between); with description on the column stays centered. */
-    .sp-text.desc-off {
-        justify-content: space-between;
-    }
-    .sp-top,
-    .sp-bottom {
-        display: flex;
-        flex-direction: column;
-        gap: var(--yt-text-gap);
-        min-width: 0;
-    }
-    /* Optional scrim over the split thumbnail (clipped to its radius) */
-    .sp-scrim {
+    /* Search result */
+    .media { position: relative; flex-shrink: 0; }
+    .scrim {
         position: absolute;
         inset: 0;
-        border-radius: var(--yt-radius);
-        background: linear-gradient(180deg, rgba(0, 0, 0, 0) 26%, rgba(0, 0, 0, var(--yt-scrim-a)) 100%);
         pointer-events: none;
-    }
-    /* Split description is intentionally darker than the other text */
-    .sp-darker {
-        opacity: 0.72;
+        background: linear-gradient(180deg, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, var(--scrim)) 100%);
     }
 
-    /* ── Hero ── */
-    .hr-wrap {
-        position: absolute;
-        inset: 0;
-    }
-    .hr-bg {
-        position: absolute;
-        inset: 0;
-        background-size: cover;
-        background-position: center;
-    }
-    .hr-scrim {
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(180deg, rgba(0, 0, 0, 0) 26%, rgba(0, 0, 0, var(--yt-scrim-a)) 100%);
-    }
-    .hr-content {
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        padding: var(--yt-hero-pad);
-        display: flex;
-    }
-    .hr-main {
-        display: flex;
-        flex-direction: column;
-        gap: var(--yt-text-gap);
-        max-width: 82%;
-    }
-    .hr-main .yt-title {
-        color: inherit;
-        text-shadow: 0 2px 16px rgba(0, 0, 0, 0.55);
-    }
-    .hr-main .yt-channel {
-        color: inherit;
-    }
-    .hr-main .yt-subscribers,
-    .ul-overlay .yt-subscribers {
-        color: inherit;
-    }
-    .hr-main .yt-desc {
-        color: inherit;
-    }
-    .hr-corner {
-        position: absolute;
-        right: var(--yt-hero-corner);
-        bottom: var(--yt-hero-pad); /* same line as the views · date meta */
-    }
-    .hr-corner .yt-duration,
-    .hr-corner .yt-live {
-        position: static;
-    }
-
-    /* ── Underlay (hero poster, title moved below) ── */
-    .ul-wrap {
-        position: relative;
-    }
-    .ul-media {
-        position: relative;
-        overflow: hidden;
-        background: #000;
-    }
-    .ul-bg {
-        position: absolute;
-        inset: 0;
-        background-size: cover;
-        background-position: center;
-    }
-    .ul-scrim {
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(180deg, rgba(0, 0, 0, 0) 26%, rgba(0, 0, 0, var(--yt-scrim-a)) 100%);
-    }
-    .ul-overlay {
-        position: absolute;
-        left: var(--yt-hero-pad);
-        bottom: var(--yt-hero-pad);
-        display: flex;
-        flex-direction: column;
-        gap: var(--yt-text-gap);
-        max-width: 82%;
-    }
-    .ul-overlay .yt-channel {
-        color: inherit;
-    }
-    .ul-corner {
-        position: absolute;
-        right: var(--yt-hero-corner);
-        bottom: var(--yt-hero-pad); /* same line as the views · date meta */
-    }
-    .ul-corner .yt-duration,
-    .ul-corner .yt-live {
-        position: static;
-    }
-    .ul-title-bar {
-        padding: calc(var(--yt-hero-pad) * 0.86) var(--yt-hero-pad) var(--yt-hero-pad);
-        display: flex;
-        flex-direction: column;
-        gap: var(--yt-text-gap);
-    }
-
-    /* ── Compact (thumb, title, one-line meta with small avatar) ── */
-    .cm-wrap {
-        display: flex;
-        flex-direction: column;
-        gap: var(--yt-thumb-gap);
-    }
-    .cm-text {
-        display: flex;
-        flex-direction: column;
-        gap: var(--yt-text-gap);
-    }
-    .cm-line {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: calc(var(--yt-text-gap) * 0.6);
-        font-size: var(--yt-name);
-        font-weight: 400;
-        color: var(--yt-secondary);
-        min-width: 0;
-    }
-    /* creator icon same size as the text */
-    .cm-line .cm-avatar {
-        width: var(--yt-name);
-        height: var(--yt-name);
-    }
-    .cm-line .yt-channel-name {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .cm-meta {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    /* ── Modern (avatar top-left, 3-line info block beside it) ── */
-    .mo-wrap {
-        display: flex;
-        flex-direction: column;
-        gap: var(--yt-thumb-gap);
-    }
-    .mo-body {
-        display: flex;
-        align-items: flex-start; /* avatar top-aligned with the text block */
-        gap: var(--yt-thumb-gap);
-        min-width: 0;
-    }
-    .mo-avatar {
+    /* Watch page */
+    .owner { display: flex; align-items: center; min-width: 0; }
+    .owner-text { display: flex; flex-direction: column; min-width: 0; }
+    .owner .name { font-size: var(--ns); line-height: var(--nl); font-weight: 500; color: var(--text); }
+    .subscribe {
         flex-shrink: 0;
+        margin-left: calc(12px * var(--k));
+        padding: 0 calc(16px * var(--k));
+        border-radius: calc(18px * var(--k));
+        background: var(--text);
+        color: var(--bg);
+        font-size: calc(14px * var(--k));
+        line-height: calc(36px * var(--k));
+        font-weight: 500;
     }
-    .mo-text {
+    .desc-box {
+        padding: calc(12px * var(--k));
+        border-radius: calc(12px * var(--k));
+        background: var(--box-bg);
+    }
+    .box-meta { font-size: var(--ms); line-height: var(--ml); font-weight: 500; color: var(--text); white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+    .box-desc { color: var(--text); }
+
+    /* Posters: Embed, Poster, Poster + title */
+    .poster { position: relative; overflow: hidden; background: #000; }
+    .poster .scrim { border-radius: 0; }
+    .poster-text {
+        position: absolute;
+        left: calc(24px * var(--k));
+        bottom: calc(24px * var(--k));
+        max-width: 85%;
         display: flex;
         flex-direction: column;
-        gap: var(--yt-text-gap);
-        min-width: 0;
     }
-    /* creator + views · date sit closer together than the other text blocks */
-    .mo-sub {
+    .poster-text .title { text-shadow: 0 calc(2px * var(--k)) calc(12px * var(--k)) rgba(0, 0, 0, 0.45); }
+    .poster-text .chan { color: inherit; font-weight: 500; }
+    .corner { position: absolute; right: var(--b-off); bottom: var(--b-off); }
+    .corner .badge { position: static; display: inline-block; }
+    .ly-hero .corner, .ly-underlay .corner { bottom: calc(24px * var(--k)); }
+    .under { display: flex; flex-direction: column; padding: calc(20px * var(--k)) calc(24px * var(--k)) calc(24px * var(--k)); }
+
+    /* Embed: top fade with avatar + title, the red play button */
+    .embed-top {
+        position: absolute;
+        inset: 0 0 auto;
+        height: 32%;
+        background: linear-gradient(180deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+    }
+    .embed-head {
+        position: absolute;
+        top: calc(12px * var(--k));
+        left: calc(12px * var(--k));
+        right: calc(24px * var(--k));
         display: flex;
-        flex-direction: column;
-        gap: calc(var(--yt-text-gap) * 0.5);
-        min-width: 0;
-    }
-    .mo-creator {
-        display: inline-flex;
         align-items: center;
-        gap: 0.6em;
-        font-size: var(--yt-name);
-        font-weight: 400;
-        color: var(--yt-secondary);
-        min-width: 0;
+    }
+    .embed-chan { font-size: var(--ns); line-height: var(--nl); color: rgba(255, 255, 255, 0.8); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .play {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: calc(68px * var(--k));
+        height: calc(48px * var(--k));
+        margin: calc(-24px * var(--k)) 0 0 calc(-34px * var(--k));
+        border-radius: 22% / 30%;
+        background: #ff0000;
+    }
+    .play span {
+        position: absolute;
+        left: 41%;
+        top: 50%;
+        margin-top: calc(-10px * var(--k));
+        border-style: solid;
+        border-width: calc(10px * var(--k)) 0 calc(10px * var(--k)) calc(17px * var(--k));
+        border-color: transparent transparent transparent #fff;
     }
 </style>

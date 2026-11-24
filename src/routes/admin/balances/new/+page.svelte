@@ -5,7 +5,7 @@
 </script>
 
 <svelte:head>
-    <title>New Balance — Admin</title>
+    <title>New Balance | Admin</title>
 </svelte:head>
 
 <div class="new-balance-page">

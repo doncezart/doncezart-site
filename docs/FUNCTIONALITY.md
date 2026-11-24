@@ -121,6 +121,14 @@
 - **Data flow:** URL → server (`youtube.js`) → YouTube Data API v3 (`videos.list` + `channels.list`) when `YOUTUBE_API_KEY` set, else oEmbed + constructed `i.ytimg.com` thumbnails → normalized JSON → client state → card preview → export
 - **Dependencies:** `YOUTUBE_API_KEY` (optional), Google Fonts (Roboto/Inter/Space Grotesk/Archivo/Anton/Bebas Neue/Playfair Display/JetBrains Mono), html2canvas (bundled)
 
+### Social Profile Card
+- **What it does:** Turns a social handle or profile URL into a designer profile card from an 11-template gallery (5 creative + 6 platform-native), exported as PNG/JPEG/WebP or copied to clipboard. Uses a tiered data strategy: auto-fetch from official endpoints where they exist, and a manual fill panel for everything else.
+- **Entry point:** `src/routes/tools/profile-card/+page.svelte`
+- **Key functions / components:** `ProfileCard.svelte` (11-template renderer in two families: creative — Gradient Ring (default), Minimal, Bold Poster, Card Grid, Terminal; platform-native "vanilla" — Instagram, TikTok, YouTube, X, Twitch, GitHub, each mimicking that platform's real profile and using its brand accent for the follow button; a pure render of `(profile, config)` at a 1280px design width, container size 720–1920 is a pure uniform zoom, padding is an outer frame, per-template defaults — including palette — apply on switch until a value is tuned), `profile-config.js` (config model, palettes, fonts, template metadata), `social-platforms.js` (shared platform labels/icons/brand accents for client and server), `ExportBar.svelte` (reused, `tool` prop parameterized), `SnapSlider.svelte` (reused)
+- **API calls:** `GET /api/profile/info?handle=…` (server-side, rate-limited 30/min/IP, 30-min in-memory cache)
+- **Data flow:** Input → `profile.js` `parseProfileInput()` (URL, `platform:handle`, or bare handle) → per-platform provider → normalized profile `{ platform, handle, displayName, bio, avatarUrl, bannerUrl, verified, fields, stats[], source, error }` → client state (fully editable) → card preview → export. Providers: YouTube Data API v3 `channels.list` (forHandle/user/id), GitHub REST `/users/:handle`, TikTok oEmbed (display name + avatar). Instagram, Facebook, X, Twitch and Dribbble return a pre-filled "manual" stub, because their profile data is not publicly available through official endpoints.
+- **Dependencies:** `YOUTUBE_API_KEY` (optional), `GITHUB_TOKEN` (optional), Google Fonts (same set as the YouTube tool), html2canvas (bundled)
+
 ## Discovery
 
 ### Discovery Section Index

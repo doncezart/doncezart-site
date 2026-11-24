@@ -9,7 +9,7 @@
 
 	function handleFileChange(e) {
 		const files = Array.from(e.target.files || []);
-		if (displayMode === 'single') {
+		if (displayMode === 'single' || displayMode === 'video') {
 			selectedFiles = files.slice(0, 1);
 		} else {
 			selectedFiles = [...selectedFiles, ...files];
@@ -100,8 +100,21 @@
 				<i class="fa-solid fa-right-left"></i>
 				<span>Before / After</span>
 			</label>
+			<label class="mode-option" class:selected={displayMode === 'video'}>
+				<input type="radio" name="display_mode" value="video" bind:group={displayMode} />
+				<i class="fa-brands fa-youtube"></i>
+				<span>Video</span>
+			</label>
 		</div>
 	</fieldset>
+
+	{#if displayMode === 'video'}
+		<label>
+			YouTube link *
+			<input type="text" name="video_url" required placeholder="https://youtu.be/..." value="{data.artwork.videoId ? `https://youtu.be/${data.artwork.videoId}` : ''}" />
+			<small class="hint">Plays in the My Work lightbox with its live view count. Upload a new image only to replace the cover.</small>
+		</label>
+	{/if}
 
 	{#if displayMode === 'carousel'}
 		<fieldset class="mode-fieldset">
@@ -147,7 +160,7 @@
 			type="file"
 			name="images"
 			accept="image/webp,image/png,image/jpeg,image/gif,image/tiff,image/avif"
-			multiple={displayMode !== 'single'}
+			multiple={!['single', 'video'].includes(displayMode)}
 			onchange={handleFileChange}
 		/>
 	</label>
@@ -213,6 +226,7 @@
 </form>
 
 <style>
+	.hint { display: block; margin-top: 0.35rem; font-size: 0.75rem; opacity: 0.6; font-weight: 400; }
 	.artwork-form {
 		display: flex;
 		flex-direction: column;

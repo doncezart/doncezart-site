@@ -1,7 +1,9 @@
 <script>
+    import Seo from '$lib/components/Seo.svelte';
     import CategoryFilter from '$lib/components/CategoryFilter.svelte';
     import GalleryGrid from '$lib/components/GalleryGrid.svelte';
     import PageHeader from '$lib/components/ui/PageHeader.svelte';
+    import { fmtCount } from '$lib/data/cases/format.js';
 
     let { data } = $props();
 
@@ -94,6 +96,13 @@
         }
     }
 
+    // The page slot is its own stacking context under the fixed nav, so the
+    // lightbox moves to <body> to sit above the nav and footer.
+    function portal(node) {
+        document.body.appendChild(node);
+        return { destroy: () => node.remove() };
+    }
+
     function handleKeydown(e) {
         if (!lightboxItem) return;
         if (e.key === 'Escape') closeLightbox();
@@ -102,11 +111,17 @@
     }
 </script>
 
+<Seo
+    title="My Work"
+    description="YouTube videos edited by DONCEZART, plus thumbnails, logos, posters and social media design."
+/>
+
 <svelte:window onkeydown={handleKeydown} />
 
-<PageHeader title="My Work" subtitle="A full collection of my artworks." />
+<PageHeader eyebrow="Portfolio" title="My Work" subtitle="Videos I've edited and the full collection of my design work." />
 
-<div class="controls">
+<div class="work-wrap">
+<div class="controls reveal" style="--d: 3">
     <CategoryFilter
         categories={data.categoryFilters}
         subcategories={data.subcategoryFilters}
@@ -127,7 +142,7 @@
             onclick={prevPage}
             aria-label="Previous page"
         >
-            &larr; Previous
+            <i class="fa-solid fa-arrow-left"></i> Previous
         </button>
         <span class="page-indicator">Page {currentPage} of {totalPages}</span>
         <button
@@ -136,16 +151,17 @@
             onclick={nextPage}
             aria-label="Next page"
         >
-            Next &rarr;
+            Next <i class="fa-solid fa-arrow-right"></i>
         </button>
     </div>
 {/if}
+</div>
 
 <!-- Lightbox popup -->
 {#if lightboxItem}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- svelte-ignore a11y_interactive_supports_focus -->
-    <div class="lightbox-overlay" onclick={closeLightbox} role="dialog" aria-modal="true" aria-label="Image lightbox">
+    <div use:portal class="lightbox-overlay" onclick={closeLightbox} role="dialog" aria-modal="true" aria-label="Image lightbox">
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div class="lightbox-content" onclick={(e) => e.stopPropagation()}>
@@ -153,7 +169,16 @@
                 <i class="fa-solid fa-xmark"></i>
             </button>
 
-            {#if lightboxItem.displayMode === 'carousel' && lightboxItem.images.length > 1}
+            {#if lightboxItem.videoId}
+                <div class="video-frame">
+                    <iframe
+                        src="https://www.youtube-nocookie.com/embed/{lightboxItem.videoId}?autoplay=1&rel=0"
+                        title={lightboxItem.title}
+                        allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                        allowfullscreen
+                    ></iframe>
+                </div>
+            {:else if lightboxItem.displayMode === 'carousel' && lightboxItem.images.length > 1}
                 <!-- Preload all carousel images to eliminate switching lag -->
                 {#each lightboxItem.images as imgSrc}
                     <img src={imgSrc} loading="eager" aria-hidden="true" style="display:none;position:absolute;width:0;height:0" alt="" />
@@ -222,6 +247,12 @@
             {#if lightboxItem.title}
                 <h3>{lightboxItem.title}</h3>
             {/if}
+            {#if lightboxItem.videoId}
+                <p class="video-meta">
+                    {[lightboxItem.channel, lightboxItem.views != null ? `${fmtCount(lightboxItem.views)} views` : null].filter(Boolean).join(' · ')}
+                    <a href="https://www.youtube.com/watch?v={lightboxItem.videoId}" target="_blank" rel="noopener">Watch on YouTube <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+                </p>
+            {/if}
             {#if lightboxItem.tags?.length}
                 <div class="lightbox-tags">
                     {#each lightboxItem.tags as t}
@@ -234,77 +265,78 @@
 {/if}
 
 <style>
-    .gallery-outer {
-        padding: 0 var(--container-pad) var(--space-2xl);
+    .work-wrap {
+        max-width: 1500px;
+        margin: 0 auto;
+        padding: 0 clamp(1.25rem, 4vw, 3rem) clamp(3rem, 8vh, 5rem);
     }
 
     .controls {
-        padding: 0 var(--container-pad);
-        max-width: var(--container-max);
-        margin: 0 auto;
+        margin-bottom: 1.5rem;
     }
 
-    .count-row {
-        padding: var(--space-sm) 0 var(--space-md);
-    }
-
-    .count-label {
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-        color: var(--color-text-secondary);
-    }
 
     .pagination {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: var(--space-xl);
-        padding: var(--space-2xl) var(--space-xl);
-        max-width: 1400px;
-        margin: 0 auto;
+        gap: 1.25rem;
+        padding: 2.5rem 0 0;
     }
 
     .page-btn {
-        background: transparent;
-        border: var(--border);
-        color: var(--color-text-primary);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.7rem 1.2rem;
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        color: #fff;
         font-family: var(--font-body);
-        font-size: var(--text-sm);
-        padding: var(--space-sm) var(--space-lg);
+        font-size: 0.88rem;
+        font-weight: 600;
         cursor: pointer;
-        transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+        transition: background 0.2s, border-color 0.2s, color 0.2s;
     }
+    .page-btn i { font-size: 0.8em; }
 
     .page-btn:hover:not(:disabled) {
-        border-color: rgba(255, 255, 255, 0.4);
-        background: rgba(255, 255, 255, 0.05);
+        background: var(--accent, #ff2b1f);
+        border-color: var(--accent, #ff2b1f);
     }
 
     .page-btn:disabled {
-        color: var(--color-text-secondary);
-        opacity: 0.4;
+        opacity: 0.35;
         cursor: not-allowed;
     }
 
     .page-indicator {
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-        color: var(--color-text-secondary);
+        font-family: var(--font-display);
+        font-size: 0.72rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.55);
         min-width: 8rem;
         text-align: center;
     }
 
     @media (max-width: 666px) {
         .pagination {
-            gap: var(--space-md);
+            gap: 0.75rem;
         }
+        .page-indicator { min-width: 0; }
     }
 
     /* Lightbox */
     .lightbox-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(0,0,0,0.85);
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         z-index: 1000;
         display: flex;
         align-items: center;
@@ -321,40 +353,64 @@
     .lightbox-content img {
         max-width: 100%;
         max-height: 80vh;
-        border-radius: 0.5rem;
+        border-radius: 10px;
     }
+    .video-frame {
+        width: min(90vw, calc(78vh * 16 / 9), 1280px);
+        aspect-ratio: 16 / 9;
+        overflow: hidden;
+        border-radius: 10px;
+        background: #000;
+    }
+    .video-frame iframe { display: block; width: 100%; height: 100%; border: 0; }
+    .video-meta {
+        margin: 0.35rem 0 0;
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+    }
+    .video-meta a { margin-left: 0.6rem; color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+    .video-meta a:hover { color: var(--color-accent); }
     .lightbox-content h3 {
-        margin-top: 1rem;
+        margin: 1.1rem 0 0;
+        font-family: var(--font-display);
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #fff;
     }
     .lightbox-close {
         position: absolute;
         top: -1rem;
         right: -1rem;
-        background: rgba(0,0,0,0.7);
-        border: 1px solid rgba(255,255,255,0.2);
+        background: rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
         color: #fff;
         width: 2.5rem;
         height: 2.5rem;
         border-radius: 50%;
         cursor: pointer;
-        font-size: 1.1rem;
+        font-size: 1rem;
         display: flex;
         align-items: center;
         justify-content: center;
         z-index: 10;
+        transition: background 0.2s, border-color 0.2s;
     }
+    .lightbox-close:hover { background: rgba(255, 43, 31, 0.16); border-color: rgba(255, 43, 31, 0.55); }
     .lightbox-tags {
         display: flex;
-        gap: 0.3rem;
+        flex-wrap: wrap;
+        gap: 0.4rem;
         justify-content: center;
-        margin-top: 0.5rem;
+        margin-top: 0.6rem;
     }
     .lightbox-tag {
-        font-size: 0.75rem;
-        padding: 0.15rem 0.5rem;
-        border-radius: 1rem;
-        background: rgba(255,255,255,0.1);
-        color: rgba(255,255,255,0.7);
+        font-size: 0.78rem;
+        padding: 0.3rem 0.75rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: rgba(255, 255, 255, 0.7);
     }
 
     /* Carousel */
@@ -372,21 +428,23 @@
         position: absolute;
         top: 50%;
         transform: translateY(-50%);
-        background: rgba(0,0,0,0.55);
-        border: 1px solid rgba(255,255,255,0.15);
+        background: rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
         color: #fff;
         width: 2.5rem;
         height: 2.5rem;
         border-radius: 50%;
         cursor: pointer;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: background 0.15s;
+        transition: background 0.2s, border-color 0.2s;
         z-index: 2;
     }
-    .carousel-btn:hover { background: rgba(0,0,0,0.85); }
+    .carousel-btn:hover { background: rgba(255, 43, 31, 0.16); border-color: rgba(255, 43, 31, 0.55); }
     .carousel-btn:disabled { opacity: 0.25; cursor: default; pointer-events: none; }
     .carousel-btn-prev { left: -1.25rem; }
     .carousel-btn-next { right: -1.25rem; }
@@ -397,24 +455,26 @@
         margin-top: 1rem;
     }
     .dot {
-        width: 8px; height: 8px; border-radius: 50%;
-        border: 1px solid rgba(255,255,255,0.4);
-        background: transparent;
+        width: 6px; height: 6px; border-radius: 999px;
+        border: none;
+        background: rgba(255, 255, 255, 0.3);
         cursor: pointer; padding: 0;
-        transition: background 0.15s, border-color 0.15s;
+        transition: background 0.2s, width 0.2s;
     }
-    .dot.active { background: #ff2222; border-color: #ff2222; }
+    .dot.active { background: var(--accent, #ff2b1f); width: 16px; }
 
     /* Before / After slider */
     .ba-container {
         position: relative;
         max-width: 100%;
         overflow: hidden;
+        border-radius: 10px;
         cursor: ew-resize;
         user-select: none;
         -webkit-user-select: none;
         touch-action: none;
     }
+    .ba-container img { border-radius: 0; }
     .ba-sizer {
         display: block;
         width: 100%;
@@ -433,7 +493,7 @@
     .ba-slider {
         position: absolute;
         top: 0; bottom: 0;
-        width: 3px;
+        width: 2px;
         background: #fff;
         transform: translateX(-50%);
         z-index: 2;
@@ -443,23 +503,26 @@
         position: absolute;
         top: 50%; left: 50%;
         transform: translate(-50%, -50%);
-        width: 2.2rem; height: 2.2rem;
+        width: 2.4rem; height: 2.4rem;
         border-radius: 50%;
-        background: #fff; color: #333;
+        background: #fff; color: var(--accent, #ff2b1f);
         display: flex; align-items: center; justify-content: center;
         font-size: 0.75rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        box-shadow: 0 0 0 4px rgba(255, 43, 31, 0.25), 0 4px 14px rgba(0, 0, 0, 0.45);
         pointer-events: none;
     }
     .ba-label {
         position: absolute;
         top: 0.75rem;
-        font-size: 0.7rem;
+        font-size: 0.68rem;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        padding: 0.2rem 0.5rem;
-        background: rgba(0,0,0,0.6);
+        letter-spacing: 0.12em;
+        padding: 0.3rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
         color: #fff;
         pointer-events: none;
         z-index: 3;

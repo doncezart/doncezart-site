@@ -1,6 +1,7 @@
 import { db } from '$lib/server/db/index.js';
 import { artwork, artworkImage, artworkTag, tag, category, subcategory } from '$lib/server/db/schema.ts';
 import { desc, and, eq, isNull } from 'drizzle-orm';
+import { videoStats } from '$lib/server/video-artwork.js';
 
 export async function load() {
 	const artworks = await db
@@ -50,6 +51,13 @@ export async function load() {
 		}
 	}
 
+	// Live numbers for video entries (cached 30 min in youtube.js).
+	const stats = Object.fromEntries(
+		await Promise.all(
+			artworks.filter(a => a.displayMode === 'video' && a.videoId).map(async a => [a.id, await videoStats(a.videoId)])
+		)
+	);
+
 	return {
 		artworks: artworks.map(a => {
 			const images = artworkImages[a.id] || [];
@@ -67,7 +75,11 @@ export async function load() {
 				hasCaseStudy: !!(a.caseStudyId),
 				tags: artworkTags[a.id] ?? [],
 				images: images.map(img => img.imageUrl),
-				imageCount: images.length || 1
+				imageCount: images.length || 1,
+				videoId: a.displayMode === 'video' ? a.videoId : null,
+				views: stats[a.id]?.views ?? null,
+				duration: stats[a.id]?.duration ?? null,
+				channel: stats[a.id]?.channel ?? null
 			};
 		}),
 		categoryFilters,

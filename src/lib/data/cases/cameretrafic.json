@@ -1,0 +1,332 @@
+{
+	"_note": "Google Search Console performance export for cameretrafic.ro (web search, daily). Imported from docs/Chart.csv on 2026-11-18.",
+	"site": "cameretrafic.ro",
+	"source": "Google Search Console",
+	"fetchedAt": "2026-11-18",
+	"days": [
+		{
+			"date": "2026-09-24",
+			"clicks": 0,
+			"impressions": 0,
+			"position": null
+		},
+		{
+			"date": "2026-09-25",
+			"clicks": 0,
+			"impressions": 0,
+			"position": null
+		},
+		{
+			"date": "2026-09-26",
+			"clicks": 0,
+			"impressions": 0,
+			"position": null
+		},
+		{
+			"date": "2026-09-27",
+			"clicks": 0,
+			"impressions": 0,
+			"position": null
+		},
+		{
+			"date": "2026-09-28",
+			"clicks": 1,
+			"impressions": 3,
+			"position": 3.3
+		},
+		{
+			"date": "2026-09-29",
+			"clicks": 0,
+			"impressions": 20,
+			"position": 10.5
+		},
+		{
+			"date": "2026-09-30",
+			"clicks": 1,
+			"impressions": 29,
+			"position": 7.1
+		},
+		{
+			"date": "2026-10-01",
+			"clicks": 6,
+			"impressions": 79,
+			"position": 9.4
+		},
+		{
+			"date": "2026-10-02",
+			"clicks": 0,
+			"impressions": 31,
+			"position": 4.2
+		},
+		{
+			"date": "2026-10-03",
+			"clicks": 2,
+			"impressions": 43,
+			"position": 10.1
+		},
+		{
+			"date": "2026-10-04",
+			"clicks": 5,
+			"impressions": 54,
+			"position": 5.0
+		},
+		{
+			"date": "2026-10-05",
+			"clicks": 3,
+			"impressions": 34,
+			"position": 7.8
+		},
+		{
+			"date": "2026-10-06",
+			"clicks": 0,
+			"impressions": 21,
+			"position": 12.3
+		},
+		{
+			"date": "2026-10-07",
+			"clicks": 2,
+			"impressions": 18,
+			"position": 9.6
+		},
+		{
+			"date": "2026-10-08",
+			"clicks": 2,
+			"impressions": 35,
+			"position": 8.8
+		},
+		{
+			"date": "2026-10-09",
+			"clicks": 0,
+			"impressions": 29,
+			"position": 8.4
+		},
+		{
+			"date": "2026-10-10",
+			"clicks": 2,
+			"impressions": 13,
+			"position": 8.4
+		},
+		{
+			"date": "2026-10-11",
+			"clicks": 1,
+			"impressions": 30,
+			"position": 6.3
+		},
+		{
+			"date": "2026-10-12",
+			"clicks": 1,
+			"impressions": 24,
+			"position": 5.9
+		},
+		{
+			"date": "2026-10-13",
+			"clicks": 1,
+			"impressions": 23,
+			"position": 8.7
+		},
+		{
+			"date": "2026-10-14",
+			"clicks": 2,
+			"impressions": 33,
+			"position": 12.0
+		},
+		{
+			"date": "2026-10-15",
+			"clicks": 8,
+			"impressions": 24,
+			"position": 5.5
+		},
+		{
+			"date": "2026-10-16",
+			"clicks": 1,
+			"impressions": 28,
+			"position": 8.5
+		},
+		{
+			"date": "2026-10-17",
+			"clicks": 3,
+			"impressions": 49,
+			"position": 11.1
+		},
+		{
+			"date": "2026-10-18",
+			"clicks": 4,
+			"impressions": 58,
+			"position": 5.0
+		},
+		{
+			"date": "2026-10-19",
+			"clicks": 8,
+			"impressions": 81,
+			"position": 6.2
+		},
+		{
+			"date": "2026-10-20",
+			"clicks": 2,
+			"impressions": 60,
+			"position": 4.8
+		},
+		{
+			"date": "2026-10-21",
+			"clicks": 7,
+			"impressions": 62,
+			"position": 6.4
+		},
+		{
+			"date": "2026-10-22",
+			"clicks": 8,
+			"impressions": 84,
+			"position": 5.0
+		},
+		{
+			"date": "2026-10-23",
+			"clicks": 3,
+			"impressions": 74,
+			"position": 12.1
+		},
+		{
+			"date": "2026-10-24",
+			"clicks": 3,
+			"impressions": 64,
+			"position": 10.5
+		},
+		{
+			"date": "2026-10-25",
+			"clicks": 8,
+			"impressions": 138,
+			"position": 5.6
+		},
+		{
+			"date": "2026-10-26",
+			"clicks": 15,
+			"impressions": 139,
+			"position": 6.0
+		},
+		{
+			"date": "2026-10-27",
+			"clicks": 11,
+			"impressions": 129,
+			"position": 4.8
+		},
+		{
+			"date": "2026-10-28",
+			"clicks": 10,
+			"impressions": 130,
+			"position": 6.4
+		},
+		{
+			"date": "2026-10-29",
+			"clicks": 15,
+			"impressions": 201,
+			"position": 10.1
+		},
+		{
+			"date": "2026-10-30",
+			"clicks": 10,
+			"impressions": 156,
+			"position": 7.5
+		},
+		{
+			"date": "2026-10-31",
+			"clicks": 10,
+			"impressions": 193,
+			"position": 5.0
+		},
+		{
+			"date": "2026-11-01",
+			"clicks": 11,
+			"impressions": 196,
+			"position": 5.2
+		},
+		{
+			"date": "2026-11-02",
+			"clicks": 19,
+			"impressions": 213,
+			"position": 5.1
+		},
+		{
+			"date": "2026-11-03",
+			"clicks": 10,
+			"impressions": 243,
+			"position": 5.4
+		},
+		{
+			"date": "2026-11-04",
+			"clicks": 10,
+			"impressions": 185,
+			"position": 5.8
+		},
+		{
+			"date": "2026-11-05",
+			"clicks": 10,
+			"impressions": 216,
+			"position": 5.6
+		},
+		{
+			"date": "2026-11-06",
+			"clicks": 10,
+			"impressions": 223,
+			"position": 6.1
+		},
+		{
+			"date": "2026-11-07",
+			"clicks": 14,
+			"impressions": 228,
+			"position": 5.8
+		},
+		{
+			"date": "2026-11-08",
+			"clicks": 23,
+			"impressions": 343,
+			"position": 5.3
+		},
+		{
+			"date": "2026-11-09",
+			"clicks": 65,
+			"impressions": 625,
+			"position": 4.9
+		},
+		{
+			"date": "2026-11-10",
+			"clicks": 27,
+			"impressions": 410,
+			"position": 6.4
+		},
+		{
+			"date": "2026-11-11",
+			"clicks": 38,
+			"impressions": 463,
+			"position": 5.3
+		},
+		{
+			"date": "2026-11-12",
+			"clicks": 27,
+			"impressions": 393,
+			"position": 5.6
+		},
+		{
+			"date": "2026-11-13",
+			"clicks": 34,
+			"impressions": 418,
+			"position": 5.9
+		},
+		{
+			"date": "2026-11-14",
+			"clicks": 32,
+			"impressions": 427,
+			"position": 6.0
+		},
+		{
+			"date": "2026-11-15",
+			"clicks": 34,
+			"impressions": 429,
+			"position": 5.1
+		},
+		{
+			"date": "2026-11-16",
+			"clicks": 33,
+			"impressions": 376,
+			"position": 5.0
+		}
+	]
+}

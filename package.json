@@ -8,7 +8,8 @@
 	"scripts": {
 		"dev": "vite dev --host --port 6969",
 		"build": "vite build",
-		"preview": "vite preview"
+		"preview": "vite preview",
+		"postinstall": "playwright install chromium"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-node": "^5.5.4",
@@ -18,7 +19,6 @@
 		"@types/pg": "^8.20.0",
 		"drizzle-kit": "^0.31.10",
 		"mime-types": "^3.0.2",
-		"playwright": "^1.62.1",
 		"svelte": "^5.55.1",
 		"vite": "^8.0.12"
 	},
@@ -30,11 +30,16 @@
 		"@fortawesome/free-brands-svg-icons": "^7.2.0",
 		"@fortawesome/free-regular-svg-icons": "^7.2.0",
 		"@fortawesome/free-solid-svg-icons": "^7.2.0",
+		"@paper-design/shaders": "^0.0.81",
 		"dotenv": "^17.3.1",
 		"drizzle-orm": "^0.45.2",
+		"gsap": "^3.15.0",
 		"html2canvas": "^1.4.1",
 		"jspdf": "^4.2.1",
 		"mdsvex": "^0.12.7",
+		"motion": "^13.4.3",
+		"nodemailer": "^10.6.0",
+		"playwright": "^1.62.1",
 		"postgres": "^3.4.8",
 		"sharp": "^0.34.5",
 		"svelte-check": "^4.4.6",

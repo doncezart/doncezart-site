@@ -166,11 +166,11 @@
 </div>
 
 <style>
-    /* ── Desktop filter rows ── */
+    /* ── Desktop filter rows: pill chips, same as the library's ── */
     .filter-rows {
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        gap: 0.6rem;
         @media (max-width: 666px) {
             display: none;
         }
@@ -184,11 +184,12 @@
 
     .filter-scroll {
         display: flex;
-        gap: 1.5rem;
+        gap: 0.5rem;
         overflow-x: auto;
         scrollbar-width: none;
         -ms-overflow-style: none;
         flex: 1;
+        padding: 2px;
     }
     .filter-scroll::-webkit-scrollbar {
         display: none;
@@ -199,52 +200,68 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 1.5rem;
-        height: 1.5rem;
-        background: none;
-        border: none;
-        color: #555;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        background: rgba(14, 14, 14, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        color: rgba(255, 255, 255, 0.6);
         cursor: pointer;
-        transition: color 0.2s;
-        font-size: 0.7rem;
+        transition: color 0.2s, border-color 0.2s;
+        font-size: 0.65rem;
     }
     .arrow-btn:hover {
-        color: white;
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.3);
     }
 
     .filter-btn {
         flex-shrink: 0;
-        padding: 0;
-        background: none;
-        border: none;
-        color: #8B989C;
-        font-family: 'Satoshi', sans-serif;
-        font-size: 1.15rem;
+        padding: 0.5rem 1rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(14, 14, 14, 0.4);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        color: rgba(255, 255, 255, 0.7);
+        font-family: var(--font-body);
+        font-size: 0.88rem;
         font-weight: 500;
+        line-height: 1.2;
         cursor: pointer;
-        transition: color 0.2s;
+        transition: color 0.2s, border-color 0.2s, background 0.2s;
         white-space: nowrap;
     }
     .filter-btn:hover {
-        color: white;
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.3);
     }
     .filter-btn.active {
-        color: white;
+        color: #fff;
+        background: rgba(255, 43, 31, 0.16);
+        border-color: rgba(255, 43, 31, 0.55);
     }
+    .filter-btn:focus-visible { outline: 2px solid var(--accent, #ff2b1f); outline-offset: 2px; }
 
     .sub-btn {
-        font-size: 1.05rem;
+        padding: 0.4rem 0.85rem;
+        font-size: 0.8rem;
     }
 
     /* ── Mobile menu ── */
     .mobile-menu-toggle {
         display: none;
         width: 100%;
-        padding: 0.75rem 1.5rem;
-        background: transparent;
-        border: 0.1rem solid #333;
-        color: white;
-        font-family: 'Satoshi', sans-serif;
+        padding: 0.8rem 1.1rem;
+        border-radius: 12px;
+        background: rgba(14, 14, 14, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(28px) saturate(140%);
+        -webkit-backdrop-filter: blur(28px) saturate(140%);
+        color: #fff;
+        font-family: var(--font-body);
         font-size: 0.95rem;
         font-weight: 500;
         cursor: pointer;
@@ -254,12 +271,18 @@
             display: flex;
         }
     }
+    .mobile-menu-toggle i { font-size: 0.75rem; color: var(--accent, #ff2b1f); }
 
     .mobile-menu {
         display: none;
         flex-direction: column;
-        border: 0.1rem solid #333;
-        border-top: 0;
+        margin-top: 0.5rem;
+        border-radius: 12px;
+        background: rgba(14, 14, 14, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(28px) saturate(140%);
+        -webkit-backdrop-filter: blur(28px) saturate(140%);
+        overflow: hidden;
         @media (max-width: 666px) {
             display: flex;
         }
@@ -269,36 +292,39 @@
         padding: 0.75rem 0;
     }
     .mobile-menu-section + .mobile-menu-section {
-        border-top: 0.1rem solid #222;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
     }
 
     .mobile-menu-label {
-        padding: 0 1.5rem;
-        font-size: 0.75rem;
+        padding: 0 1.1rem;
+        font-family: var(--font-display);
+        font-size: 0.68rem;
         text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: #555;
-        margin-bottom: 0.5rem;
+        letter-spacing: 0.18em;
+        color: rgba(255, 255, 255, 0.55);
+        margin: 0 0 0.4rem;
     }
 
     .mobile-menu-item {
         display: block;
         width: 100%;
-        padding: 0.6rem 1.5rem;
+        padding: 0.6rem 1.1rem;
         background: transparent;
         border: 0;
-        color: #8B989C;
-        font-family: 'Satoshi', sans-serif;
+        border-left: 2px solid transparent;
+        color: rgba(255, 255, 255, 0.7);
+        font-family: var(--font-body);
         font-size: 0.9rem;
         text-align: left;
         cursor: pointer;
-        transition: color 0.2s, background-color 0.2s;
+        transition: color 0.2s, background-color 0.2s, border-color 0.2s;
     }
     .mobile-menu-item:hover {
-        color: white;
+        color: #fff;
     }
     .mobile-menu-item.active {
-        color: white;
-        background: rgba(255, 255, 255, 0.05);
+        color: #fff;
+        background: rgba(255, 43, 31, 0.16);
+        border-left-color: var(--accent, #ff2b1f);
     }
 </style>

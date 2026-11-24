@@ -104,7 +104,7 @@
 					onchange={handleFileChange}
 				/>
 			</label>
-			<span class="hint">WebP, PNG, JPEG, GIF, TIFF, AVIF — up to 50 MB each</span>
+			<span class="hint">WebP, PNG, JPEG, GIF, TIFF, AVIF, up to 50 MB each</span>
 		{:else}
 			<div class="file-list">
 				<div class="file-list-header">

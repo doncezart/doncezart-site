@@ -112,7 +112,7 @@
 		</label>
 
 		<label>
-			Notes <span class="field-hint">(public — shown in full-view popup)</span>
+			Notes <span class="field-hint">(public, shown in full-view popup)</span>
 			<textarea name="notes" rows="3">{data.item.notes ?? ''}</textarea>
 		</label>
 
@@ -232,7 +232,7 @@
 							onchange={handleFileChange}
 						/>
 					</label>
-					<span class="dropzone-hint">Images or Video — type detected automatically. Multiple = carousel.</span>
+					<span class="dropzone-hint">Images or video, type detected automatically. Multiple = carousel.</span>
 				{:else}
 					<div class="file-preview-list">
 						{#each selectedFiles as f, i (f.name + i)}
@@ -274,7 +274,7 @@
 				{#if thumbPreview}
 					<img src={thumbPreview} alt="thumbnail" class="thumb-preview-img" />
 				{:else}
-					<p class="regen-hint">No thumbnail — first frame used as fallback.</p>
+					<p class="regen-hint">No thumbnail. The first frame is used instead.</p>
 				{/if}
 
 				<div class="scrubber-wrap">

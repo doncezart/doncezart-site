@@ -2,7 +2,7 @@
 	let { data } = $props();
 
 	function formatDate(d) {
-		if (!d) return '—';
+		if (!d) return '–';
 		return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 	}
 </script>
@@ -82,11 +82,11 @@
 							<span class="recent-meta">{formatDate(item.createdAt)}</span>
 						</div>
 						{#if item.processed}
-							<span class="mini-badge processed" title="Processed — {item.imageProcessed}/{item.imageTotal} images optimized">
+							<span class="mini-badge processed" title="Processed: {item.imageProcessed}/{item.imageTotal} images optimized">
 								<i class="fa-solid fa-check"></i> {item.imageProcessed}/{item.imageTotal}
 							</span>
 						{:else}
-							<span class="mini-badge unprocessed" title="Not processed — original files only">
+							<span class="mini-badge unprocessed" title="Not processed: original files only">
 								<i class="fa-solid fa-clock"></i>
 							</span>
 						{/if}

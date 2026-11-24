@@ -7,30 +7,36 @@
 </span>
 
 <style>
+    /* Small pill over media tiles: accent by default, frosted when `dark`. */
     .badge {
         position: absolute;
-        top: var(--space-sm);
-        right: var(--space-sm);
+        top: 0.55rem;
+        right: 0.55rem;
+        z-index: 2;
         display: inline-flex;
         align-items: center;
-        gap: 0.3rem;
-        padding: 0.2rem 0.5rem;
-        background: var(--color-accent);
-        color: var(--color-text-primary);
+        gap: 0.35rem;
+        padding: 0.28rem 0.6rem;
+        background: var(--accent, #ff2b1f);
+        color: #fff;
         font-family: var(--font-body);
-        font-size: var(--text-xs);
+        font-size: 0.7rem;
         font-weight: 600;
+        line-height: 1.2;
         pointer-events: none;
-        border-radius: var(--radius);
+        border-radius: 999px;
     }
+    .badge :global(i) { font-size: 0.9em; }
 
     .badge--top-left {
         right: auto;
-        left: var(--space-sm);
+        left: 0.55rem;
     }
 
     .badge--dark {
-        background: rgba(0, 0, 0, 0.7);
-        border: var(--border);
+        background: rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
     }
 </style>

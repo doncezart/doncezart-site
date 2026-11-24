@@ -1,0 +1,11 @@
+{
+	"_note": "Public channel details from the YouTube Data API (channels.list). Avatar saved to static/cases/santea/avatar.jpg.",
+	"channelId": "UCs1pojuhtNrY5DEb5707sHA",
+	"name": "Santea",
+	"handle": "@santea_",
+	"subscribers": 805000,
+	"totalViews": 147827599,
+	"videos": 833,
+	"avatar": "/cases/santea/avatar.jpg",
+	"fetchedAt": "2026-11-18"
+}

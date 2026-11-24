@@ -1,5 +1,14 @@
 <script>
-    let { balance, items } = $props();
+    import { totalSpent as sumSpent, money } from '$lib/balance-math.js';
+
+    // `carry` is this balance's ledger entry (carriedFrom / carriedTo). Spent
+    // and remaining are computed here from `items`, so the admin preview
+    // follows unsaved edits live.
+    let { balance, items, carry = null } = $props();
+
+    let carriedFrom = $derived(carry?.carriedFrom ?? []);
+    let carriedTo = $derived(carry?.carriedTo ?? null);
+    let carryIn = $derived(carriedFrom.reduce((s, c) => s + c.amount, 0));
 
     function displayPrice(cents, discountPct = 0) {
         const discounted = Math.round(cents * (100 - discountPct) / 100);
@@ -29,11 +38,13 @@
         }));
     });
 
-    let totalSpent = $derived(items.reduce((sum, item) => {
-        return sum + Math.round(item.amount * (100 - item.discountPct) / 100);
-    }, 0));
+    let totalSpent = $derived(sumSpent(items));
 
-    let remaining = $derived(balance.initialAmount - totalSpent);
+    let remaining = $derived(balance.initialAmount + carryIn - totalSpent);
+
+    function shortDate(d) {
+        return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
 
     function formatDate(d) {
         if (!d) return '';
@@ -114,14 +125,33 @@
     <hr class="receipt-divider" />
 
     <div class="receipt-totals">
+        {#if carriedFrom.length}
+            {#each carriedFrom as c}
+                <div class="total-row carry-row">
+                    <span>{c.amount < 0 ? 'Owed from' : 'Left over from'} {shortDate(c.paymentDate)} balance</span>
+                    <span class:neg={c.amount < 0} class:pos={c.amount > 0}>{money(c.amount, { sign: true })}</span>
+                </div>
+            {/each}
+        {/if}
         <div class="total-row">
             <span>Total spent</span>
-            <span>${displayCents(totalSpent)}</span>
+            <span>{money(totalSpent)}</span>
         </div>
-        <div class="total-row remaining">
-            <span>Remaining</span>
-            <span>${displayCents(remaining)}</span>
-        </div>
+        {#if carriedTo}
+            <div class="total-row carry-row">
+                <span>{remaining < 0 ? 'Owed amount moved' : 'Left over moved'} to {shortDate(carriedTo.paymentDate)} balance</span>
+                <span>{money(-remaining, { sign: true })}</span>
+            </div>
+            <div class="total-row remaining">
+                <span>Remaining</span>
+                <span>{money(0)}</span>
+            </div>
+        {:else}
+            <div class="total-row remaining" class:neg={remaining < 0}>
+                <span>{remaining < 0 ? 'Owed' : 'Remaining'}</span>
+                <span>{money(Math.abs(remaining))}</span>
+            </div>
+        {/if}
     </div>
 
     {#if balance.expiresAt}
@@ -293,6 +323,21 @@
         display: flex;
         justify-content: space-between;
         font-size: 1rem;
+    }
+    .total-row > span:last-child {
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+    .carry-row {
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.6);
+        gap: 1rem;
+    }
+    .pos {
+        color: #4ade80;
+    }
+    .neg {
+        color: #f87171;
     }
     .total-row.remaining {
         font-weight: 700;

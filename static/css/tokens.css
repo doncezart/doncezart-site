@@ -2,10 +2,10 @@
   /* ── Colors ── */
   --color-bg:             #000000;
   --color-text-primary:   #ffffff;
-  --color-text-secondary: #8B989C;
+  --color-text-secondary: rgba(255, 255, 255, 0.64);
   --color-border:         rgba(255, 255, 255, 0.12);
   --color-glass-bg:       rgba(0, 0, 0, 0.6);
-  --color-accent:         #ff0000;
+  --color-accent:         #ff2b1f;
   --color-discord:        #7289DA;
 
   /* ── Typography ── */

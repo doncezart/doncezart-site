@@ -1,4 +1,5 @@
-import { hashPin, getBalanceWithItems, getPreviousBalances } from '$lib/server/balance.js';
+import { hashPin, getBalanceWithItems, getPreviousBalances, getLedger } from '$lib/server/balance.js';
+import { wouldCycle } from '$lib/balance-math.js';
 import { db } from '$lib/server/db/index.js';
 import { balance, balanceItem, balancePrevious, auditEvent } from '$lib/server/db/schema.ts';
 import { and, eq, isNull, ne, sql } from 'drizzle-orm';
@@ -11,21 +12,34 @@ export async function load({ params }) {
         throw redirect(303, '/admin/balances');
     }
 
-    const previousBalances = await getPreviousBalances(params.id);
+    const [linked, { ledger, links }] = await Promise.all([getPreviousBalances(params.id), getLedger()]);
+    const self = ledger.get(params.id);
 
-    // Everything except this balance and already-linked ones can be linked.
+    // Each linked balance with what it carries in (or where it carries instead).
+    const previousBalances = linked.map((p) => {
+        const l = ledger.get(p.id);
+        const carriesHere = l?.carriedTo?.id === params.id;
+        return { ...p, remaining: l?.remaining ?? 0, carriesHere, carriedTo: carriesHere ? null : l?.carriedTo ?? null };
+    });
+
+    // Balances that can still be linked: not this one, not already linked,
+    // not already carrying into another balance, and not one that would loop.
+    const linkedIds = new Set(linked.map((p) => p.id));
     const allOther = await db
         .select({ id: balance.id, shortId: balance.shortId, label: balance.label, paymentDate: balance.paymentDate })
         .from(balance)
         .where(ne(balance.id, params.id))
-        .orderBy(sql`${balance.createdAt} DESC`);
-    const linkedIds = new Set(previousBalances.map(p => p.id));
+        .orderBy(sql`${balance.paymentDate} DESC`);
+    const linkableBalances = allOther
+        .filter((b) => !linkedIds.has(b.id) && !ledger.get(b.id)?.carriedTo && !wouldCycle(links, params.id, b.id))
+        .map((b) => ({ ...b, remaining: ledger.get(b.id)?.remaining ?? 0 }));
 
     return {
         balance: data.balance,
         items: data.items,
+        ledger: self,
         previousBalances,
-        linkableBalances: allOther.filter(b => !linkedIds.has(b.id))
+        linkableBalances
     };
 }
 
@@ -191,7 +205,7 @@ export const actions = {
 
         // Scope the update to this balance so we can never touch another balance's item.
         const [existing] = await db
-            .select({ id: balanceItem.id, parentId: balanceItem.parentId })
+            .select({ id: balanceItem.id, parentId: balanceItem.parentId, type: balanceItem.type })
             .from(balanceItem)
             .where(and(eq(balanceItem.id, itemId), eq(balanceItem.balanceId, params.id)))
             .limit(1);
@@ -204,7 +218,7 @@ export const actions = {
         await db.update(balanceItem).set({
             title: parsed.title,
             amount: parsed.amount,
-            type: parsed.type,
+            type: existing.parentId && !parsed.type ? existing.type : parsed.type,
             url: parsed.url,
             discountPct: parsed.discountPct,
             updatedAt: new Date()
@@ -267,6 +281,15 @@ export const actions = {
             .where(and(eq(balancePrevious.balanceId, params.id), eq(balancePrevious.previousId, previousId)))
             .limit(1);
         if (existing) return fail(400, { previousError: 'That balance is already linked.' });
+
+        const { ledger, links } = await getLedger();
+        if (wouldCycle(links, params.id, previousId)) {
+            return fail(400, { previousError: 'That would make a loop: this balance already comes before it.' });
+        }
+        const elsewhere = ledger.get(previousId)?.carriedTo;
+        if (elsewhere) {
+            return fail(400, { previousError: `That balance already carries over into "${elsewhere.label || 'another balance'}". Unlink it there first.` });
+        }
 
         const [agg] = await db
             .select({ maxPos: sql`COALESCE(MAX(${balancePrevious.position}), -1)::int` })

@@ -24,7 +24,14 @@ const config = {
 					'https://cdn.doncez.art',
 					'https://i.ytimg.com',
 					'https://yt3.googleusercontent.com',
-					'https://yt3.ggpht.com'
+					'https://yt3.ggpht.com',
+					'https://avatars.githubusercontent.com',
+					'https://*.tiktokcdn.com',
+					'https://*.tiktokcdn-us.com',
+					'https://static-cdn.jtvnw.net',
+					'https://*.cdninstagram.com',
+					'https://*.fbcdn.net',
+					'https://pbs.twimg.com'
 				],
 				'media-src': ["'self'", 'https://cdn.doncez.art'],
 				'connect-src': [
@@ -33,9 +40,16 @@ const config = {
 					'https://analytics.ceza.ro',
 					'https://i.ytimg.com',
 					'https://yt3.googleusercontent.com',
-					'https://yt3.ggpht.com'
+					'https://yt3.ggpht.com',
+					'https://avatars.githubusercontent.com',
+					'https://*.tiktokcdn.com',
+					'https://*.tiktokcdn-us.com',
+					'https://static-cdn.jtvnw.net',
+					'https://*.cdninstagram.com',
+					'https://*.fbcdn.net',
+					'https://pbs.twimg.com'
 				],
-				'frame-src': ['https://challenges.cloudflare.com'],
+				'frame-src': ['https://challenges.cloudflare.com', 'https://www.youtube-nocookie.com'],
 				'object-src': ["'none'"],
 				'base-uri': ["'self'"],
 				'form-action': ["'self'"],

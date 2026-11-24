@@ -16,6 +16,7 @@ import {
 	validateUploads,
 	processAndUpload
 } from '$lib/server/upload.js';
+import { videoIdFrom, thumbnailFile, videoStats } from '$lib/server/video-artwork.js';
 
 export async function load() {
 	const tags = await db.select().from(tag).orderBy(tag.name);
@@ -28,7 +29,7 @@ export async function load() {
 export const actions = {
 	default: async ({ request, locals, getClientAddress }) => {
 		const data = await request.formData();
-		const title = data.get('title')?.toString().trim();
+		let title = data.get('title')?.toString().trim();
 		const description = data.get('description')?.toString().trim() || null;
 		const cat = data.get('category')?.toString().trim();
 		const sub = data.get('subcategory')?.toString().trim() || null;
@@ -39,6 +40,22 @@ export const actions = {
 		const visible = data.get('visible') ? true : true; // default true; admin can toggle later
 		const tagIds = data.getAll('tags').map(Number).filter(Boolean);
 		const imageFiles = data.getAll('images').filter((f) => f instanceof File && f.size > 0);
+
+		// Video: a YouTube link; title and cover come from YouTube when left empty.
+		let videoId = null;
+		if (displayMode === 'video') {
+			videoId = videoIdFrom(data.get('video_url'));
+			if (!videoId) return fail(400, { error: 'Paste a valid YouTube link for a video.' });
+			if (!title) title = (await videoStats(videoId)).title ?? undefined;
+			if (imageFiles.length === 0) {
+				try {
+					imageFiles.push(await thumbnailFile(videoId));
+				} catch (e) {
+					return fail(400, { error: e.message });
+				}
+			}
+			imageFiles.splice(1);
+		}
 
 		if (!title || !cat) {
 			return fail(400, { error: 'Title and category are required.' });
@@ -85,6 +102,7 @@ export const actions = {
 						category: cat,
 						subcategory: sub,
 						displayMode,
+						videoId,
 						carouselDirection,
 						caseStudyId,
 						hasCaseStudy: !!caseStudyId,

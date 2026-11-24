@@ -2,6 +2,7 @@ import { db } from '$lib/server/db/index.js';
 import { balance, balanceItem, balancePrevious } from '$lib/server/db/schema.ts';
 import { eq } from 'drizzle-orm';
 import crypto from 'node:crypto';
+import { buildLedger } from '$lib/balance-math.js';
 
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
 const SHORT_ID_LENGTH = 8;
@@ -119,4 +120,28 @@ export async function getPreviousBalances(balanceId) {
         .where(eq(balancePrevious.balanceId, balanceId))
         .orderBy(balancePrevious.position, balance.createdAt);
     return rows;
+}
+
+/**
+ * Every balance's live numbers, carry-over included (see buildLedger).
+ * Computed from scratch on each call so edits to an earlier balance always
+ * flow into the balances it carries into.
+ */
+export async function getLedger() {
+    const [bals, items, links] = await Promise.all([
+        db.select({
+            id: balance.id,
+            shortId: balance.shortId,
+            label: balance.label,
+            paymentDate: balance.paymentDate,
+            initialAmount: balance.initialAmount
+        }).from(balance),
+        db.select({
+            balanceId: balanceItem.balanceId,
+            amount: balanceItem.amount,
+            discountPct: balanceItem.discountPct
+        }).from(balanceItem),
+        db.select().from(balancePrevious)
+    ]);
+    return { ledger: buildLedger(bals, items, links), links };
 }

@@ -1,0 +1,31 @@
+{
+	"_note": "PLACEHOLDER data: every number here is made up so the Instagram case can be designed. Replace with real Instagram Insights numbers (and set placeholder to false) before launch.",
+	"placeholder": true,
+	"handle": "yourpage",
+	"name": "Your Page",
+	"source": "Instagram Insights",
+	"fetchedAt": null,
+	"posts": 96,
+	"following": 112,
+	"growth": [
+		{ "month": "2026-01", "followers": 0 },
+		{ "month": "2026-02", "followers": 180 },
+		{ "month": "2026-03", "followers": 640 },
+		{ "month": "2026-04", "followers": 1500 },
+		{ "month": "2026-05", "followers": 3100 },
+		{ "month": "2026-06", "followers": 5900 },
+		{ "month": "2026-07", "followers": 9800 },
+		{ "month": "2026-08", "followers": 15400 },
+		{ "month": "2026-09", "followers": 23700 },
+		{ "month": "2026-10", "followers": 34900 },
+		{ "month": "2026-11", "followers": 48200 }
+	],
+	"topPosts": [
+		{ "views": 1200000 },
+		{ "views": 840000 },
+		{ "views": 610000 },
+		{ "views": 455000 },
+		{ "views": 380000 },
+		{ "views": 290000 }
+	]
+}

@@ -1,9 +1,10 @@
 <script>
+    import { goto } from '$app/navigation';
+    import { money } from '$lib/balance-math.js';
+
     let { data } = $props();
 
-    function displayCents(cents) {
-        return (cents / 100).toFixed(2);
-    }
+    const shortDate = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
     function isExpired(b) {
         return b.expiresAt && new Date(b.expiresAt) < new Date();
@@ -11,7 +12,7 @@
 </script>
 
 <svelte:head>
-    <title>Balances — Admin</title>
+    <title>Balances | Admin</title>
 </svelte:head>
 
 <div class="balances-page">
@@ -32,6 +33,7 @@
                         <th>Label</th>
                         <th>Payment Date</th>
                         <th>Initial</th>
+                        <th>Carried in</th>
                         <th>Spent</th>
                         <th>Remaining</th>
                         <th>Status</th>
@@ -39,15 +41,26 @@
                 </thead>
                 <tbody>
                     {#each data.balances as b}
-                        {@const remaining = b.initialAmount - b.totalSpent}
-                        <tr class="clickable" onclick={() => window.location = `/admin/balances/${b.id}`}>
-                            <td class="cell-label">{b.label || '—'}</td>
-                            <td>{new Date(b.paymentDate).toLocaleDateString('en-GB')}</td>
-                            <td>${displayCents(b.initialAmount)}</td>
-                            <td>${displayCents(b.totalSpent)}</td>
-                            <td class:negative={remaining < 0}>${displayCents(remaining)}</td>
+                        <tr class="clickable" onclick={() => goto(`/admin/balances/${b.id}`)}>
+                            <td class="cell-label"><a href={`/admin/balances/${b.id}`}>{b.label || '–'}</a></td>
+                            <td>{shortDate(b.paymentDate)}</td>
+                            <td>{money(b.initial)}</td>
+                            <td class="muted" class:negative={b.carryIn < 0} class:positive={b.carryIn > 0}>{b.carriedFrom.length ? money(b.carryIn, { sign: true }) : '–'}</td>
+                            <td>{money(b.spent)}</td>
                             <td>
-                                {#if isExpired(b)}
+                                {#if b.carriedTo}
+                                    <span class="carried" title="Remaining moved to the next balance">
+                                        <span class:negative={b.remaining < 0}>{money(b.remaining)}</span>
+                                        <i class="fa-solid fa-arrow-right"></i> {shortDate(b.carriedTo.paymentDate)}
+                                    </span>
+                                {:else}
+                                    <strong class:negative={b.remaining < 0}>{money(b.remaining)}</strong>
+                                {/if}
+                            </td>
+                            <td>
+                                {#if b.carriedTo}
+                                    <span class="status-badge closed">Carried over</span>
+                                {:else if isExpired(b)}
                                     <span class="status-badge expired">Expired</span>
                                 {:else}
                                     <span class="status-badge active">Active</span>
@@ -116,8 +129,27 @@
     .cell-label {
         font-weight: 500;
     }
+    .cell-label a {
+        color: inherit;
+        text-decoration: none;
+    }
+    .muted {
+        color: rgba(255, 255, 255, 0.45);
+    }
     .negative {
         color: #f87171;
+    }
+    .positive {
+        color: #4ade80;
+    }
+    .carried {
+        color: rgba(255, 255, 255, 0.45);
+        white-space: nowrap;
+        font-size: 0.85rem;
+    }
+    .carried i {
+        font-size: 0.7rem;
+        margin: 0 0.2rem;
     }
     .status-badge {
         font-size: 0.75rem;
@@ -127,6 +159,10 @@
     .status-badge.active {
         background: rgba(74, 222, 128, 0.15);
         color: #4ade80;
+    }
+    .status-badge.closed {
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.55);
     }
     .status-badge.expired {
         background: rgba(248, 113, 113, 0.15);

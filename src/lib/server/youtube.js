@@ -92,7 +92,7 @@ export async function fetchYouTubeVideoInfo(url) {
 			dataError = e instanceof HttpError
 				? { status: e.status, message: e.message?.slice(0, 160) ?? 'Unknown error' }
 				: { status: 0, message: 'Network error' };
-			console.error(`[youtube] Data API failed for ${id}: ${dataError.status} — ${dataError.message}`);
+			console.error(`[youtube] Data API failed for ${id}: ${dataError.status}: ${dataError.message}`);
 		}
 	}
 	if (!data) {

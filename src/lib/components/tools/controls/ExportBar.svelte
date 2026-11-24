@@ -1,8 +1,8 @@
 <script>
-    import html2canvas from 'html2canvas';
+    import { captureElement } from '../capture.js';
 
-    /** @type {{ cardEl: HTMLElement | null, filename: string }} */
-    let { cardEl, filename } = $props();
+    /** @type {{ cardEl: HTMLElement | null, filename: string, tool?: string, onexport?: (e: { format: string, action: 'download'|'copy' }) => void }} */
+    let { cardEl, filename, tool = 'youtube-card', onexport } = $props();
 
     const FORMATS = [
         { id: 'png', label: 'PNG' },
@@ -16,30 +16,8 @@
     let error = $state('');
 
     async function capture(backgroundColor = null) {
-        if (!cardEl) throw new Error('Card not ready.');
-        await document.fonts.ready;
-
-        // html2canvas measures the element via getBoundingClientRect, which is
-        // shrunk by the preview's ancestor transform: scale(). Mount the card on
-        // the body outside the scaled tree so the capture box is the true layout
-        // size, then restore it to its original slot.
-        const holder = document.createElement('div');
-        holder.style.cssText = `position:fixed;left:-100000px;top:0;width:${cardEl.offsetWidth}px`;
-        document.body.appendChild(holder);
-        const originalParent = cardEl.parentElement;
-        const nextSibling = cardEl.nextSibling;
-        holder.appendChild(cardEl);
-
         // JPEG has no alpha channel — render against white instead of transparent black.
-        const bg = backgroundColor ?? (format === 'jpeg' ? '#ffffff' : null);
-        try {
-            return await html2canvas(cardEl, { scale: 1, backgroundColor: bg, useCORS: true });
-        } finally {
-            if (originalParent) {
-                originalParent.insertBefore(cardEl, nextSibling);
-            }
-            holder.remove();
-        }
+        return captureElement(cardEl, backgroundColor ?? (format === 'jpeg' ? '#ffffff' : null));
     }
 
     async function download() {
@@ -55,10 +33,11 @@
             a.download = `${filename}.${format === 'jpeg' ? 'jpg' : format}`;
             a.click();
             setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
-            window.umami?.track('tool-export', { tool: 'youtube-card', format, action: 'download' });
+            window.umami?.track('tool-export', { tool, format, action: 'download' });
+            onexport?.({ format, action: 'download' });
         } catch (e) {
             console.error(e);
-            error = 'Export failed — try a different layout.';
+            error = 'Export failed. Try a different layout.';
         } finally {
             exporting = false;
         }
@@ -75,10 +54,11 @@
             await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
             copied = true;
             setTimeout(() => (copied = false), 2000);
-            window.umami?.track('tool-export', { tool: 'youtube-card', format: 'png', action: 'copy' });
+            window.umami?.track('tool-export', { tool, format: 'png', action: 'copy' });
+            onexport?.({ format: 'png', action: 'copy' });
         } catch (e) {
             console.error(e);
-            error = 'Clipboard blocked by the browser — use Download instead.';
+            error = 'Clipboard blocked by the browser. Use Download instead.';
         } finally {
             exporting = false;
         }
@@ -86,7 +66,7 @@
 </script>
 
 <div class="export-bar">
-    <div class="export-row">
+    <div class="export-row formats" role="group" aria-label="Export format">
         <button
             class="btn-action"
             class:active={format === 'png'}
@@ -105,11 +85,11 @@
     </div>
 
     <div class="export-row">
-        <button class="btn-download" disabled={exporting} onclick={download}>
+        <button class="btn btn-sm btn-download" disabled={exporting} onclick={download}>
             <i class="fa-solid fa-download"></i>
             {exporting ? 'Rendering…' : 'Download'}
         </button>
-        <button class="btn-copy" disabled={exporting} onclick={copy}>
+        <button class="btn btn-ghost btn-sm btn-copy" disabled={exporting} onclick={copy}>
             <i class="fa-solid fa-clipboard"></i>
             {copied ? 'Copied!' : 'Copy to clipboard'}
         </button>
@@ -124,13 +104,13 @@
     .export-bar {
         display: flex;
         flex-direction: column;
-        gap: var(--space-sm);
+        gap: 0.75rem;
         flex: 1;
     }
 
     .export-row {
         display: flex;
-        gap: var(--space-xs);
+        gap: 0.5rem;
         flex-wrap: wrap;
     }
     .export-row > button {
@@ -139,62 +119,49 @@
         white-space: nowrap;
     }
 
+    /* Format picker: one pill track with a red-tinted selected segment */
+    .formats {
+        gap: 0.25rem;
+        padding: 0.25rem;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.03);
+        flex-wrap: nowrap;
+    }
     .btn-action {
+        padding: 0.42rem 0.9rem;
+        border: 1px solid transparent;
+        border-radius: 999px;
         background: transparent;
-        border: var(--border);
-        color: var(--color-text-secondary);
+        color: rgba(255, 255, 255, 0.7);
         font-family: var(--font-body);
-        font-size: var(--text-sm);
+        font-size: 0.82rem;
         font-weight: 500;
-        padding: 0.4rem 0.9rem;
         cursor: pointer;
-        transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+        transition: background 0.2s, color 0.2s, border-color 0.2s;
     }
-    .btn-action:hover {
-        color: var(--color-text-primary);
-    }
+    .btn-action:hover { color: #fff; }
     .btn-action.active {
-        background: var(--color-text-primary);
-        border-color: var(--color-text-primary);
-        color: #000;
+        color: #fff;
+        background: rgba(255, 43, 31, 0.16);
+        border-color: rgba(255, 43, 31, 0.55);
     }
 
-    .btn-download,
-    .btn-copy {
-        border: 0;
+    /* Download / Copy use the site's .btn / .btn-ghost (LandingShell) */
+    .export-row .btn-download,
+    .export-row .btn-copy {
         font-family: var(--font-body);
-        font-size: var(--text-sm);
-        font-weight: 600;
-        padding: 0.5rem 1.1rem;
         cursor: pointer;
-        transition: opacity var(--transition-fast);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.45rem;
     }
-    .btn-download {
-        background: var(--color-text-primary);
-        color: #000;
-    }
-    .btn-copy {
-        background: transparent;
-        color: var(--color-text-primary);
-        border: var(--border-solid);
-    }
-    .btn-download:hover,
-    .btn-copy:hover {
-        opacity: 0.8;
-    }
-    .btn-download:disabled,
-    .btn-copy:disabled {
-        opacity: 0.4;
-        cursor: wait;
+    .export-row .btn-download:disabled,
+    .export-row .btn-copy:disabled {
+        opacity: 0.5;
+        cursor: progress;
     }
 
     .export-error {
         font-family: var(--font-body);
-        font-size: var(--text-xs);
-        color: var(--color-accent);
+        font-size: 0.78rem;
+        color: #ff8a80;
     }
 </style>

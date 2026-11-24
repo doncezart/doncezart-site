@@ -108,6 +108,12 @@
 							</a>
 						</div>
 					{/if}
+
+					<!-- Card generations (YouTube card tool + API) -->
+					<a href="/admin/generations" class="nav-item" class:active={isActive('/admin/generations')}>
+						<i class="fa-solid fa-chart-simple"></i>
+						<span>Generations</span>
+					</a>
 				</nav>
 			</div>
 

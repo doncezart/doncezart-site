@@ -107,7 +107,7 @@
 		</label>
 
 		<label>
-			Notes <span class="field-hint">(public — shown in the full-view popup)</span>
+			Notes <span class="field-hint">(public, shown in the full-view popup)</span>
 			<textarea name="notes" rows="3">{form?.notes ?? ''}</textarea>
 		</label>
 
@@ -196,7 +196,7 @@
 							onchange={handleFileChange}
 						/>
 					</label>
-					<span class="dropzone-hint">Images (WebP, PNG, JPEG…) or Video (MP4, WebM, MOV — max 200 MB). Multiple images = carousel.</span>
+					<span class="dropzone-hint">Images (WebP, PNG, JPEG…) or Video (MP4, WebM, MOV, max 200 MB). Multiple images = carousel.</span>
 				{:else}
 					<div class="file-preview-list">
 						{#each selectedFiles as f, i (f.name + i)}
