@@ -227,6 +227,13 @@
 	`;
 
 	onMount(() => {
+		// ?off=bg (static/diag.js): skip WebGL, show the CSS stand-in.
+		if (document.documentElement.classList.contains('off-bg')) {
+			fallback = true;
+			return;
+		}
+		// Tell the diagnostics if the browser takes the GPU context away.
+		canvas.addEventListener('webglcontextlost', () => window.__diag?.('webgl-lost', 'ember canvas'));
 		const gl = canvas.getContext('webgl', { antialias: false, alpha: false, premultipliedAlpha: false });
 		if (!gl) {
 			fallback = true;

@@ -798,6 +798,8 @@
         transition: width 0.25s ease, height 0.25s ease;
     }
     .mat :global(svg) { display: block; width: 100%; height: 100%; }
+    /* ?off=mat (static/diag.js): hide the preview, to test if it's the cause. */
+    :global(html.off-mat) .mat { display: none; }
     .stage-tag {
         position: absolute;
         left: 1rem;

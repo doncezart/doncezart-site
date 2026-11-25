@@ -122,6 +122,14 @@
 		}
 	}
 
+	/* ?off=anim (static/diag.js): no animations or transitions at all. */
+	:global(html.off-anim) .page :global(*),
+	:global(html.off-anim) .page :global(*::before),
+	:global(html.off-anim) .page :global(*::after) {
+		animation: none !important;
+		transition: none !important;
+	}
+
 	/* ── Buttons: solid and plain; hover just warms to the accent. Global so
 	   the section components share them. ── */
 	.page :global(.btn) {

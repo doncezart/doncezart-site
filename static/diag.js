@@ -7,12 +7,24 @@
  * - If the app hasn't started (+layout.svelte sets data-hydrated) 8s after
  *   load, that is reported too: it's the "blank page" case.
  * - Open any page with ?diag to also see a panel with the same information
- *   (screenshot it and send it over).
+ *   (screenshot it and send it over). With ?diag the page also reports right
+ *   away and then every 2s for 30s ("beat"), so the log shows whether the tab
+ *   died (beats stop) or stayed alive behind a black screen (beats go on).
+ * - ?diag&off=bg,anim,mat switches parts off to find the culprit:
+ *     bg   - the WebGL ember background (CSS gradient instead)
+ *     anim - every animation and transition
+ *     mat  - the cutting mat preview
+ *   Each becomes an `off-<name>` class on <html>.
+ * - Components can report through window.__diag(kind, detail).
  */
 (function () {
 	var errors = [];
 	var sent = 0;
 	var show = /[?&]diag\b/.test(location.search);
+	var offMatch = /[?&]off=([a-z,]+)/.exec(location.search);
+	var off = offMatch ? offMatch[1].split(',') : [];
+	for (var o = 0; o < off.length; o++) document.documentElement.className += ' off-' + off[o];
+	var t0 = Date.now();
 
 	// Probed once, and the context released straight away: each probe is a
 	// real WebGL context, and too many make the browser drop the embers' one.
@@ -44,13 +56,16 @@
 			hydrated: document.documentElement.hasAttribute('data-hydrated'),
 			webgl: webgl(),
 			modules: 'noModule' in document.createElement('script'),
-			containerQueries: !!(window.CSS && CSS.supports && CSS.supports('container-type', 'inline-size'))
+			containerQueries: !!(window.CSS && CSS.supports && CSS.supports('container-type', 'inline-size')),
+			off: off.join(',') || 'none',
+			t: ((Date.now() - t0) / 1000).toFixed(1) + 's',
+			visible: document.visibilityState
 		};
 	}
 
-	function send(kind, detail) {
-		if (sent >= 5) return;
-		sent++;
+	function send(kind, detail, force) {
+		if (sent >= 5 && !force) return;
+		if (!force) sent++;
 		var body = info();
 		body.kind = kind;
 		body.detail = String(detail || '').slice(0, 1500);
@@ -86,10 +101,23 @@
 		record('rejection', r && r.stack ? r.stack : String(r));
 	});
 
+	window.__diag = function (kind, detail) {
+		record(kind, detail);
+	};
+
+	if (show) {
+		send('beat', 'start', true);
+		var beats = 0;
+		var beat = setInterval(function () {
+			beats++;
+			send('beat', errors.length ? errors[errors.length - 1] : '', true);
+			if (beats >= 15) clearInterval(beat);
+		}, 2000);
+	}
+
 	window.addEventListener('load', function () {
 		setTimeout(function () {
 			if (!document.documentElement.hasAttribute('data-hydrated')) send('no-hydrate', errors.join('\n'));
-			if (show) send('diag', errors.join('\n'));
 			render();
 		}, 8000);
 	});

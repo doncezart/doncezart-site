@@ -29,6 +29,9 @@ export async function POST({ request, getClientAddress }) {
 		JSON.stringify({
 			kind: pick('kind', 20),
 			page: pick('page', 200),
+			t: pick('t', 12),
+			off: pick('off', 40),
+			visible: pick('visible', 12),
 			ua: pick('ua'),
 			screen: pick('screen', 40),
 			hydrated: report?.hydrated === true,
