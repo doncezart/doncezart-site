@@ -896,7 +896,9 @@
 			flex-direction: column;
 			width: 100%;
 			max-width: 100%;
+			max-height: 100vh;
 			max-height: 100dvh;
+			height: 100vh;
 			height: 100dvh;
 			border-radius: 0;
 			border: none;
@@ -919,12 +921,14 @@
 		.modal-media img {
 			width: 100%;
 			height: auto;
+			max-height: 75vh;
 			max-height: 75dvh;
 			object-fit: contain;
 		}
 		.modal-media video {
 			width: 100%;
 			height: auto;
+			max-height: 75vh;
 			max-height: 75dvh;
 			max-width: 100%;
 		}

@@ -104,7 +104,7 @@
 		<div class="chart">
 			<div class="axis left" aria-hidden="true">
 				<span>Clicks</span>
-				{#each ticks.toReversed() as k}<b style="top: {(1 - k) * 100}%">{C_MAX * k}</b>{/each}
+				{#each [...ticks].reverse() as k}<b style="top: {(1 - k) * 100}%">{C_MAX * k}</b>{/each}
 			</div>
 			<div class="plot" role="img" aria-label="Daily clicks and impressions, {range}" onpointermove={onMove} onpointerleave={() => (hover = null)}>
 				{#each ticks as k}<i class="grid" style="top: {(1 - k) * 100}%"></i>{/each}
@@ -124,7 +124,7 @@
 			</div>
 			<div class="axis right" aria-hidden="true">
 				<span>Impressions</span>
-				{#each ticks.toReversed() as k}<b style="top: {(1 - k) * 100}%">{I_MAX * k}</b>{/each}
+				{#each [...ticks].reverse() as k}<b style="top: {(1 - k) * 100}%">{I_MAX * k}</b>{/each}
 			</div>
 			<div class="x" aria-hidden="true">
 				{#each xTicks as t}<span style="left: {(t.i / last) * 100}%">{t.label}</span>{/each}

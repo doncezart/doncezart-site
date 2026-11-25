@@ -278,7 +278,12 @@
 
 		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		// Grain is meant to be pixel-sized; cap DPR so 4K screens stay cheap.
-		const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+		// Phones and tablets: draw at 1x (the gradient is soft, so it upscales
+		// cleanly) and at ~25fps, and skip the cursor trail (no hover on touch).
+		// Cuts the per-frame GPU work to well under half.
+		const touch = window.matchMedia('(pointer: coarse)').matches;
+		const dpr = Math.min(window.devicePixelRatio || 1, touch ? 1 : 1.5);
+		const frameMs = touch ? 40 : 33;
 
 		const resize = () => {
 			const w = Math.round(canvas.clientWidth * dpr);
@@ -382,7 +387,7 @@
 				uFx,
 				fxNow.flames ? 1 : 0,
 				fxNow.sparks ? 1 : 0,
-				fxNow.trail && !still ? 1 : 0,
+				fxNow.trail && !still && !touch ? 1 : 0,
 				fxNow.ripple && !still ? 1 : 0
 			);
 			gl.uniform3fv(uTrail, trail);
@@ -393,7 +398,7 @@
 		const loop = (now) => {
 			raf = requestAnimationFrame(loop);
 			// ~30fps is plenty for embers + film grain, and halves GPU cost.
-			if (now - last < 33) return;
+			if (now - last < frameMs) return;
 			last = now;
 			render(now);
 		};
@@ -417,9 +422,16 @@
 </div>
 
 <style>
+	/* Sized to the large viewport (URL bar hidden), not inset: 0, so the
+	   canvas doesn't resize, and reallocate, each time a phone's URL bar
+	   slides in or out mid-scroll. */
 	.ember {
 		position: fixed;
-		inset: 0;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100vh;
+		height: 100lvh;
 		z-index: 0;
 		pointer-events: none;
 		background: #000;

@@ -88,6 +88,11 @@
 	/* Only blur once scrolling starts: any filter on this wrapper (even
 	   blur(0)) would stop the glass panels inside it from blurring the embers. */
 	:global(.page.scrolled) .hero-inner { filter: blur(calc(var(--s) * 14px)); }
+	/* Re-blurring a full-screen block on every scroll frame is too heavy for
+	   phones: there it only fades and drifts. */
+	@media (pointer: coarse) {
+		:global(.page.scrolled) .hero-inner { filter: none; }
+	}
 
 
 	h1 {

@@ -118,7 +118,10 @@ function stepFrom(S, y, dir) {
 	else {
 		// Between stops (scrollbar drag, load mid-page): go to the one ahead,
 		// unless we've barely left the one behind, then settle back onto it.
-		const ahead = dir > 0 ? S.findIndex((s) => s > y) : S.findLastIndex((s) => s < y);
+		// (No findLastIndex: older Android browsers lack it.)
+		let ahead = -1;
+		if (dir > 0) ahead = S.findIndex((s) => s > y);
+		else for (let k = last; k >= 0; k--) if (S[k] < y) { ahead = k; break; }
 		if (ahead < 0) return null;
 		const behind = ahead - dir;
 		const barely = behind >= 0 && behind <= last && Math.abs(y - S[behind]) < Math.abs(S[ahead] - S[behind]) * 0.25;

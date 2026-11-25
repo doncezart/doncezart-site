@@ -306,6 +306,7 @@
 
 		position: relative;
 		z-index: 1;
+		height: calc(100vh + (var(--n) - 1) * var(--step));
 		height: calc(100svh + (var(--n) - 1) * var(--step));
 	}
 
@@ -656,6 +657,12 @@
 			opacity 0.6s 0.15s,
 			filter 0.7s 0.15s,
 			visibility 0s;
+	}
+	/* Touch: swap cases with fade and slide only. Blurring a whole window
+	   mid-transition drops frames on phones. */
+	@media (pointer: coarse) {
+		.body.next,
+		.body.past { filter: none; }
 	}
 	/* The visual fills its body, so it stretches to the window height. */
 	.body > :global(*) { flex: 1; }
