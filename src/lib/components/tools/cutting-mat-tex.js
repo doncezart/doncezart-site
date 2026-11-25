@@ -126,6 +126,50 @@ function mottleCanvas(seed, aspect) {
 	return toCanvas(w, h, f, 0.9);
 }
 
+/**
+ * Light and shadow: soft diagonal bands, as if sunlight fell through a
+ * window blind or a draped sheet onto the mat. Low-res (it's all soft
+ * gradients) and stretched over the whole mat like the mottle. The bands are
+ * warped by noise so they ripple instead of looking like a stripe pattern.
+ */
+function lightCanvas(seed, aspect) {
+	const rand = rng(seed * 523 + 11);
+	const w = 320;
+	const h = Math.max(8, Math.round(w / Math.max(0.1, aspect)));
+	const s = Math.min(w, h);
+	const n1 = lattice(rand, 64, 64);
+	const n2 = lattice(rand, 64, 64);
+	const n3 = lattice(rand, 64, 64);
+	// band direction: top left to bottom right, give or take
+	const ang = ((-30 + (rand() - 0.5) * 16) * Math.PI) / 180;
+	const nx = -Math.sin(ang);
+	const ny = Math.cos(ang);
+	const bands = 2.4 + rand() * 0.8; // per short side
+	const phase = rand();
+	const smooth = (a, b, v) => {
+		const t = Math.min(1, Math.max(0, (v - a) / (b - a)));
+		return t * t * (3 - 2 * t);
+	};
+	const f = new Float32Array(w * h);
+	for (let y = 0; y < h; y++) {
+		for (let x = 0; x < w; x++) {
+			const X = x / s;
+			const Y = y / s;
+			// Slow warp bends the bands; it also stretches and squeezes them,
+			// so they vary in width like folds of a draped sheet.
+			const warp = (n1(X * 1.6, Y * 1.6) - 0.5) * 1.5 + (n3(X * 4, Y * 4) - 0.5) * 0.25;
+			const t = (X * nx + Y * ny) * bands + phase + warp;
+			const v = Math.sin(t * Math.PI * 2);
+			const shadow = smooth(-0.15, 0.95, -v);
+			const glow = smooth(0.35, 1, v);
+			// Patchy coverage: some of the mat sits in plain light.
+			const cover = 0.3 + 0.7 * smooth(0.3, 0.7, n2(X * 1.1 + 3.7, Y * 1.1 + 1.9));
+			f[y * w + x] = (-shadow * 0.7 + glow * 0.22) * cover;
+		}
+	}
+	return toCanvas(w, h, f, 0.8);
+}
+
 const toBlobUrl = (canvas) =>
 	new Promise((res) => canvas.toBlob((b) => res(b ? URL.createObjectURL(b) : canvas.toDataURL('image/png')), 'image/png'));
 
@@ -135,7 +179,12 @@ const toBlobUrl = (canvas) =>
  * URLs, which an SVG needs when it is drawn into a canvas or downloaded.
  */
 export async function makeTextures(seed, aspect) {
-	const canvases = { grain: grainCanvas(seed), texture: textureCanvas(seed), mottle: mottleCanvas(seed, aspect) };
+	const canvases = {
+		grain: grainCanvas(seed),
+		texture: textureCanvas(seed),
+		mottle: mottleCanvas(seed, aspect),
+		light: lightCanvas(seed, aspect)
+	};
 	const preview = {};
 	const embed = {};
 	for (const [k, c] of Object.entries(canvases)) {

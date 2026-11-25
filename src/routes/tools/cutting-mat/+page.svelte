@@ -9,7 +9,7 @@
     import SnapSlider from '$lib/components/ui/SnapSlider.svelte';
     import {
         DEFAULT_CONFIG, MAT_COLORS, SIZE_PRESETS, UNIT_DEFAULTS, MM_PER,
-        renderMat, exportSize, svgToPngBlob, toMat
+        renderMat, exportSize, svgToPngBlob, toMat, needsSerif, serifFontCss
     } from '$lib/components/tools/cutting-mat.js';
     import { makeTextures } from '$lib/components/tools/cutting-mat-tex.js';
 
@@ -55,7 +55,22 @@
         };
     });
 
+    // Text panels are sized by measuring the text: re-render once the serif
+    // has loaded so they fit it, not the fallback font.
+    let fontTick = $state(0);
+    $effect(() => {
+        document.fonts?.load('400 16px Newsreader').then(() => fontTick++).catch(() => {});
+    });
+    // Exports draw the SVG as an image, which can't use page fonts: inline it.
+    let fontCss = null;
+    async function exportFontCss(snap) {
+        if (!needsSerif(snap)) return '';
+        fontCss ??= serifFontCss().catch(() => '');
+        return fontCss;
+    }
+
     const svg = $derived((() => {
+        fontTick;
         const mat = toMat($state.snapshot(config));
         if (tex) {
             if (actual) {
@@ -134,29 +149,57 @@
 
     // ── Looks: whole-mat starting points (keep size, zoom, units, watermark) ──
     const NO_ANGLES = { a30: false, a45: false, a60: false };
+    const NO_EDGES = { top: false, right: false, bottom: false, left: false };
+    // Shared by the graphic looks: no wear, flat surface, big main cells with
+    // faint solid fine lines, small numbers.
+    const GRAPHIC = {
+        wear: 0, grain: 0.15, texture: 0.1, vignette: 0, gridSpacing: 5, minorDivisions: 10, minorStyle: 'solid',
+        minorOpacity: 0.22, majorOpacity: 0.9, accentEvery: 0, majorWeight: 0.35, numberSize: 2.4, angleLabels: true,
+        numberEdges: { top: true, right: true, bottom: false, left: true }
+    };
+    const SAMPLE_TEXT = {
+        message: 'Deep work.',
+        caption: 'Shut the tabs, silence the phone and give one thing your full attention. The rest can wait an hour.',
+        sideLabel: 'Cutting mat\nWallpaper'
+    };
+    const TEXT_KEYS = ['message', 'caption', 'sideLabel'];
     const LOOKS = [
         { id: 'classic', label: 'Classic', patch: {} },
         { id: 'clean', label: 'Clean', patch: { colorPreset: 'black', wear: 0, grain: 0.12, texture: 0.15, vignette: 0, angles: NO_ANGLES, minorStyle: 'solid', minorOpacity: 0.25 } },
         { id: 'used', label: 'Well used', patch: { wear: 0.8, grain: 0.6, texture: 0.7, vignette: 0.5 } },
         { id: 'blueprint', label: 'Blueprint', patch: { colorPreset: 'blue', circles: true, crosshair: true, wear: 0.08, minorStyle: 'solid', minorOpacity: 0.3 } },
         { id: 'drafting', label: 'Drafting', patch: { colorPreset: 'cream', minorStyle: 'solid', minorOpacity: 0.3, wear: 0.15, angleFrom: 'bl' } },
-        { id: 'craft', label: 'Craft', patch: { colorPreset: 'pink', wear: 0.1, vignette: 0.1, angleFrom: 'all' } }
+        { id: 'craft', label: 'Craft', patch: { colorPreset: 'pink', wear: 0.1, vignette: 0.1, angleFrom: 'all' } },
+        // Graphic wallpapers: big cells, fine lines, a message on a cleared panel.
+        { id: 'studio', label: 'Studio', patch: { ...GRAPHIC, colorPreset: 'emerald', angleFrom: 'bl', angles: { a30: true, a45: true, a60: false } }, text: SAMPLE_TEXT },
+        { id: 'paper', label: 'Paper', patch: { ...GRAPHIC, colorPreset: 'paper', angleFrom: 'bl', angles: { a30: false, a45: true, a60: false } }, text: { message: 'One thing\nat a time.' } },
+        { id: 'crosses', label: 'Crosses', patch: { ...GRAPHIC, colorPreset: 'black', gridStyle: 'crosses', gridSpacing: 1, minorDivisions: 0, angleFrom: 'bl', angles: { a30: false, a45: true, a60: false } }, text: { message: 'Make it count.' } },
+        { id: 'dots', label: 'Dot grid', patch: { ...GRAPHIC, colorPreset: 'paper', gridStyle: 'dots', gridSpacing: 1, minorDivisions: 2, minorOpacity: 0.35, angles: NO_ANGLES, tickEdges: NO_EDGES, numberEdges: NO_EDGES }, text: { message: 'Less, but better.' } },
+        { id: 'sunlit', label: 'Sunlit', patch: { ...GRAPHIC, colorPreset: 'orange', gridStyle: 'crosses', gridSpacing: 1, minorDivisions: 2, light: 0.7, angleFrom: 'bl', angles: { a30: false, a45: true, a60: false } }, text: { message: 'Keep going.' } },
+        { id: 'shade', label: 'Shade', patch: { ...GRAPHIC, colorPreset: 'paper', light: 0.8, angleFrom: 'bl', angles: { a30: true, a45: true, a60: false } }, text: SAMPLE_TEXT }
     ];
     function lookConfig(look, base = D) {
-        const c = { ...structuredClone(D), ...UNIT_DEFAULTS[base.unit], ...structuredClone(look.patch) };
+        const c = { ...structuredClone(D), ...UNIT_DEFAULTS[base.unit], ...structuredClone(look.patch), ...(look.text ?? {}) };
         const col = MAT_COLORS[c.colorPreset];
         if (col) { c.matColor = col.mat; c.lineColor = col.line; }
         return c;
     }
     // Small previews of each look (A-series proportions, no label or numbers to stay legible).
     const lookThumbs = LOOKS.map((l, i) => renderMat(
-        { ...lookConfig(l), width: 21, height: 14, margin: 1, brand: false, numberEdges: { top: false, right: false, bottom: false, left: false } },
+        { ...lookConfig(l), width: 21, height: 14, margin: 1, brand: false, numberEdges: NO_EDGES, caption: '', sideLabel: '' },
         { id: `lk${i}` }
     ));
     let look = $state('classic');
+    // Set once the visitor types in the Text tab: from then on looks keep it.
+    let textEdited = false;
     function applyLook(l) {
+        // Keeps the size, zoom, watermark and any text you've written (a look
+        // only fills in its sample text where yours is empty).
         const keep = Object.fromEntries(
-            Object.entries(config).filter(([k]) => k.startsWith('brand') || ['pxWidth', 'pxHeight', 'pxPerUnit', 'unit', 'seed'].includes(k))
+            Object.entries(config).filter(([k]) =>
+                k.startsWith('brand') ||
+                ['pxWidth', 'pxHeight', 'pxPerUnit', 'unit', 'seed', 'messageFont', 'messageSize', 'messagePanel', 'captionSize'].includes(k) ||
+                (textEdited && TEXT_KEYS.includes(k)))
         );
         config = { ...lookConfig(l, config), ...keep };
         look = l.id;
@@ -167,11 +210,12 @@
         { id: 'size', label: 'Size', icon: 'fa-solid fa-ruler-combined' },
         { id: 'colour', label: 'Colour', icon: 'fa-solid fa-droplet' },
         { id: 'markings', label: 'Markings', icon: 'fa-solid fa-border-all' },
+        { id: 'text', label: 'Text', icon: 'fa-solid fa-quote-left' },
         { id: 'finish', label: 'Finish', icon: 'fa-solid fa-wand-magic-sparkles' },
         { id: 'watermark', label: 'Watermark', icon: 'fa-solid fa-signature' }
     ];
     let tab = $state('size');
-    let more = $state({ size: false, colour: false, markings: false, finish: false, watermark: false });
+    let more = $state({ size: false, colour: false, markings: false, text: false, finish: false, watermark: false });
 
     // ── Size (pixels) ──
     const DEVICES = [
@@ -241,6 +285,13 @@
         ? [{ v: 4, l: '1/4 in' }, { v: 8, l: '1/8 in' }, { v: 16, l: '1/16 in' }]
         : [{ v: 2, l: '5 mm' }, { v: 5, l: '2 mm' }, { v: 10, l: '1 mm' }]);
     const EDGES = ['top', 'right', 'bottom', 'left'];
+    const GRID_STYLES = [
+        { id: 'lines', label: 'Lines' },
+        { id: 'dots', label: 'Dots' },
+        { id: 'crosses', label: 'Crosses' }
+    ];
+    // ── Text ──
+    const MESSAGES = ['Deep work.', 'Make it count.', 'One thing\nat a time.', 'Keep going.', 'Less, but better.'];
 
     function newScratches() {
         config.seed = Math.floor(Math.random() * 99999) + 1;
@@ -251,6 +302,7 @@
         config = { ...structuredClone(DEFAULT_CONFIG), ...keep };
         if (unit === 'in') setUnit('in');
         look = 'classic';
+        textEdited = false;
     }
 
     // ── Watermark ──
@@ -284,7 +336,8 @@
     async function pngBlob() {
         const snap = $state.snapshot(config);
         const { w, h } = exportSize(snap);
-        return svgToPngBlob(renderMat(toMat(snap), { id: 'cmx', pxWidth: w, pxHeight: h, tex: tex?.embed }), w, h);
+        const css = await exportFontCss(snap);
+        return svgToPngBlob(renderMat(toMat(snap), { id: 'cmx', pxWidth: w, pxHeight: h, tex: tex?.embed, fontCss: css }), w, h);
     }
 
     async function download() {
@@ -294,7 +347,8 @@
         try {
             if (format === 'svg') {
                 const snap = $state.snapshot(config);
-                const file = renderMat(toMat(snap), { id: 'cmx', pxWidth: snap.pxWidth, pxHeight: snap.pxHeight, tex: tex?.embed });
+                const css = await exportFontCss(snap);
+                const file = renderMat(toMat(snap), { id: 'cmx', pxWidth: snap.pxWidth, pxHeight: snap.pxHeight, tex: tex?.embed, fontCss: css });
                 save(new Blob([file], { type: 'image/svg+xml' }), 'svg');
             } else {
                 save(await pngBlob(), 'png');
@@ -502,6 +556,14 @@
 
                 {:else if tab === 'markings'}
                     <div class="field">
+                        <span class="lbl">Grid style</span>
+                        <div class="seg wide">
+                            {#each GRID_STYLES as g}
+                                <button type="button" class:active={config.gridStyle === g.id} onclick={() => (config.gridStyle = g.id)}>{g.label}</button>
+                            {/each}
+                        </div>
+                    </div>
+                    <div class="field">
                         <span class="lbl">Grid squares</span>
                         <div class="seg wide">
                             {#each gridSizes as g}
@@ -613,6 +675,49 @@
                         </div>
                     {/if}
 
+                {:else if tab === 'text'}
+                    <div class="field">
+                        <span class="lbl">Message <small>centred, Enter for a new line</small></span>
+                        <textarea class="text" rows="2" maxlength="120" bind:value={config.message} oninput={() => (textEdited = true)}
+                            placeholder="Deep work." aria-label="Message"></textarea>
+                        <div class="chips">
+                            {#each MESSAGES as m}
+                                <button type="button" class="chip sm" class:active={config.message === m}
+                                    onclick={() => { config.message = m; textEdited = true; }}>{m.replace('\n', ' ')}</button>
+                            {/each}
+                        </div>
+                    </div>
+                    {#if config.message.trim()}
+                        <div class="field">
+                            <span class="lbl">Font</span>
+                            <div class="seg wide">
+                                <button type="button" class:active={config.messageFont === 'serif'} onclick={() => (config.messageFont = 'serif')} style="font-family:Newsreader,Georgia,serif">Serif</button>
+                                <button type="button" class:active={config.messageFont === 'sans'} onclick={() => (config.messageFont = 'sans')} style="font-family:'Helvetica Neue',Arial,sans-serif">Sans</button>
+                                <button type="button" class:active={config.messageFont === 'mono'} onclick={() => (config.messageFont = 'mono')} style="font-family:ui-monospace,Menlo,monospace">Mono</button>
+                            </div>
+                        </div>
+                        <SnapSlider label="Message size" unit="%" bind:value={config.messageSize}
+                            min={1} max={12} step={0.1} notches={[2.4, 3.4, 6]} snapDistance={0.15}
+                            baseline={D.messageSize} reset={() => (config.messageSize = D.messageSize)} />
+                        {@render toggle('Clear the grid behind it', config.messagePanel, () => (config.messagePanel = !config.messagePanel))}
+                    {/if}
+                    <div class="field">
+                        <span class="lbl">Caption <small>bottom right</small></span>
+                        <textarea class="text" rows="3" maxlength="400" bind:value={config.caption} oninput={() => (textEdited = true)}
+                            placeholder="A short paragraph, a reminder, a quote…" aria-label="Caption"></textarea>
+                    </div>
+                    <div class="field">
+                        <span class="lbl">Side label <small>top left, vertical</small></span>
+                        <textarea class="text" rows="2" maxlength="120" bind:value={config.sideLabel} oninput={() => (textEdited = true)}
+                            placeholder="Your name, a date, a project" aria-label="Side label"></textarea>
+                    </div>
+                    {#if config.caption.trim() || config.sideLabel.trim()}
+                        <SnapSlider label="Caption and label size" unit="%" bind:value={config.captionSize}
+                            min={0.5} max={3} step={0.05} notches={[1, 1.5]} snapDistance={0.05}
+                            baseline={D.captionSize} reset={() => (config.captionSize = D.captionSize)} />
+                    {/if}
+                    <p class="hint">Text sits on a patch of mat with the grid cleared, snapped to the grid lines.</p>
+
                 {:else if tab === 'finish'}
                     <SnapSlider label="Wear" bind:value={config.wear}
                         min={0} max={1} step={0.05} notches={[0, 0.25, 1]} snapDistance={0.03}
@@ -626,6 +731,9 @@
                     <button type="button" class="wide-btn" onclick={newScratches} disabled={config.wear === 0 && config.grain === 0 && config.texture === 0}>
                         <i class="fa-solid fa-dice"></i> New scratches and grain
                     </button>
+                    <SnapSlider label="Light and shadow" bind:value={config.light}
+                        min={0} max={1} step={0.05} notches={[0, 0.6, 1]} snapDistance={0.03}
+                        baseline={D.light} reset={() => (config.light = D.light)} />
                     {@render toggle('Edge outline', config.edge, () => (config.edge = !config.edge))}
                     {@render moreToggle('finish')}
                     {#if more.finish}
@@ -922,7 +1030,7 @@
         top: 0;
         z-index: 2;
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(6, minmax(0, 1fr));
         border-top: 1px solid rgba(255, 255, 255, 0.08);
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         background: rgba(16, 16, 16, 0.92);
@@ -1183,6 +1291,8 @@
         font-size: 0.9rem;
     }
     .text:focus { border-color: rgba(255, 255, 255, 0.45); }
+    textarea.text { display: block; resize: vertical; min-height: 2.6rem; line-height: 1.4; }
+    textarea.text + .chips { margin-top: 0.5rem; }
     .text.seed { width: 6.5rem; text-align: right; font-variant-numeric: tabular-nums; }
 
     .wide-btn {
@@ -1343,5 +1453,9 @@
             background: #0b0b0b;
         }
         .tabs { top: 4.4rem; background: #0e0e0e; }
+    }
+    /* Six tabs across a phone: a size smaller so "Watermark" fits. */
+    @media (max-width: 420px) {
+        .tab { font-size: 0.62rem; }
     }
 </style>
