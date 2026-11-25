@@ -4,7 +4,11 @@
     import '@fortawesome/fontawesome-free/css/all.min.css'
     import { fly } from 'svelte/transition';
     import { page } from '$app/state';
+    import { onMount } from 'svelte';
     let { data, children } = $props();
+
+    // Tells static/diag.js the app started (no mark after 8s = blank page).
+    onMount(() => document.documentElement.setAttribute('data-hydrated', ''));
 
     let isAdmin = $derived(page.url.pathname.startsWith('/admin'));
     // /render/* are bare pages the card API screenshots: no frame at all.
