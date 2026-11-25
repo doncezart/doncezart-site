@@ -261,8 +261,8 @@
 		border: 1px solid var(--line);
 		border-radius: 6px;
 		background: rgba(0, 0, 0, 0.45);
-		backdrop-filter: blur(14px);
 		-webkit-backdrop-filter: blur(14px);
+		backdrop-filter: blur(14px);
 		font-size: 0.92rem;
 		color: var(--muted);
 		text-decoration: none;
@@ -320,8 +320,8 @@
 		border: 1px solid var(--w-line-strong);
 		border-radius: var(--w-radius);
 		background: rgba(14, 14, 14, 0.55);
-		backdrop-filter: blur(20px);
 		-webkit-backdrop-filter: blur(20px);
+		backdrop-filter: blur(20px);
 		text-decoration: none;
 	}
 	.mosaic figure {
@@ -347,8 +347,8 @@
 		padding: 0.35rem 0.7rem;
 		border-radius: 999px;
 		background: rgba(0, 0, 0, 0.6);
-		backdrop-filter: blur(10px);
 		-webkit-backdrop-filter: blur(10px);
+		backdrop-filter: blur(10px);
 		font-size: 0.75rem;
 		font-weight: 600;
 		color: #fff;
@@ -393,8 +393,8 @@
 		border: 1px solid rgba(255, 255, 255, 0.12);
 		border-radius: 12px;
 		background: rgba(14, 14, 14, 0.55);
-		backdrop-filter: blur(28px) saturate(140%);
 		-webkit-backdrop-filter: blur(28px) saturate(140%);
+		backdrop-filter: blur(28px) saturate(140%);
 		color: #fff;
 		text-decoration: none;
 		transition: border-color 0.25s, transform 0.25s;

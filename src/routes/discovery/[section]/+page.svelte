@@ -506,8 +506,8 @@
 		border: 1px solid rgba(255, 255, 255, 0.14);
 		border-radius: 999px;
 		background: rgba(14, 14, 14, 0.55);
-		backdrop-filter: blur(28px) saturate(140%);
 		-webkit-backdrop-filter: blur(28px) saturate(140%);
+		backdrop-filter: blur(28px) saturate(140%);
 		color: rgba(255, 255, 255, 0.5);
 	}
 	.col-slider i:first-child { font-size: 0.75rem; }
@@ -564,8 +564,8 @@
 		width: 2.5rem; height: 2.5rem; border-radius: 50%;
 		border: 1px solid rgba(255, 255, 255, 0.14);
 		background: rgba(14, 14, 14, 0.55);
-		backdrop-filter: blur(20px);
 		-webkit-backdrop-filter: blur(20px);
+		backdrop-filter: blur(20px);
 		color: rgba(255, 255, 255, 0.75); cursor: pointer;
 		display: flex; align-items: center; justify-content: center;
 		transition: border-color 0.2s, color 0.2s, background 0.2s; font-size: 0.8rem;
@@ -581,8 +581,8 @@
 		border-radius: 999px;
 		border: 1px solid rgba(255, 255, 255, 0.14);
 		background: rgba(14, 14, 14, 0.4);
-		backdrop-filter: blur(14px);
 		-webkit-backdrop-filter: blur(14px);
+		backdrop-filter: blur(14px);
 		color: rgba(255, 255, 255, 0.7);
 		font-family: var(--font-body);
 		font-size: 0.85rem;
@@ -608,8 +608,8 @@
 		border: 1px solid rgba(255, 255, 255, 0.12);
 		border-radius: 12px;
 		background: rgba(14, 14, 14, 0.55);
-		backdrop-filter: blur(28px) saturate(140%);
 		-webkit-backdrop-filter: blur(28px) saturate(140%);
+		backdrop-filter: blur(28px) saturate(140%);
 	}
 	.empty-mark {
 		display: flex; align-items: center; justify-content: center;
@@ -625,8 +625,8 @@
 	.modal-overlay {
 		position: fixed; inset: 0; z-index: 1000;
 		background: rgba(0, 0, 0, 0.85);
-		backdrop-filter: blur(12px);
 		-webkit-backdrop-filter: blur(12px);
+		backdrop-filter: blur(12px);
 		display: flex; align-items: center; justify-content: center;
 		padding: 1rem;
 	}
@@ -636,8 +636,8 @@
 		width: min(92vw, 1100px);
 		max-height: 90vh;
 		background: rgba(14, 14, 14, 0.72);
-		backdrop-filter: blur(28px) saturate(140%);
 		-webkit-backdrop-filter: blur(28px) saturate(140%);
+		backdrop-filter: blur(28px) saturate(140%);
 		border: 1px solid rgba(255, 255, 255, 0.12);
 		border-radius: 12px;
 		overflow: hidden;
@@ -701,8 +701,8 @@
 		position: absolute; top: 50%; transform: translateY(-50%);
 		background: rgba(0, 0, 0, 0.6);
 		border: 1px solid rgba(255, 255, 255, 0.16);
-		backdrop-filter: blur(10px);
 		-webkit-backdrop-filter: blur(10px);
+		backdrop-filter: blur(10px);
 		color: #fff;
 		width: 40px; height: 40px; border-radius: 50%;
 		display: flex; align-items: center; justify-content: center;

@@ -790,8 +790,8 @@
             radial-gradient(110% 80% at 50% 115%, rgba(255, 43, 31, 0.16), transparent 60%),
             radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1.2px) 0 0 / 22px 22px,
             rgba(10, 10, 10, 0.6);
-        backdrop-filter: blur(28px) saturate(140%);
         -webkit-backdrop-filter: blur(28px) saturate(140%);
+        backdrop-filter: blur(28px) saturate(140%);
     }
     .mat {
         filter: drop-shadow(0 24px 40px rgba(0, 0, 0, 0.65)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
@@ -860,8 +860,8 @@
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 12px;
         background: rgba(14, 14, 14, 0.55);
-        backdrop-filter: blur(28px) saturate(140%);
         -webkit-backdrop-filter: blur(28px) saturate(140%);
+        backdrop-filter: blur(28px) saturate(140%);
         overflow: hidden;
     }
     .panel-scroll {
@@ -1323,6 +1323,16 @@
         .editor { grid-template-columns: minmax(0, 1fr); }
         .stage { position: relative; top: 0; height: min(68vw, 520px); }
         .panel { position: relative; top: 0; height: auto; overflow: visible; }
+        /* Stacked, the panel runs ~1000px tall: a backdrop blur that size
+           over the animated background is too much for phone GPUs, and
+           nothing scrolls under it here anyway. */
+        .stage,
+        .panel {
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
+        }
+        .stage { background-color: #0a0a0a; }
+        .panel { background: #0e0e0e; }
         .panel-scroll { overflow: visible; }
         .export {
             position: sticky;

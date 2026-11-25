@@ -136,8 +136,8 @@
 		border: 1px solid var(--line);
 		border-radius: 6px;
 		background: rgba(0, 0, 0, 0.45);
-		backdrop-filter: blur(14px);
 		-webkit-backdrop-filter: blur(14px);
+		backdrop-filter: blur(14px);
 		font-size: 0.92rem;
 		color: var(--muted);
 		text-decoration: none;

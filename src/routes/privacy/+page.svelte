@@ -57,8 +57,8 @@
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 12px;
         background: rgba(14, 14, 14, 0.55);
-        backdrop-filter: blur(28px) saturate(140%);
         -webkit-backdrop-filter: blur(28px) saturate(140%);
+        backdrop-filter: blur(28px) saturate(140%);
     }
     @media (max-width: 800px) {
         .content { margin-inline: clamp(1.25rem, 4vw, 3rem); }

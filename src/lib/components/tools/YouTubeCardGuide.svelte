@@ -227,8 +227,8 @@ const image = await res.blob();`
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 12px;
         background: rgba(14, 14, 14, 0.55);
-        backdrop-filter: blur(28px) saturate(140%);
         -webkit-backdrop-filter: blur(28px) saturate(140%);
+        backdrop-filter: blur(28px) saturate(140%);
         font-family: var(--font-body);
     }
     .toc-title {
@@ -256,8 +256,8 @@ const image = await res.blob();`
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 12px;
         background: rgba(14, 14, 14, 0.55);
-        backdrop-filter: blur(28px) saturate(140%);
         -webkit-backdrop-filter: blur(28px) saturate(140%);
+        backdrop-filter: blur(28px) saturate(140%);
     }
 
     section {

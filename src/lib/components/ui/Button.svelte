@@ -47,8 +47,8 @@
         background: rgba(0, 0, 0, 0.35);
         color: #fff;
         border: 1px solid rgba(255, 255, 255, 0.28);
-        backdrop-filter: blur(14px);
         -webkit-backdrop-filter: blur(14px);
+        backdrop-filter: blur(14px);
     }
     .btn.btn.btn--outline:hover {
         background: var(--accent, #ff2b1f);

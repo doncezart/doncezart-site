@@ -65,8 +65,8 @@
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 12px;
         background: rgba(14, 14, 14, 0.55);
-        backdrop-filter: blur(28px) saturate(140%);
         -webkit-backdrop-filter: blur(28px) saturate(140%);
+        backdrop-filter: blur(28px) saturate(140%);
         transition: border-color 0.25s, transform 0.25s;
     }
     .server-card:hover { border-color: rgba(255, 255, 255, 0.3); transform: translateY(-3px); }

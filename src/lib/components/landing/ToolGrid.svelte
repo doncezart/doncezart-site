@@ -169,8 +169,8 @@
 		padding: 1.75rem;
 		border-style: dashed;
 		background: rgba(14, 14, 14, 0.55);
-		backdrop-filter: blur(20px);
 		-webkit-backdrop-filter: blur(20px);
+		backdrop-filter: blur(20px);
 	}
 	.tool.next > i {
 		display: grid;

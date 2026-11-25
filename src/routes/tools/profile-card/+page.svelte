@@ -585,8 +585,8 @@
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 12px;
         background: rgba(14, 14, 14, 0.55);
-        backdrop-filter: blur(28px) saturate(140%);
         -webkit-backdrop-filter: blur(28px) saturate(140%);
+        backdrop-filter: blur(28px) saturate(140%);
         box-shadow: 0 40px 120px -30px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.06);
     }
     .input-row {
@@ -681,8 +681,8 @@
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 12px;
         background: rgba(14, 14, 14, 0.55);
-        backdrop-filter: blur(28px) saturate(140%);
         -webkit-backdrop-filter: blur(28px) saturate(140%);
+        backdrop-filter: blur(28px) saturate(140%);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
     }
 
@@ -988,8 +988,8 @@
         border: 1px solid rgba(255, 43, 31, 0.4);
         border-radius: 10px;
         background: rgba(255, 43, 31, 0.1);
-        backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
+        backdrop-filter: blur(20px);
         font-family: var(--font-body);
     }
     .api-note > i { color: var(--accent, #ff2b1f); font-size: 1rem; margin-top: 0.15rem; }

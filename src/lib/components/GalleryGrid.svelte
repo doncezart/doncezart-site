@@ -450,8 +450,8 @@
         background: rgba(0, 0, 0, 0.6);
         color: rgba(255, 255, 255, 0.8);
         border: 1px solid rgba(255, 255, 255, 0.14);
-        backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
         line-height: 1.4;
     }
 

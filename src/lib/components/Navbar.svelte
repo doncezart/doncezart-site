@@ -170,8 +170,8 @@
     .nav.scrolled {
         padding-block: 0.85rem;
         background: rgba(0, 0, 0, 0.35);
-        backdrop-filter: blur(18px) saturate(140%);
         -webkit-backdrop-filter: blur(18px) saturate(140%);
+        backdrop-filter: blur(18px) saturate(140%);
         border-bottom-color: rgba(255, 255, 255, 0.12);
     }
     /* Menu open: the bar sits above the menu (its logo and the X stay put). */
@@ -179,8 +179,8 @@
         z-index: 510;
         background: transparent;
         border-bottom-color: transparent;
-        backdrop-filter: none;
         -webkit-backdrop-filter: none;
+        backdrop-filter: none;
     }
     .nav.menu-open .end .btn { visibility: hidden; }
     .brand { justify-self: start; display: flex; }

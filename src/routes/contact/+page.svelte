@@ -217,8 +217,8 @@
 		border: 1px solid rgba(255, 255, 255, 0.12);
 		border-radius: 12px;
 		background: rgba(14, 14, 14, 0.55);
-		backdrop-filter: blur(28px) saturate(140%);
 		-webkit-backdrop-filter: blur(28px) saturate(140%);
+		backdrop-filter: blur(28px) saturate(140%);
 		box-shadow: 0 40px 120px -30px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 	}
 
@@ -342,8 +342,8 @@
 		border: 1px solid var(--line);
 		border-radius: 999px;
 		background: rgba(0, 0, 0, 0.45);
-		backdrop-filter: blur(14px);
 		-webkit-backdrop-filter: blur(14px);
+		backdrop-filter: blur(14px);
 		font: inherit;
 		font-size: 0.85rem;
 		color: rgba(255, 255, 255, 0.85);

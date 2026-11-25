@@ -1108,8 +1108,8 @@ When I send a YouTube link, put it in url, keep the rest, and show me the image.
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 999px;
         background: rgba(14, 14, 14, 0.55);
-        backdrop-filter: blur(28px) saturate(140%);
         -webkit-backdrop-filter: blur(28px) saturate(140%);
+        backdrop-filter: blur(28px) saturate(140%);
         color: rgba(255, 255, 255, 0.75);
         font-family: var(--font-body);
         font-size: 0.85rem;
@@ -1163,8 +1163,8 @@ When I send a YouTube link, put it in url, keep the rest, and show me the image.
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 12px;
         background: rgba(14, 14, 14, 0.55);
-        backdrop-filter: blur(28px) saturate(140%);
         -webkit-backdrop-filter: blur(28px) saturate(140%);
+        backdrop-filter: blur(28px) saturate(140%);
     }
 
     /* Layout tiles fill the box, whatever the Video box's height */
@@ -1199,8 +1199,8 @@ When I send a YouTube link, put it in url, keep the rest, and show me the image.
             radial-gradient(110% 80% at 50% 115%, rgba(255, 43, 31, 0.16), transparent 60%),
             radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1.2px) 0 0 / 22px 22px,
             rgba(10, 10, 10, 0.6);
-        backdrop-filter: blur(28px) saturate(140%);
         -webkit-backdrop-filter: blur(28px) saturate(140%);
+        backdrop-filter: blur(28px) saturate(140%);
     }
     /* The video frame, in proportion */
     .screen {
@@ -1493,8 +1493,8 @@ When I send a YouTube link, put it in url, keep the rest, and show me the image.
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 10px;
         background: rgba(18, 18, 18, 0.88);
-        backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
+        backdrop-filter: blur(20px);
         box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
     }
     .bg-title { font-family: var(--font-body); font-size: 0.78rem; color: #fff; }
@@ -1531,8 +1531,8 @@ When I send a YouTube link, put it in url, keep the rest, and show me the image.
         border: 1px solid rgba(255, 43, 31, 0.4);
         border-radius: 10px;
         background: rgba(30, 10, 8, 0.85);
-        backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(16px);
         font-family: var(--font-body);
         font-size: 0.8rem;
         line-height: 1.5;
@@ -1556,8 +1556,8 @@ When I send a YouTube link, put it in url, keep the rest, and show me the image.
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 12px;
         background: rgba(14, 14, 14, 0.55);
-        backdrop-filter: blur(28px) saturate(140%);
         -webkit-backdrop-filter: blur(28px) saturate(140%);
+        backdrop-filter: blur(28px) saturate(140%);
         overflow: hidden;
     }
     .panel-scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
@@ -1990,6 +1990,15 @@ When I send a YouTube link, put it in url, keep the rest, and show me the image.
         .stage { position: relative; top: 0; height: calc(min(56vw, 400px) + 140px); }
         .panel { position: relative; top: 0; height: auto; overflow: visible; }
         .panel-scroll { overflow: visible; }
+        /* Stacked, the panel runs ~1000px tall: a backdrop blur that size
+           over the animated background is too much for phone GPUs. */
+        .stage,
+        .panel {
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
+        }
+        .stage { background-color: #0a0a0a; }
+        .panel { background: #0e0e0e; }
         .export {
             position: sticky;
             bottom: 0;

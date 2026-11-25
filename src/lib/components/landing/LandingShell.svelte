@@ -108,8 +108,18 @@
 	/* Touch devices: no overlay grain. A full-screen blend layer has to be
 	   recomposited every frame the embers or the page move, which is what made
 	   phones stutter while scrolling; the shader already draws its own grain. */
+	/* Touch devices: no backdrop blur anywhere (glass panels keep their tinted
+	   backgrounds). Each blurred element is re-blurred whenever the embers or
+	   the page move, and the tall ones (the YouTube card guide runs ~8000px)
+	   are more than phone GPUs can hold. Android phones never had these
+	   blurs anyway: until the declarations were reordered, the CSS minifier
+	   kept only the -webkit- version, which Chrome ignores. */
 	@media (pointer: coarse) {
 		.grain { display: none; }
+		.page :global(*) {
+			-webkit-backdrop-filter: none !important;
+			backdrop-filter: none !important;
+		}
 	}
 
 	/* ── Buttons: solid and plain; hover just warms to the accent. Global so
@@ -133,8 +143,8 @@
 		color: #fff;
 		background: rgba(0, 0, 0, 0.35);
 		border-color: rgba(255, 255, 255, 0.28);
-		backdrop-filter: blur(14px);
 		-webkit-backdrop-filter: blur(14px);
+		backdrop-filter: blur(14px);
 	}
 	.page :global(.btn-sm) { padding: 0.55rem 1rem; font-size: 0.85rem; }
 	.page :global(.btn:hover) { color: #fff; background: var(--accent); border-color: var(--accent); }
@@ -226,6 +236,18 @@
 	}
 	@media (prefers-reduced-motion: reduce) {
 		.page :global(.reveal) { animation: none; }
+	}
+	/* Touch devices: fade and rise only, no blur. Blurring a tall block (a
+	   tool's whole editor is ~4000 device px high on a phone), with blurred
+	   panels inside it, crashed the GPU on some Android phones and left the
+	   screen black; it's also the costliest frame of the load-in. */
+	@keyframes -global-l-rise {
+		from { opacity: 0; transform: translateY(12px); }
+		to { opacity: 1; transform: none; }
+	}
+	@media (pointer: coarse) {
+		.page :global(.reveal) { animation-name: l-rise; }
+		.page :global(.l-wait .l-r) { filter: none; }
 	}
 
 	/* ── Back to top ── square, same corners as .btn. Solid background (no

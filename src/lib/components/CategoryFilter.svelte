@@ -205,8 +205,8 @@
         border-radius: 50%;
         background: rgba(14, 14, 14, 0.55);
         border: 1px solid rgba(255, 255, 255, 0.14);
-        backdrop-filter: blur(14px);
         -webkit-backdrop-filter: blur(14px);
+        backdrop-filter: blur(14px);
         color: rgba(255, 255, 255, 0.6);
         cursor: pointer;
         transition: color 0.2s, border-color 0.2s;
@@ -223,8 +223,8 @@
         border-radius: 999px;
         border: 1px solid rgba(255, 255, 255, 0.14);
         background: rgba(14, 14, 14, 0.4);
-        backdrop-filter: blur(14px);
         -webkit-backdrop-filter: blur(14px);
+        backdrop-filter: blur(14px);
         color: rgba(255, 255, 255, 0.7);
         font-family: var(--font-body);
         font-size: 0.88rem;
@@ -258,8 +258,8 @@
         border-radius: 12px;
         background: rgba(14, 14, 14, 0.55);
         border: 1px solid rgba(255, 255, 255, 0.12);
-        backdrop-filter: blur(28px) saturate(140%);
         -webkit-backdrop-filter: blur(28px) saturate(140%);
+        backdrop-filter: blur(28px) saturate(140%);
         color: #fff;
         font-family: var(--font-body);
         font-size: 0.95rem;
@@ -280,8 +280,8 @@
         border-radius: 12px;
         background: rgba(14, 14, 14, 0.55);
         border: 1px solid rgba(255, 255, 255, 0.12);
-        backdrop-filter: blur(28px) saturate(140%);
         -webkit-backdrop-filter: blur(28px) saturate(140%);
+        backdrop-filter: blur(28px) saturate(140%);
         overflow: hidden;
         @media (max-width: 666px) {
             display: flex;

@@ -470,8 +470,8 @@
 		border: 1px solid rgba(255, 255, 255, 0.12);
 		border-radius: 6px;
 		background: rgba(0, 0, 0, 0.45);
-		backdrop-filter: blur(14px);
 		-webkit-backdrop-filter: blur(14px);
+		backdrop-filter: blur(14px);
 	}
 	.stat {
 		--d: calc(0.32s + var(--k) * 0.07s);
