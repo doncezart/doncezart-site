@@ -235,7 +235,10 @@
 	/* ── Load-in: blocks pull into focus like a lens racking (add .reveal
 	   and a --d stagger index). ── */
 	.page :global(.reveal) {
-		animation: l-focus 1.1s cubic-bezier(0.2, 0.7, 0.1, 1) both;
+		/* backwards, not both: the end state is the element's own style, and
+		   without a forwards fill Chrome drops the animation's GPU layer once
+		   it's done (a stuck layer is ~17MB for a phone-sized tool editor). */
+		animation: l-focus 1.1s cubic-bezier(0.2, 0.7, 0.1, 1) backwards;
 		animation-delay: calc(0.15s + var(--d, 0) * 0.12s);
 	}
 	@keyframes -global-l-focus {
